@@ -378,10 +378,7 @@ def get_paths(
     default_root: str = "",
 ) -> list[str]:
     """Returns list of file paths for the given agent and subpaths, searched in order of priority:
-    project/agents/, project/, usr/agents/, plugin agents/, agents/, usr/, plugins/, default.
-
-    A module asked for by its `.py` name is found in its compiled form too, and
-    comes back under the `.py` name (helpers.modules.find)."""
+    project/agents/, project/, usr/agents/, plugin agents/, agents/, usr/, plugins/, default."""
     cache_key = cache.determine_cache_key(
         agent,
         *subpaths,

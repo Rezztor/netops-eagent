@@ -98,8 +98,6 @@ class LiteParseParser(BaseParser):
             result = subprocess.run(
                 [
                     sys.executable,
-                    # Not `-m`: the worker is a compiled module in a delivered
-                    # image, and `-m` runs source only.
                     "-c",
                     "from plugins._document_query.helpers.parsers.liteparse_worker import main; raise SystemExit(main())",
                 ],

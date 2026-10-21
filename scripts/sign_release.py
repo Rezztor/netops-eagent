@@ -91,7 +91,7 @@ IMAGES = ("eagent", "eagent-runner", "eagent-ansible", "eagent-cloud")
 # these are the inputs that land outside /eagent; everything else of it travels as files.
 # tests/test_update_tool.py compares the lists with the COPY lines of the Dockerfiles.
 INPUTS = {
-    "eagent": ("requirements.txt", "Dockerfile", "docker/base/", "docker/run/", "docker/compile_python.py"),
+    "eagent": ("requirements.txt", "Dockerfile", "docker/base/", "docker/run/"),
     "eagent-runner": ("docker/runner/", "docker/run/fs/exe/node_eval.js"),
     "eagent-ansible": (
         "executor/",
@@ -99,7 +99,6 @@ INPUTS = {
         "plugins/_ea_ansible/helpers/",
         "plugins/_ea_ansible/catalogue.yaml",
         "plugins/_ea_ansible/playbooks/",
-        "docker/compile_python.py",
     ),
     "eagent-cloud": (
         "cloud_executor/",
@@ -107,7 +106,6 @@ INPUTS = {
         "executor/credentials.py",
         "executor/store.py",
         "plugins/_ea_azure/helpers/prices.py",
-        "docker/compile_python.py",
     ),
 }
 # Files of the tree that also live on the host, and the name the host tool knows them by.

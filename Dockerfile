@@ -104,16 +104,6 @@ RUN cp -a /git/eagent/. /eagent/ \
     && find /eagent -name '__pycache__' -type d -prune -exec rm -rf {} + \
     && find /eagent -name '*.pyc' -delete
 
-# No source of ours in the delivered image: each module is compiled to a native
-# one in its place and the `.py` removed (docker/compile_python.py, which also
-# says what stays as source and why). Nuitka lives in its own environment, made
-# from the interpreter the application runs on, and stays in this stage. The
-# last line is the proof that what will start is the compiled code.
-RUN "$(readlink -f /opt/venv-eagent/bin/python)" -m venv /opt/venv-compile \
-    && /opt/venv-compile/bin/pip install --no-cache-dir nuitka==4.3 \
-    && /opt/venv-compile/bin/python /git/eagent/docker/compile_python.py /eagent \
-    && cd /eagent && /opt/venv-eagent/bin/python -c "import agent, initialize, run_ui, helpers.modules as m; assert all(hasattr(x, '__compiled__') for x in (agent, initialize, run_ui, m)); print('compiled core imports')"
-
 
 # ---------------------------------------------------------------------------
 # Stage 2: runtime. This is the delivered image.
@@ -141,8 +131,8 @@ RUN rm -rf /opt/venv-eagent
 # it contains no application source beyond what the assemble step copied.
 COPY --from=builder /opt/venv-eagent /opt/venv-eagent
 # Owned by the application's account from the copy on, for the reason given at
-# the model below: the compiled modules are some 200 MB, and the `chown -R`
-# further down put every one of them into the image a second time.
+# the model below: the application tree is large, and the `chown -R`
+# further down put every file of it into the image a second time.
 COPY --from=builder --chown=1000:1000 /eagent /eagent
 
 # The embedding model, and the two variables that make the application look for

@@ -27,7 +27,7 @@
 
 ## Runtime Contracts
 
-- The local tools are listed with `helpers.modules.list_modules` and a single one is looked for with `helpers.modules.find`: a tool shipped compiled has the same id, name and origin as its source had.
+- The local tools are listed with `helpers.modules.list_modules` and a single one is looked for with `helpers.modules.find`.
 - Scoped asset precedence comes from `helpers.plugins`: active project profile,
   active project, user profile, bundled/plugin profile, then default.
   `get_policy` selects the first custom policy; unknown-only and

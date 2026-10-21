@@ -461,8 +461,7 @@ def listen_options() -> dict[str, Any]:
 
 
 def main() -> None:
-    """Serve. A function, so that the image can start it from compiled code,
-    which `python -m` cannot run (docker/compile_python.py)."""
+    """Serve. A function, so that the image can start it with `python -c`."""
     from waitress import serve
 
     options = listen_options()

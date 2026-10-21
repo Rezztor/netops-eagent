@@ -18,7 +18,7 @@
 - Project metadata defaults must remain backwards-compatible; missing `include_agents_md` is treated as enabled, project instruction file content is injected with an explicit source path, and active-project AGENTS.md path-chain guidance is assembled into prompt protocol without duplicating the project root AGENTS.md.
 - Do not hardcode secrets, provider keys, local absolute paths, or environment-specific values.
 - Use `RepairableException` for errors an agent may be able to fix.
-- A module that is discovered from the file system (an API or WebSocket handler, a tool, an extension, a plugin's `hooks.py`, the script beside a prompt) is named by its `.py` path and looked for with `helpers.modules.find`, `exists` or `list_modules`, never with `os.path.exists`, `Path.is_file` or a `*.py` glob: a delivered image carries these modules compiled, with no `.py` on disk.
+- A module that is discovered from the file system (an API or WebSocket handler, a tool, an extension, a plugin's `hooks.py`, the script beside a prompt) is named by its `.py` path and looked for with `helpers.modules.find`, `exists` or `list_modules`, not with a `*.py` glob of its own, so that one rule decides what counts as a module.
 - This directory is a file-documented DOX profile: every direct `*.py` helper module must have a same-directory `*.py.dox.md` file named by appending `.dox.md` to the full Python filename.
 - The `*.py.dox.md` file owns helper purpose, public classes/functions, cross-module contracts, persistence or side effects, path/security assumptions, important dependencies, and verification guidance.
 - When a helper module is added, removed, renamed, or behaviorally changed, update its matching `*.py.dox.md` in the same change.

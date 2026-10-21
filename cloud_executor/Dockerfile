@@ -52,32 +52,6 @@ RUN set -eux; \
     chmod 0755 /out/tofu "$azurerm_dir"/terraform-provider-azurerm* "$azapi_dir"/terraform-provider-azapi*; \
     chmod -R a+rX /mirror
 
-# ---------------------------------------------------------------------------
-# Stage: compile. No source of ours in the delivered image: each module is
-# compiled to a native one in its place (docker/compile_python.py). The same
-# Debian and so the same Python as the final stage, which a compiled module
-# is tied to; the compiler and Nuitka stay here.
-# ---------------------------------------------------------------------------
-FROM debian:stable-slim AS compile
-ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        python3 python3-venv python3-dev gcc libc6-dev ca-certificates \
-    && rm -rf /var/lib/apt/lists/* \
-    && python3 -m venv /opt/compile \
-    && /opt/compile/bin/pip install --no-cache-dir nuitka==4.3
-WORKDIR /app
-COPY cloud_executor/*.py /app/cloud_executor/
-COPY executor/secret_env.py executor/credentials.py executor/store.py /app/executor/
-# The read plugin's price list client, copied as it is with its one import pointed at this container's own connection.
-COPY plugins/_ea_azure/helpers/prices.py /tmp/prices.py
-RUN sed 's/^from helpers import db$/from cloud_executor import db/' /tmp/prices.py > /app/cloud_executor/prices.py \
-    && grep -q '^from cloud_executor import db$' /app/cloud_executor/prices.py \
-    && ! grep -q 'from helpers' /app/cloud_executor/prices.py \
-    && rm /tmp/prices.py
-COPY docker/compile_python.py /tmp/compile_python.py
-RUN /opt/compile/bin/python /tmp/compile_python.py /app
-
-
 FROM debian:stable-slim
 
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -121,7 +95,14 @@ COPY cloud_executor/NOTICE /usr/share/doc/eagent-cloud/NOTICE
 
 WORKDIR /app
 # The executor package, its reviewed catalogue and the role it expects its identity to hold.
-COPY --from=compile /app/ /app/
+COPY cloud_executor/*.py /app/cloud_executor/
+COPY executor/secret_env.py executor/credentials.py executor/store.py /app/executor/
+# The read plugin's price list client, copied as it is with its one import pointed at this container's own connection.
+COPY plugins/_ea_azure/helpers/prices.py /tmp/prices.py
+RUN sed 's/^from helpers import db$/from cloud_executor import db/' /tmp/prices.py > /app/cloud_executor/prices.py \
+    && grep -q '^from cloud_executor import db$' /app/cloud_executor/prices.py \
+    && ! grep -q 'from helpers' /app/cloud_executor/prices.py \
+    && rm /tmp/prices.py
 COPY cloud_executor/role.json cloud_executor/templates.yaml cloud_executor/actions.yaml /app/cloud_executor/
 COPY cloud_executor/templates/ /app/cloud_executor/templates/
 # Reused from the Ansible executor by copying, not duplicated: secrets from env or a file, and the AES-GCM store.

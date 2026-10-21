@@ -33,7 +33,7 @@ image/
 .conda/
 .cursor/
 # Agent worktrees live under .claude/worktrees/: whole copies of this and other repositories, which a local build
-# put into the image and Nuitka then failed on (UAT, 2026-10-19).
+# put into the image (UAT, 2026-10-19).
 .claude/
 .venv/
 .git/

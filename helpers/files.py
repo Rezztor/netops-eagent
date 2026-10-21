@@ -40,7 +40,7 @@ def load_plugin_variables(
 
     from helpers import modules
 
-    # The script beside the prompt, by its `.py` name: source or compiled.
+    # The script beside the prompt, by its `.py` name.
     plugin_filename = basename(file, ".md") + ".py"
     plugin_file = None
     for directory in [dirname(file)] + backup_dirs:

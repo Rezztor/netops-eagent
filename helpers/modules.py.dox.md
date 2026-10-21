@@ -12,7 +12,6 @@
 - `modules.py.dox.md` owns durable notes about responsibilities, contracts, side effects, and verification for that implementation.
 - Top-level functions:
 - `find(file_path: str) -> str`
-- `_import_compiled(abs_path: str, file: str) -> ModuleType`
 - `exists(path: str) -> bool`
 - `list_modules(folder: str, pattern: str=..., recursive: bool=...) -> list[str]`
 - `import_module(file_path: str) -> ModuleType`
@@ -23,12 +22,10 @@
 
 ## Runtime Contracts
 
-- **A module is named by its `.py` path whether or not its source is shipped.** A delivered image carries the product's own modules compiled (one `<name><extension suffix>` file where `<name>.py` was), and every caller keeps building and passing `.py` paths. `find` turns such a path into the file that holds the module: the compiled module when there is one, otherwise the source, otherwise `""`. Compiled first is the order `import` itself uses, so a tree never runs one module from two files, and a `.py` left behind by an update does not bring the old code back. `exists` is `os.path.exists` plus that rule; `list_modules` lists a folder's modules once each, as `.py` paths, sorted, and returns nothing for a folder that is not there.
-- **Under `usr/` only source counts**, judged on the real path, so a link from the product's tree into `usr/` does not change it. That tree is written at run time, and the checks on what may be put there (`helpers/projects.py` on an imported repository, the upload rules) look for `.py`; a compiled module accepted there would pass them unseen.
-- `import_module` loads whichever file `find` gives, under the name the `.py` path gives. **A compiled file is loaded once per process** (`_import_compiled`): it keeps its globals in the shared library, so a second load turns the functions of the first module object to the second's variables (measured with Nuitka 4.3: after loading a file twice, `a.add(2)` appended to `b.STATE`). The one object is also what `import` gives under the file's dotted name: an `import` that came first is reused, and a load by path is registered in `sys.modules` under the dotted name and on its package. The module is named by the last part of its path when it is loaded by path first and by its dotted name when an `import` got there first, so a discovered module that declares an `@extensible` function must not be imported by name anywhere (a test holds this). `purge_namespace` leaves compiled modules in `sys.modules` for the same reason. Source files behave as before: a fresh module on every call. The short name is never put in `sys.modules`, where `plugins` (from `api/plugins.py`) would shadow the package of that name.
+- **A module is named by its `.py` path.** `find` returns the absolute path when the file is there and `""` otherwise; `exists` is `os.path.exists` on the resolved path; `list_modules` lists a folder's `.py` files, sorted, as paths, and returns nothing for a folder that is not there. Callers go through these three rather than their own `.py` test, so one rule decides what counts as a module.
+- `import_module` loads the file under the name its path gives, as a fresh module on every call. The short name is never put in `sys.modules`, where `plugins` (from `api/plugins.py`) would shadow the package of that name.
 - **`import_module` refuses any file whose real path lies under `usr/users/`** (`ImportError`), the tree that holds uploads, workdirs and everything an agent writes for an account. It is defence in depth behind `Agent.get_tool`'s name check (audit 6 C1): no discovery root is there, so nothing legitimate is lost. A wider "only known roots" rule was not taken, because tests and plugin loaders import from temporary trees.
-- A file whose name has a period in it (`prompts/agent.system.main.tips.py`) can only be source: a compiled module's name is one identifier.
-- Discovery sites must not test for a `.py` file themselves (`os.path.exists`, `Path.is_file`, `glob("*.py")`); they ask this module. `tests/test_compiled_modules.py` covers the rule.
+- Discovery sites must not test for a `.py` file themselves (`os.path.exists`, `Path.is_file`, `glob("*.py")`); they ask this module.
 - Helper modules own reusable framework APIs and must preserve public callers unless all callers, tests, and docs are updated together.
 - Update this file whenever public functions, classes, persistence behavior, path/security assumptions, side effects, or cross-module contracts change.
 - Observed side-effect areas: filesystem reads, filesystem deletion.

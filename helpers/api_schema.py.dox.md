@@ -25,7 +25,7 @@
 
 ## Runtime Contracts
 
-- Endpoints are enumerated with `helpers.modules.list_modules`, which names a handler by its `.py` path whether the source or only the compiled module is on disk. Listing the folder for `*.py` gave an empty document on an image that ships compiled code.
+- Endpoints are enumerated with `helpers.modules.list_modules`, which names a handler by its `.py` path.
 - Helper modules own reusable framework APIs and must preserve public callers unless all callers, tests, and docs are updated together.
 - Update this file whenever the document's shape changes in a way a consumer would notice — bump `SCHEMA_REVISION` alongside the code change.
 - `build_openapi()` is the sole backend for `api/openapi.py`, which is administrator-only (`rbac.PERM_SETTINGS_MANAGE`).

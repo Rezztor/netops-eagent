@@ -65,7 +65,7 @@ class EndpointSpec(TypedDict):
 
 
 def _modules_in(folder: Path, recursive: bool = False) -> list[Path]:
-    """The handler files in a folder, by their `.py` names, source or compiled."""
+    """The handler files in a folder, by their `.py` names."""
     from helpers import modules
 
     return sorted(Path(p) for p in modules.list_modules(str(folder), recursive=recursive))
