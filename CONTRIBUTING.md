@@ -1,22 +1,19 @@
 # Contributing to netops-eagent
 
-Thank you for helping. Issues, ideas and pull requests are all welcome.
+netops-eagent is open source, not open contribution. Rezztor Technologies writes all of its code, and pull requests
+from outside are closed without review. That keeps the ownership of every line in one place.
 
-## Before your first pull request: the CLA
+You are free to use, change and run the code under the AGPL-3.0, including on your production network, and to keep your
+own fork. What helps most:
 
-Every contributor signs the Contributor Licence Agreement in [CLA.md](CLA.md) once. A bot asks you on your first pull
-request; signing is a comment. You keep the copyright in your work. The agreement lets Rezztor Technologies also offer the
-code under a commercial licence to organisations that cannot use the AGPL, and that is what pays for the project's
-maintenance.
+- **Bug reports and feature ideas** as GitHub issues: what you did, what happened, what you expected.
+- **Security problems** privately, as [SECURITY.md](SECURITY.md) says.
 
-**The promise that comes with it:** every contribution accepted here stays available under the AGPL-3.0 or another
-licence approved by the Open Source Initiative, in this public repository, for as long as the project exists. The CLA
-cannot be used to take the code closed.
+The rest of this page is for maintainers and for anyone working on their own fork.
 
 ## Workflow
 
-Fork, branch from `main`, open a pull request against `main`. The suite has to be green, and a behaviour change comes
-with its test.
+Branch from `main` and merge back into `main`. The suite has to be green, and a behaviour change comes with its test.
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
