@@ -218,6 +218,19 @@ def test_the_list_progress_and_download_pass_through_without_what_is_installed(s
     assert call(UpdateStatus)["updates"] is None and update_spool.waiting_count() is None
 
 
+def test_a_blocked_listing_passes_through_and_a_listing_without_it_still_does(spool):
+    """The host keeps a next package it cannot read. The page hears that, and a list that does not name one is unchanged."""
+    blocked = {"version": "2026.11.02", "reason": "format", "needs": 5}
+    write_state(spool, updates={**updates(), "blocked": blocked})
+    answer = call(UpdateStatus)["updates"]
+    assert answer["blocked"] == blocked and answer["available"] == []
+    assert answer["plan"] == "paid" and answer["error"] is None and answer["core"] == "2026.10.08"
+    write_state(spool, updates=updates(entry("2026.10.21", True)))
+    again = call(UpdateStatus)["updates"]
+    assert again["available"][0]["version"] == "2026.10.21" and again.get("blocked") is None
+    assert again["plan"] == "paid" and again["error"] is None
+
+
 def test_a_release_image_names_no_server_and_a_uat_image_names_its_baked_one_on_every_call(spool, monkeypatch):
     from helpers import license_client
 

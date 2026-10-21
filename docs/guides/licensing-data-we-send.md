@@ -89,8 +89,8 @@ When: once a day while **Check every day** is on (Settings, Updates; on by defau
 | --- | --- |
 | `POST /v1/hello` | The installation's update key: the public half of a key made on the machine. |
 | `POST /v1/session` | The answer to a challenge the service encrypted to that key: 64 hex characters, proving the machine holds the private half. The private half never leaves the machine. |
-| `GET /v1/updates` | The running version and its core release, with the session token from the step before (valid 10 minutes). |
-| `GET /v1/updates/<version>/file` | The version wanted, with the session token. |
+| `GET /v1/updates` | The running version, its core release, and the package formats this appliance's update tool can read, with the session token from the step before (valid 10 minutes). |
+| `GET /v1/updates/<version>/file` | The version wanted and those formats, with the session token. |
 
 Comes back: the list of packages after the running version (version, release date, size, notes, whether it is a
 security fix, from when this plan may download it), and on a download the package itself. A package is installed

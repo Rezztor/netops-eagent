@@ -88,7 +88,7 @@ const SERVICE_MESSAGES: Record<string, string> = {
 };
 
 /** Codes whose host text names the version, size or date and is already plain: said as the host wrote it. */
-const HOST_TEXT = new Set(["not_available", "too_large", "download_incomplete", "bad_download", "space", "rolled_back"]);
+const HOST_TEXT = new Set(["not_available", "too_large", "download_incomplete", "bad_download", "space", "rolled_back", "format"]);
 
 /** The notes of ServiceError, which say more than a sentence. */
 const NOTED = new Set(["unreachable", "unknown_installation", "chain_gap"]);
@@ -900,6 +900,12 @@ function planNote(updates: UpdatesList): { tone: "warn" | "accent"; text: string
   return null;
 }
 
+/** The next package is in a format this tool cannot read: said instead of an empty list. */
+function blockedLine(blocked: UpdatesList["blocked"]): string | null {
+  if (!blocked || blocked.reason !== "format" || !blocked.version) return null;
+  return `Update ${blocked.version} needs a newer update tool. Install the bridge package by hand, or contact support.`;
+}
+
 /** The host's last question to the update service went wrong: what it means, in plain words. */
 function ServiceError({ code, text, updateKey }: { code: string; text: string; updateKey: string }) {
   if (code === "unknown_installation") {
@@ -957,6 +963,7 @@ function AvailableCard({
   const updates = status.updates ?? null;
   const listed = updates?.available ?? [];
   const note = updates ? planNote(updates) : null;
+  const blocked = updates && !updates.error ? blockedLine(updates.blocked) : null;
   const first = listed[0];
   const installable = Boolean(updates && !note && first?.downloadable && !updates.error);
 
@@ -992,7 +999,7 @@ function AvailableCard({
         <ServiceError code={updates.error.code} text={updates.error.text} updateKey={status.update_key} />
       )}
       {note && <ScopeNote tone={note.tone}>{note.text}</ScopeNote>}
-      {updates && !updates.error && listed.length === 0 && (
+      {updates && !updates.error && listed.length === 0 && !blocked && (
         <ScopeNote>This installation runs the latest version.</ScopeNote>
       )}
       {listed.length > 0 && (
@@ -1019,6 +1026,7 @@ function AvailableCard({
           </Button>
         </div>
       )}
+      {blocked && <ScopeNote tone="warn">{blocked}</ScopeNote>}
     </Card>
   );
 }
