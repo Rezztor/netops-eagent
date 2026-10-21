@@ -1647,7 +1647,7 @@ def test_a_next_package_this_tool_cannot_read_is_kept_and_not_fetched(uat):
 @needs_tools
 def test_a_file_the_service_refuses_for_format_is_said_like_any_other_refusal(uat, tmp_path):
     uat.service.offer(uat_package(uat, tmp_path))
-    uat.service.file_error = "format"
+    uat.service.file_error = "unsupported_format"  # what the update service answers
     state = ask(uat, "download", version="2026.10.12-uat")
     assert state["phase"] == "idle" and state["error"]["code"] == "format"
     assert state["error"]["text"] == tool.format_text("2026.10.12-uat")

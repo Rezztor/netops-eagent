@@ -1372,7 +1372,7 @@ SERVICE_TEXTS = {
     "not_yet_available": "This update is not available to this installation yet. Check again later.",
     "not_next": "Updates are installed in order, and this one is not next. Check for updates again.",
     "chain_gap": "An update this installation needs first is missing from the update service. Ask Rezztor.",
-    "format": "This update needs a newer update tool. Install the bridge package by hand, or contact support.",
+    "unsupported_format": "This update needs a newer update tool. Install the bridge package by hand, or contact support.",
 }  # fmt: skip
 
 
@@ -1635,7 +1635,7 @@ def _fetch(host, state, entry, token, server, ca):
                 answer = _call(host, server, ca, file_path, token=token,
                                headers={"Range": f"bytes={have}-"} if have else None)  # fmt: skip
             except Refused as refused:
-                if refused.code == "format":
+                if refused.code == "unsupported_format":  # the service's code for a format FORMATS lacks
                     raise Refused("format", format_text(version)) from None
                 raise
             with answer:
