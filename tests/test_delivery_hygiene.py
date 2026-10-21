@@ -144,30 +144,6 @@ def test_the_build_removes_its_own_inputs_and_the_bundle_checks_the_images():
     assert "exit 1" in check
 
 
-def test_every_image_compiles_its_python_and_the_bundle_looks_for_source():
-    """No source of ours in a delivered image (the owner's rule, stage 3 on 2026-10-12): each image build
-    runs docker/compile_python.py with one Nuitka, and the bundle script lets through only the kinds of
-    file the tool itself leaves as source."""
-    import re
-
-    pins = set()
-    for name in ("Dockerfile", "executor/Dockerfile", "executor/Dockerfile.quick", "cloud_executor/Dockerfile"):
-        text = (PROJECT_ROOT / name).read_text(encoding="utf-8")
-        assert re.search(r"compile_python\.py /(eagent|app)\b", text), f"{name} does not compile its Python"
-        pins |= set(re.findall(r"nuitka==([0-9.]+)", text))
-    assert len(pins) == 1, f"the images are compiled by different Nuitka versions: {pins}"
-    tool = (PROJECT_ROOT / "docker" / "compile_python.py").read_text(encoding="utf-8")
-    bundle = (PROJECT_ROOT / "scripts" / "build_offline_bundle.sh").read_text(encoding="utf-8")
-    check = bundle[bundle.index('for image in "$APP" "$ANSIBLE" "$CLOUD"'): bundle.index('rm -rf "$BUNDLE"')]
-    assert '-name "*.py"' in check and "no_docstrings" in tool
-    for kept_by_tool, let_through in (('"__init__.py"', "! -name __init__.py"), ('"playbooks"', '! -path "*/playbooks/*"'),
-                                      ('"commands"', '! -path "*/commands/*"'), ('"prepare.py"', "! -path /eagent/prepare.py"),
-                                      ('"run_ui.py"', "-path /eagent/run_ui.py -size +1")):  # fmt: skip
-        assert kept_by_tool in tool and let_through in check, (kept_by_tool, let_through)
-    kinds = tool[tool.index("def stays") : tool.index("def compile_one")].count('        return "')
-    assert kinds == 4, "a new kind of file stays as source: let the bundle check through it, or do not"
-
-
 def _dockerignore_lines() -> list[str]:
     return [
         line.strip()

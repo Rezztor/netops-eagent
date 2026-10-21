@@ -172,9 +172,6 @@ init_components = extension.extensible(init_components)
 
 
 def main():
-    # Its own function because a delivered image starts the server through a
-    # two-line launcher: this file is compiled there, and a compiled module
-    # cannot be run by path (docker/compile_python.py).
     runtime.initialize()
     dotenv.load_dotenv()
     run()

@@ -48,7 +48,7 @@
 
 ## Runtime Contracts
 
-- A plugin's `hooks.py` is looked for with `helpers.modules.find`, so a compiled `hooks` module with no source beside it is loaded. `execute.py` is run as a script by `api/plugins.py` and so exists only as source; no bundled plugin has one.
+- A plugin's `hooks.py` is looked for with `helpers.modules.find`. `execute.py` is run as a script by `api/plugins.py`; no bundled plugin has one.
 - Helper modules own reusable framework APIs and must preserve public callers unless all callers, tests, and docs are updated together.
 - Plugins marked `always_enabled` remain in runtime discovery regardless of
   stale global or scoped disable files, and disable attempts are rejected.

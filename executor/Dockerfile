@@ -13,27 +13,6 @@
 # Build from the repository root:
 #   docker build -f executor/Dockerfile -t rezztor/eagent-ansible:latest \
 #     --build-arg CATALOGUE_COMMIT="$(git rev-parse HEAD)" .
-# ---------------------------------------------------------------------------
-# Stage: compile. No source of ours in the delivered image: each module is
-# compiled to a native one in its place (docker/compile_python.py). The same
-# Debian and so the same Python as the final stage, which a compiled module
-# is tied to; the compiler and Nuitka stay here.
-# ---------------------------------------------------------------------------
-FROM debian:stable-slim AS compile
-ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        python3 python3-venv python3-dev gcc libc6-dev ca-certificates \
-    && rm -rf /var/lib/apt/lists/* \
-    && python3 -m venv /opt/compile \
-    && /opt/compile/bin/pip install --no-cache-dir nuitka==4.3
-WORKDIR /app
-COPY executor/*.py /app/executor/
-COPY plugins/_ea_ansible/__init__.py /app/plugins/_ea_ansible/__init__.py
-COPY plugins/_ea_ansible/helpers/ /app/plugins/_ea_ansible/helpers/
-COPY docker/compile_python.py /tmp/compile_python.py
-RUN /opt/compile/bin/python /tmp/compile_python.py /app
-
-
 FROM debian:stable-slim
 
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -119,7 +98,9 @@ WORKDIR /app
 # package could not import itself. It also covers `ea-ansible`, which shells out
 # to python from wherever the operator happens to be standing.
 ENV PYTHONPATH=/app
-COPY --from=compile /app/ /app/
+COPY executor/*.py /app/executor/
+COPY plugins/_ea_ansible/__init__.py /app/plugins/_ea_ansible/__init__.py
+COPY plugins/_ea_ansible/helpers/ /app/plugins/_ea_ansible/helpers/
 COPY executor/templates/ /app/executor/templates/
 COPY executor/playbooks/ /app/executor/playbooks/
 COPY plugins/_ea_ansible/catalogue.yaml /app/plugins/_ea_ansible/catalogue.yaml

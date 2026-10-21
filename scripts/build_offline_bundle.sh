@@ -69,10 +69,8 @@ for image in "$APP" "$RUNNER" "$ANSIBLE" "$CLOUD" "$POSTGRES" "$SEARXNG"; do
 done
 
 # What explains, tests or builds the code stays here (.dockerignore and the
-# Dockerfile's assemble step), and so does the source: every module of ours is
-# compiled in the image build (docker/compile_python.py, whose `stays` names
-# the few kinds of file that remain source; the same kinds are let through
-# here). Of deploy/ the image holds the files an update package takes from it
+# Dockerfile's assemble step); the source ships. Of deploy/ the image holds the
+# files an update package takes from it
 # (scripts/sign_release.py, HOST: the four host files, the guard and its units,
 # ADR 0092), and the public release keys (not support/) so that a package can
 # add a new one. Looked for in the images themselves, because a rule that was quietly
@@ -94,9 +92,7 @@ for image in "$APP" "$ANSIBLE" "$CLOUD"; do
                   ! -path /eagent/deploy/iso/host/rezztor-firewall.service ! -path /eagent/deploy/iso/host/rezztor-load-images.service \
                   ! -path /eagent/deploy/iso/host/rezztor-setup.service ! -path /eagent/deploy/iso/host/rezztor-update.service \
                   ! -path /eagent/deploy/iso/host/rezztor-update.path \) \
-            -o \( -name "*.py" ! -name __init__.py ! -path "*/playbooks/*" ! -path "*/commands/*" \
-                  ! -path /eagent/prepare.py ! -path /eagent/run_ui.py \) \
-            -o \( -path /eagent/run_ui.py -size +1 \) \) -print 2>/dev/null | head -20')"
+            \) -print 2>/dev/null | head -20')"
     if [[ -n "$found" ]]; then
         echo "error: $image carries engineering material a customer must not get:" >&2
         echo "$found" >&2

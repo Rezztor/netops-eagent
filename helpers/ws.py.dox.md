@@ -38,7 +38,7 @@
 
 ## Runtime Contracts
 
-- A WebSocket handler is found by its `.py` name through `helpers.modules.find`: source, or the compiled module beside where the source would be. Under `usr/` only a `.py` file counts.
+- A WebSocket handler is found by its `.py` name through `helpers.modules.find`. Under `usr/` only a `.py` file counts.
 - Helper modules own reusable framework APIs and must preserve public callers unless all callers, tests, and docs are updated together.
 - Update this file whenever public functions, classes, persistence behavior, path/security assumptions, side effects, or cross-module contracts change.
 - `WsHandler` defines `process(...)`.

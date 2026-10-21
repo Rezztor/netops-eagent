@@ -10,7 +10,6 @@
 
 - Run on the host, never imported by the web application:
   `docker exec rezztor-eagent sh -c 'cd /eagent && exec /opt/venv-eagent/bin/python -c "from helpers.console_admin import main; main()" "$@"' sh <command>`.
-  `-c`, because the image's code is compiled and a compiled module cannot be run with `-m`.
 - `list` prints one line per account the console may reset, fields separated by a tab: user name, display name,
   last sign-in (`YYYY-MM-DD HH:MM` UTC, or `never`). Control characters are blanked and each field is at most 60
   characters, because the line ends up on a terminal.

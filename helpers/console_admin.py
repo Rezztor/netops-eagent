@@ -5,8 +5,6 @@ there was no other way back in, and that person could reinstall the machine anyw
 
     docker exec rezztor-eagent sh -c 'cd /eagent && exec /opt/venv-eagent/bin/python -c \
         "from helpers.console_admin import main; main()" "$@"' sh list|reset USERNAME
-
-with `-c` because the product's code is compiled and a compiled module cannot be run with `-m`.
 """
 
 from __future__ import annotations

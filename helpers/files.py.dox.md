@@ -49,7 +49,7 @@
 
 ## Runtime Contracts
 
-- `load_plugin_variables` looks for the script beside a prompt (`<prompt name>.py`) with `helpers.modules.find`: source, or the compiled module in its place.
+- `load_plugin_variables` looks for the script beside a prompt (`<prompt name>.py`) with `helpers.modules.find`.
 - An include directive (`{{ include "file" }}`, `{{ include original }}`) is honoured only where a template file wrote it. `parse_file` and `read_prompt_file` take the template's own directives out before any value is substituted and expand them afterwards (`_fill_template`), so a directive inside a value -- a stored memory, a tool result, a fetched page -- stays text. Expanding over the substituted result read `usr/.env`, or any file a relative path reached, into the prompt. `tests/test_prompt_template_values.py` covers this.
 - Helper modules own reusable framework APIs and must preserve public callers unless all callers, tests, and docs are updated together.
 - Update this file whenever public functions, classes, persistence behavior, path/security assumptions, side effects, or cross-module contracts change.
