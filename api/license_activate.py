@@ -42,27 +42,34 @@ class LicenseActivate(ApiHandler):
             return {"ok": True, "request_code": code, "licence": licence_status()}
 
         if action == "activate":
-            call = (license_client.activate, str(input.get("key") or "")[:128])
+            invoke = lambda: license_client.activate(str(input.get("key") or "")[:128])
         elif action == "checkin":
-            call = (license_client.checkin,)
+            invoke = license_client.checkin
         elif action == "deactivate":
             if input.get("confirm") is not True:
                 return {"ok": False, "error": "Releasing the installation needs a confirmation."}
-            call = (license_client.deactivate,)
+            invoke = license_client.deactivate
         elif action == "install":
             text = input.get("licence")
             if not isinstance(text, str) or not text.strip() or len(text) > MAX_FILE:
                 return {"ok": False, "error": "That is not a licence file."}
-            call = (license_client.load_licence_file, text)
+            invoke = lambda: license_client.load_licence_file(text)
         else:
             return {"ok": False, "error": "Unknown action."}
 
         error = None
+        previous: str | None = None
         try:
-            await asyncio.to_thread(*call)
+            returned = await asyncio.to_thread(invoke)
+            if action == "activate" and isinstance(returned, str):
+                previous = returned
         except license_client.LicenceError as exc:
             error = exc.reason
         status = licence_status()
+        # A switch that confirmed the previous release names it here. While that release is still pending,
+        # `releasing` on the status is the same id, and the token is in neither.
+        if previous and not status.get("releasing"):
+            status["released_lic"] = previous
         _audit(action, error, status)
         if error:
             return {"ok": False, "error": error, "licence": status}

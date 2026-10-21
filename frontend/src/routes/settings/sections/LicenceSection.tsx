@@ -58,6 +58,17 @@ export const LICENCE_STATE_LABEL: Record<LicenceState, string> = {
 
 const days = (count: number) => `${count} ${count === 1 ? "day" : "days"}`;
 
+/** What Settings, Licence says after a switch. Pending until the server confirms the release. */
+function previousLicenceNotice(status: LicenceStatus | undefined): string | null {
+  if (status?.releasing) {
+    return `The previous licence ${status.releasing} will be released from this installation.`;
+  }
+  if (status?.released_lic) {
+    return `The previous licence ${status.released_lic} was released from this installation.`;
+  }
+  return null;
+}
+
 const textArea = {
   width: "100%",
   maxWidth: 520,
@@ -99,6 +110,7 @@ function LicenceDetails({ initial }: { initial: LicenceStatus }) {
   const [notice, setNotice] = useState<string | null>(null);
 
   const licence = status.licence;
+  const pendingRelease = status.releasing ? previousLicenceNotice(status) : null;
   if (status.state === "community") {
     return (
       <Card title="Licence" description="Community build: free, no limits.">
@@ -114,7 +126,7 @@ function LicenceDetails({ initial }: { initial: LicenceStatus }) {
   const overSeats = licence !== null && status.seats_used > licence.seats;
   const inGrace = status.state === "grace1" || status.state === "grace2";
 
-  async function run(what: Busy, call: () => Promise<LicenceActionResult>, done: string) {
+  async function run(what: Busy, call: () => Promise<LicenceActionResult>, done: string | ((result: LicenceActionResult) => string)) {
     setBusy(what);
     setError(null);
     setNotice(null);
@@ -123,7 +135,7 @@ function LicenceDetails({ initial }: { initial: LicenceStatus }) {
       if (result.licence) setStatus(result.licence);
       if (result.request_code) setRequestCode(result.request_code);
       if (result.ok) {
-        setNotice(done);
+        setNotice(typeof done === "function" ? done(result) : done);
         reloadSession();
       } else {
         setError(result.error ?? "The licence server refused the request.");
@@ -143,7 +155,12 @@ function LicenceDetails({ initial }: { initial: LicenceStatus }) {
       return;
     }
     // The key is not kept on screen once it has done its work.
-    if (await run("activate", () => activateLicence(key), "The licence is active.")) setKey("");
+    if (
+      await run("activate", () => activateLicence(key), (result) =>
+        previousLicenceNotice(result.licence) ?? "The licence is active.")
+    ) {
+      setKey("");
+    }
   }
 
   async function release() {
@@ -170,6 +187,7 @@ function LicenceDetails({ initial }: { initial: LicenceStatus }) {
           <span style={{ color: "var(--ink-3)", fontSize: "var(--text-sm)" }}>{status.message}</span>
         )}
       </Row>
+      {pendingRelease && notice !== pendingRelease && <ScopeNote>{pendingRelease}</ScopeNote>}
 
       {inGrace && status.days_left !== null && (
         <ScopeNote tone={status.state === "grace2" ? "crit" : "warn"}>

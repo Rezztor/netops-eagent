@@ -52,9 +52,12 @@ Comes back: a new signed lease, and a newer licence document only if one exists.
 If the licence server is an older one that does not accept `devices`, the product sends the check-in again at once
 without it, and leaves it out for a week.
 
-## Release (only when you move the product)
+## Release (only when you move the product, or activate a different key)
 
-When: an administrator chooses **Release this installation**. Sends `lic`, `iid`, `token` and `nonce`.
+When: an administrator chooses **Release this installation**, or activates a different key on an installation
+that already holds one. Sends `lic`, `iid`, `token` and `nonce` of the activation being released. A switch
+sends that after the new licence is stored. If the server cannot be reached, the same request is repeated
+until it is confirmed or refused.
 
 ## Other requests
 

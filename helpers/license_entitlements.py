@@ -185,6 +185,7 @@ def licence_status() -> Dict[str, Any]:
         "devices_warning": devices_warning(devices, devices_limit),
         "can_release": bool(state["has_token"] and licence and not licence["offline"]),
         "pending": state["pending"],
+        "releasing": state["releasing"],
         "last_attempt_at": state["last_attempt_at"] or None,
         "last_success_at": state["last_success_at"] or None,
         "last_result": state["last_result"] or None,

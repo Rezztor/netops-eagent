@@ -16,6 +16,11 @@ characters, for example `REZ-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX`.
 3. Press **Activate**.
 4. The page shows the state **Licensed**, with the customer, edition, seats, devices, features and contract end.
 
+Activating a different key on an installation that already holds a licence releases the previous one from this
+installation, so it no longer holds a place. The page says **The previous licence … was released from this
+installation.** If the licence server has not confirmed yet, it says the previous licence will be released, and
+the product keeps trying by itself. Activating the same key again releases nothing.
+
 **Devices** is the number of network devices in use against what the licence allows: active devices in the
 inventory, and Azure firewalls, load balancers and gateways. REZ-Free allows 100 and REZ-Pro and REZ-Ultra 500,
 unless your licence names another number; a trial has no limit. From 90% the page shows a notice, and over the
