@@ -1,0 +1,15 @@
+{
+  "_comment": "UNVERIFIED: constructed from the vendor module documentation, not captured from a live device. Correct on first live run. cisco.ios.ios_facts return keys confirmed from ansible-doc in the executor image (cisco.ios 11.5.1); values are invented.",
+  "facts": {
+    "ansible_net_hostname": "Core-SW1",
+    "ansible_net_model": "C9300-48P",
+    "ansible_net_serialnum": "FOC2245X0AB",
+    "ansible_net_version": "17.3.4",
+    "ansible_net_image": "flash:cat9k_iosxe.17.03.04.SPA.bin",
+    "ansible_net_iostype": "IOS-XE",
+    "ansible_net_gather_subset": [
+      "min"
+    ],
+    "ansible_net_api": "cliconf"
+  }
+}

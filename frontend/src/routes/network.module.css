@@ -1,0 +1,62 @@
+.tabs {
+  display: flex;
+  gap: var(--space-1);
+  border-bottom: 1px solid var(--line);
+}
+
+.tab {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.tab:hover {
+  color: var(--ink);
+}
+.tabActive {
+  color: var(--ink);
+  border-bottom-color: var(--accent);
+}
+
+/* Command lines and device output. Wrapping would let a long interface name
+   read as two, so this scrolls in its own box rather than reflowing -- and the
+   box scrolls, not the page. */
+.pre {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-3);
+  background: var(--surface-alt);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: var(--text-sm);
+  overflow-x: auto;
+  white-space: pre;
+  max-height: 24rem;
+  overflow-y: auto;
+}
+
+.hostRow {
+  display: grid;
+  grid-template-columns: minmax(8rem, 1fr) minmax(8rem, 1fr) auto;
+  gap: var(--space-2);
+  align-items: center;
+  margin-bottom: var(--space-2);
+}
+
+/* Shown on a group with no platform set, which is a group whose jobs will fail
+   on their first task. Advisory rather than an error: the group is legitimate
+   until somebody runs something against it. */
+.platformHint {
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+  margin: 0 0 var(--space-2);
+}
+
+.fingerprint {
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+}

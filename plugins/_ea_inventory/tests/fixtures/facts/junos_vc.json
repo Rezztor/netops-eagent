@@ -1,0 +1,20 @@
+{
+  "_comment": "UNVERIFIED: constructed from the vendor module documentation, not captured from a live device. Correct on first live run. ansible_net_multi_ne is an UNVERIFIED guess at the virtual chassis shape.",
+  "facts": {
+    "ansible_net_hostname": "ex-vc",
+    "ansible_net_model": "EX4300-48T",
+    "ansible_net_serialnum": "PE3716370001",
+    "ansible_net_version": "20.4R3-S2.6",
+    "ansible_net_system": "junos",
+    "ansible_net_multi_ne": {
+      "fpc0": {
+        "serialnum": "PE3716370001",
+        "model": "EX4300-48T"
+      },
+      "fpc1": {
+        "serialnum": "PE3716370002",
+        "model": "EX4300-48T"
+      }
+    }
+  }
+}

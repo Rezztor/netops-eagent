@@ -1,0 +1,28 @@
+# Delete a VLAN on community SONiC (networkop/sonic-vs), over plain SSH.
+#
+# The rollback for `changes/sonic_community_vlan_add`; see it for why this is `raw`.
+- name: Delete a VLAN
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Establish which platform this host is
+      ansible.builtin.set_fact:
+        eagent_platform: >-
+          {{ (ansible_network_os | default('')) | regex_replace('^.*\.', '') }}
+
+    - name: Refuse a platform this entry does not cover
+      ansible.builtin.assert:
+        that:
+          - eagent_platform == 'sonic_community'
+          - (vlan_id | int) >= 2
+          - (vlan_id | int) <= 4094
+        fail_msg: "{{ inventory_hostname }} is {{ eagent_platform | default('unknown', true) }}, or the VLAN id is out of range; nothing was sent."
+        quiet: true
+
+    - name: Delete the VLAN
+      ansible.builtin.raw: "sudo config vlan del {{ vlan_id | int }}"
+      register: change
+
+    - name: Report what the device said
+      ansible.builtin.debug:
+        var: change.stdout_lines

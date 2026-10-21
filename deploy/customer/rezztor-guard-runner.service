@@ -1,0 +1,30 @@
+[Unit]
+# The runner's own loopback (ADR 0087). Every user has an account in the one
+# runner container, and a server one of them starts on 127.0.0.1 was another's
+# way into their files. The guard loads a table into the runner's network
+# namespace that keeps the slot accounts off loopback, Docker's resolver
+# excepted. Docker makes that namespace anew at every start of the container,
+# so this follows Docker's events and loads the table again each time.
+#
+# After Docker, not before: there is no runner to enter until Docker has
+# started it. The host's own table is rezztor-guard.service, before Docker.
+Description=Rezztor network guard: the runner's accounts do not reach each other over loopback
+After=docker.service rezztor-guard.service
+ConditionPathExists=/opt/rezztor/rezztor-guard
+
+# A load that fails ends the watch with an error (logged at error level), so
+# the unit is not "active" over a runner without its table. It is tried again
+# with a growing delay, for good: the failure stays visible in `systemctl
+# status` (Result: exit-code) and on the appliance's status screen until it
+# loads. RestartSteps needs systemd 254 or newer; an older one keeps 10 s.
+StartLimitIntervalSec=0
+
+[Service]
+ExecStart=/opt/rezztor/rezztor-guard runner --watch
+Restart=on-failure
+RestartSec=10
+RestartSteps=6
+RestartMaxDelaySec=10min
+
+[Install]
+WantedBy=multi-user.target

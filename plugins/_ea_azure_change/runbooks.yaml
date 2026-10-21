@@ -1,0 +1,470 @@
+# Suggestion runbooks. `azure_change` suggest lowercases `kind` and looks this file up
+# (`records.runbook`). A kind with no `steps` is ignored and the generic text is used.
+# Keys match waste rule names and Advisor categories. The API category is HighAvailability;
+# the portal says Reliability, so both keys are here (a slash is not a valid kind).
+# Portal paths are from Microsoft Learn, not run against a tenant:
+# https://learn.microsoft.com/en-us/azure/virtual-machines/states-billing
+# https://learn.microsoft.com/en-us/rest/api/advisor/recommendations/list
+# https://learn.microsoft.com/en-us/azure/advisor/advisor-overview
+# https://learn.microsoft.com/en-us/azure/vpn-gateway/delete-vnet-gateway-portal
+# https://learn.microsoft.com/en-us/azure/expressroute/expressroute-howto-circuit-portal-resource-manager
+# https://learn.microsoft.com/en-us/azure/azure-monitor/logs/data-retention-configure
+# https://learn.microsoft.com/en-us/azure/ddos-protection/manage-ddos-protection
+# The engineer does every click. The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps.
+
+unattached_disk:
+  rule: unattached_disk
+  title: Disk attached to nothing
+  why_it_matters: An unattached managed disk is billed for its size while no VM uses it. The finding excludes replication and AKS disks. It is a pointer, not proof the disk is unwanted.
+  check_first: Confirm who owns {names} (tag or resource-group owner) and that no stopped VM, backup or coming deployment still needs it. Check the Activity log for a recent detach.
+  portal_steps:
+    - "Open {names} under Disks. Overview shows Disk state Unattached, the size and the SKU."
+    - "If the data may be needed, the engineer creates a snapshot from that page first."
+    - "After the owner confirms in writing, the engineer uses Delete on that page."
+  confirm: The next inventory pull no longer lists {names}, or still lists it if the engineer left it.
+  risk: Delete cannot be undone. A snapshot is not a substitute for a backup the owner already has. The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this.
+  steps:
+    - "Before anything happens to {names}, confirm the owner and that no VM, backup or coming deployment still needs the disk."
+    - "In the portal, open the disk. Overview must show Unattached. The engineer snapshots it first if the data may be needed."
+    - "The engineer uses Delete on that page only after the owner confirms in writing, then pulls the inventory again."
+    - "The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this."
+
+disk_behind_stopped_vm:
+  rule: disk_behind_stopped_vm
+  title: Disk still billed behind a stopped VM
+  why_it_matters: The disk stays billed while its VM is stopped. Deleting the disk while the VM exists breaks the VM. The finding is not a reason to delete a disk the VM will need again.
+  check_first: Confirm who owns the VM {names} is attached to, whether that VM will be started again, and whether a snapshot or backup already exists. Read the disk delete option so a VM delete does not surprise anyone.
+  portal_steps:
+    - "Open the VM named in the finding, then open {names}. Overview shows the owner VM and the SKU."
+    - "If the VM will be used again, leave the disk. Starting the VM is a change with a CR or SR number, not this runbook."
+    - "If the owner confirms both are abandoned, the engineer snapshots the disk, deletes the VM by hand, then deletes the disk."
+  confirm: The next inventory pull no longer lists {names}, or still shows it attached if the engineer left it.
+  risk: Deleting the disk loses its data. Deleting the VM can drop a dynamic public IP and the temporary disk. The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this.
+  steps:
+    - "Before anything happens to {names}, confirm the VM owner and whether that VM will be started again."
+    - "In the portal, open the disk and its VM. If the VM will be used, leave the disk. Starting it is a change card, not this runbook."
+    - "If the owner confirms both are abandoned, the engineer snapshots the disk, deletes the VM by hand, then deletes the disk, and pulls the inventory again."
+    - "The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this."
+
+unused_public_ip:
+  rule: unused_public_ip
+  title: Public IP address attached to nothing
+  why_it_matters: A Standard public IP is billed while it exists, even with no NIC, gateway, NAT gateway or prefix. The address cannot be reclaimed after it is removed.
+  check_first: Confirm who owns {names}, whether a DNS name label is published, and whether a deployment is about to attach it. Check the Activity log for a recent detach.
+  portal_steps:
+    - "Open {names} under Public IP addresses. Overview shows Associated to empty, and the SKU and allocation."
+    - "If a DNS name label is set, confirm nobody still resolves it."
+    - "After the owner confirms in writing, the engineer uses Delete on that page."
+  confirm: The next inventory pull no longer lists {names}.
+  risk: The address is gone for good. Something outside the inventory may still publish it. The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this.
+  steps:
+    - "Before anything happens to {names}, confirm the owner, any DNS name label, and that nothing is about to attach it."
+    - "In the portal, open the public IP. Associated to must be empty. The engineer uses Delete only after the owner confirms in writing."
+    - "Pull the inventory again. The next pull no longer lists the address, or still lists it if the engineer left it."
+    - "The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this."
+
+empty_app_service_plan:
+  rule: empty_app_service_plan
+  title: App Service plan with no apps
+  why_it_matters: A paid plan with zero apps is billed until the plan is removed. Free, Shared and Dynamic plans are not this finding.
+  check_first: Confirm who owns {names} and that no app or slot is about to be deployed onto it. The finding already requires a site count of zero.
+  portal_steps:
+    - "Open {names} under App Service plans. Apps, or the overview count, shows 0."
+    - "After the owner confirms in writing, the engineer uses Delete on the overview. Azure refuses the delete if an app remains."
+  confirm: The next inventory pull no longer lists {names}.
+  risk: A plan the inventory missed an app on would take that app down. The count must be zero. The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this.
+  steps:
+    - "Before anything happens to {names}, confirm the owner and that no app is about to land on the plan."
+    - "In the portal, open the plan. Apps must show 0. The engineer uses Delete only after the owner confirms in writing."
+    - "Pull the inventory again and confirm the plan is gone, or still listed if the engineer left it."
+    - "The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this."
+
+stopped_web_app_on_paid_plan:
+  rule: stopped_web_app_on_paid_plan
+  title: Stopped web app on a paid plan
+  why_it_matters: Stopping an app does not stop the plan bill. The plan is billed whether or not this app runs.
+  check_first: Confirm who owns {names}, whether the stop is maintenance, and which other apps share the plan. Do not treat a maintenance stop as abandoned.
+  portal_steps:
+    - "Open {names}. Overview shows Stopped. Open its plan and note the tier and the app count."
+    - "If the app should run, starting it is a change with a CR or SR number, not this runbook."
+    - "If the owner confirms it is abandoned, the engineer uses Delete on the app overview. That does not remove the plan."
+  confirm: The next inventory pull no longer lists {names}, or shows it running if the engineer started it by hand.
+  risk: Removing the app removes its configuration. The plan stays billed while other apps use it. The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this.
+  steps:
+    - "Before anything happens to {names}, confirm the owner and whether the stop is only maintenance."
+    - "In the portal, open the app and its plan. If it should run, that is a change card, not this runbook."
+    - "If the owner confirms it is abandoned, the engineer uses Delete on the app, not the plan, and pulls the inventory again."
+    - "The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this."
+
+stopped_not_deallocated_vm:
+  rule: stopped_not_deallocated_vm
+  title: VM stopped but not deallocated
+  why_it_matters: Power state stopped, not deallocated, still bills compute. Microsoft documents that a guest shutdown leaves it stopped, and that Stop in the portal deallocates.
+  check_first: Confirm who owns {names} and whether it should stay off. Deallocate drops the temporary disk and a dynamic public IP. A reserved IP stays.
+  portal_steps:
+    - "Open {names}. Overview status is Stopped, not Stopped (deallocated)."
+    - "If it should run, starting it is a change with a CR or SR number, not this runbook."
+    - "If it should stay off, the engineer uses Stop on the overview and confirms deallocate. That is the portal Stop, not a shutdown inside the guest."
+  confirm: The next inventory pull shows {names} deallocated, or gone if the engineer removed it by hand.
+  risk: Deallocate drops in-memory state, the temporary disk and a dynamic public IP. The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this.
+  steps:
+    - "Before anything happens to {names}, confirm the owner and that a deallocate will not drop an address or data they still need."
+    - "In the portal, open the VM. Status must be Stopped, not deallocated. If it should run, that is a change card, not this runbook."
+    - "If it should stay off, the engineer uses portal Stop and confirms deallocate, then pulls the inventory again."
+    - "The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this."
+
+old_snapshot:
+  rule: old_snapshot
+  title: Old snapshot
+  why_it_matters: The snapshot is older than 90 days. Age is not proof it is unwanted. An incremental snapshot is billed on changed data, not the full disk size.
+  check_first: Confirm who owns {names}, which disk it came from, and that no backup policy or recovery plan still needs it.
+  portal_steps:
+    - "Open {names} under Snapshots. Overview shows the created date and the source disk."
+    - "After the owner confirms it is not a recovery point they still need, the engineer uses Delete on that page."
+  confirm: The next inventory pull no longer lists {names}.
+  risk: Delete cannot be undone. Deleting an incremental snapshot does not delete the newer ones, but this copy is gone. The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this.
+  steps:
+    - "Before anything happens to {names}, confirm the owner and that no backup or recovery plan still needs the snapshot."
+    - "In the portal, open the snapshot and read the created date and source disk. The engineer uses Delete only after the owner confirms in writing."
+    - "Pull the inventory again. The next pull no longer lists it, or still lists it if the engineer left it."
+    - "The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this."
+
+gateway_without_connection:
+  rule: gateway_without_connection
+  title: Network gateway with no connection
+  why_it_matters: A gateway with no connection and no point-to-site pool is billed for the gateway hours. A connection in another resource group would not make this finding if the inventory missed it.
+  check_first: Confirm who owns {names}, that no connection is being built, and search Connections in the subscription for this gateway. Confirm there is no point-to-site pool.
+  portal_steps:
+    - "Open {names}. Overview shows the gateway type and SKU. Connections on it is empty."
+    - "Search the subscription for a connection that still names this gateway."
+    - "After the network owner confirms, the engineer uses Delete. Microsoft documents that connections go first, and the delete can take up to 45 minutes."
+  confirm: The next inventory pull no longer lists {names}.
+  risk: A connection the inventory missed drops with the gateway. The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this.
+  steps:
+    - "Before anything happens to {names}, confirm the network owner and search the subscription for a connection that still names this gateway."
+    - "In the portal, open the gateway. Connections must be empty and there must be no point-to-site pool."
+    - "The engineer uses Delete only after that confirmation. Expect it to take a long time, then pull the inventory again."
+    - "The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this."
+
+circuit_not_provisioned:
+  rule: circuit_not_provisioned
+  title: ExpressRoute circuit the provider has not provisioned
+  why_it_matters: An ExpressRoute circuit is billed from creation even when the provider state is not Provisioned. Not provisioned is not the same as abandoned.
+  check_first: Confirm who ordered {names} and ask the provider whether provisioning is still in progress. Do not treat the state as abandoned without both.
+  portal_steps:
+    - "Open {names} under ExpressRoute circuits. Overview shows the provider provisioning state."
+    - "If the provider is still provisioning, leave the circuit. This runbook is not the action."
+    - "If the owner and the provider confirm the order is abandoned, the engineer removes any connection on it by hand, then uses Delete on the circuit."
+  confirm: The next inventory pull no longer lists {names}, or shows the provider state Provisioned if they waited.
+  risk: Removing a circuit that is actually in use drops the private peering. The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this.
+  steps:
+    - "Before anything happens to {names}, confirm with the owner and the provider that the order is abandoned, not still provisioning."
+    - "In the portal, open the circuit and read the provider state. If it is still being built, leave it."
+    - "Only then does the engineer remove connections by hand and use Delete, then pull the inventory again."
+    - "The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this."
+
+unused_nat_gateway:
+  rule: unused_nat_gateway
+  title: NAT gateway on no subnet
+  why_it_matters: A NAT gateway is billed by the hour even when no subnet uses it. A public IP on it stays billed after the gateway is gone unless that IP is dealt with separately.
+  check_first: Confirm who owns {names} and that no subnet is about to be associated. Note any public IP or prefix on the gateway.
+  portal_steps:
+    - "Open {names} under NAT gateways. Subnets is empty. Note any public IP or prefix."
+    - "After the owner confirms, the engineer uses Delete on the NAT gateway."
+    - "An address left attached to nothing is the unused public IP runbook, not an automatic next step."
+  confirm: The next inventory pull no longer lists {names}.
+  risk: A subnet that was about to use it has no outbound path until another NAT gateway exists. The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this.
+  steps:
+    - "Before anything happens to {names}, confirm the owner and that no subnet is about to use it. Note its public IPs."
+    - "In the portal, open the NAT gateway. Subnets must be empty. The engineer uses Delete only after the owner confirms."
+    - "Pull the inventory again. Deal with a leftover public IP as its own suggestion, not in the same click."
+    - "The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this."
+
+lb_without_backend:
+  rule: lb_without_backend
+  title: Load balancer with no back end
+  why_it_matters: No back-end addresses and no inbound NAT rules. A Standard load balancer has an hourly charge; Basic does not. The finding is not by itself a bill.
+  check_first: Confirm who owns {names}, the SKU, and that no back end is about to be added. Note the frontend public IP.
+  portal_steps:
+    - "Open {names}. Backend pools and Inbound NAT rules are empty. Note the SKU and the frontend IP."
+    - "After the owner confirms, the engineer uses Delete. If Azure asks about the public IP, leave it unless that IP has its own runbook."
+  confirm: The next inventory pull no longer lists {names}.
+  risk: A placeholder for a coming service is not waste. Removing it drops a frontend someone may already have published. The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this.
+  steps:
+    - "Before anything happens to {names}, confirm the owner, the SKU, and that no back end is about to be added."
+    - "In the portal, open the load balancer. Pools and inbound NAT rules must be empty. The engineer uses Delete only after the owner confirms, and leaves the public IP unless it has its own runbook."
+    - "Pull the inventory again and confirm the load balancer is gone, or still listed if the engineer left it."
+    - "The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this."
+
+appgw_empty_backend:
+  rule: appgw_empty_backend
+  title: Application gateway with empty back-end pools
+  why_it_matters: Every back-end pool is empty, and an application gateway has a fixed hourly charge while it exists. Listeners and a WAF policy may still be what someone relies on.
+  check_first: Confirm who owns {names}, that no back end is about to be added, and what the public IP and WAF policy are for.
+  portal_steps:
+    - "Open {names}. Backend pools shows no addresses. Note the public IP and any WAF policy."
+    - "After the owner confirms, the engineer uses Delete. The delete takes several minutes. Leave the public IP unless it has its own runbook."
+  confirm: The next inventory pull no longer lists {names}.
+  risk: Delete removes the listeners and the WAF association. A gateway waiting for a back end is not waste. The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this.
+  steps:
+    - "Before anything happens to {names}, confirm the owner and that no back end is about to be added. Note the public IP and WAF policy."
+    - "In the portal, open the application gateway. Every pool must be empty. The engineer uses Delete only after the owner confirms."
+    - "Pull the inventory again. The delete takes several minutes; the next pull shows it gone, or still listed if the engineer left it."
+    - "The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this."
+
+firewall_deallocated:
+  rule: firewall_deallocated
+  title: Azure Firewall deallocated
+  why_it_matters: No IP configuration and not in a virtual hub means the firewall is deallocated. That is billed less, not nothing. A route may still point at its old private IP.
+  check_first: Confirm who owns {names} and whether the deallocate was intentional. Check route tables for a next hop that was its private IP, and whether another firewall uses the same policy.
+  portal_steps:
+    - "Open {names}. Overview shows no public or private IP, and it is not in a virtual hub."
+    - "If the deallocate was intentional, leave it and record that. Do not remove it."
+    - "If the owner confirms it is abandoned, the engineer uses Delete on the firewall. The engineer deletes the policy only from the policy page, and only if no other firewall uses it."
+    - "Putting the firewall back is an addition, a change with a CR or SR number, not this runbook."
+  confirm: The next inventory pull no longer lists {names}, or still lists it deallocated if the engineer left it.
+  risk: A route that still points at the old private IP black-holes traffic. Deleting a shared policy drops rules on other firewalls. The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this.
+  steps:
+    - "Before anything happens to {names}, confirm the deallocate was not intentional, and that no route or other firewall still depends on it."
+    - "In the portal, open the firewall. If it was deallocated on purpose, leave it."
+    - "If the owner confirms it is abandoned, the engineer uses Delete on the firewall, and on the policy only when nothing else uses it, then pulls the inventory again."
+    - "The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this."
+
+ddos_plan_unused:
+  rule: ddos_plan_unused
+  title: DDoS protection plan protecting no network
+  why_it_matters: A DDoS Network Protection plan is billed whether or not a virtual network is protected. No stored network link is not proof every subscription was read.
+  check_first: Confirm who owns {names} and that no virtual network, including one in a subscription the last pull missed, should be on it.
+  portal_steps:
+    - "Open {names} under DDoS protection plans. Protected resources is empty."
+    - "After the owner confirms no network should be on it, the engineer uses Delete."
+  confirm: The next inventory pull no longer lists {names}.
+  risk: A network the last pull did not read would lose protection if it were associated. The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this.
+  steps:
+    - "Before anything happens to {names}, confirm the owner and that no network, including one not in the last pull, should be protected by it."
+    - "In the portal, open the plan. Protected resources must be empty. The engineer uses Delete only after the owner confirms."
+    - "Pull the inventory again and confirm the plan is gone, or still listed if the engineer left it."
+    - "The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this."
+
+private_endpoint_disconnected:
+  rule: private_endpoint_disconnected
+  title: Private endpoint that is disconnected
+  why_it_matters: A Disconnected state can be a rejected approval or a removed service, not an orphan. A DNS name may still point at the endpoint NIC.
+  check_first: Confirm who owns {names} and who owns the target service. Ask whether they rejected the connection. Check private DNS records that still name the endpoint.
+  portal_steps:
+    - "Open {names}. The connection status is Disconnected."
+    - "If the connection should exist, the service owner approves or recreates it. That is not a removal and not this runbook."
+    - "If the owner confirms it is abandoned, the engineer uses Delete on the endpoint. A DNS record that still points at it is a separate suggestion."
+  confirm: The next inventory pull no longer lists {names}, or shows a state other than Disconnected if they repaired it by hand.
+  risk: Removing an endpoint a name still resolves to breaks that name. The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this.
+  steps:
+    - "Before anything happens to {names}, confirm the service owner and whether a DNS name still points at the endpoint."
+    - "In the portal, open the endpoint. If it should be connected, the service owner repairs it. That is not this runbook."
+    - "If the owner confirms it is abandoned, the engineer uses Delete, then pulls the inventory again. The DNS record is a separate suggestion."
+    - "The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this."
+
+private_dns_zone_unlinked:
+  rule: private_dns_zone_unlinked
+  title: Private DNS zone linked to no network
+  why_it_matters: Zero virtual network links means nothing resolves the zone. A missing link is often the fault. Removing the zone is only right when the owner says it is abandoned.
+  check_first: Confirm who owns {names}, how many records it holds, and whether a link is about to be added.
+  portal_steps:
+    - "Open {names}. Virtual network links shows 0. Note the records."
+    - "If a network should resolve it, adding a link is a change with a CR or SR number, not this runbook."
+    - "If the owner confirms the zone is abandoned, the engineer copies records they may need, then uses Delete. The records go with the zone."
+  confirm: The next inventory pull no longer lists {names}, or lists a link if the engineer added one by hand.
+  risk: Delete removes every record in the zone. The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this.
+  steps:
+    - "Before anything happens to {names}, confirm the owner and whether a network should be linked rather than the zone removed."
+    - "In the portal, open the zone. Links must show 0. Adding a link is a change card, not this runbook."
+    - "If the owner confirms it is abandoned, the engineer copies the records and uses Delete, then pulls the inventory again."
+    - "The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this."
+
+empty_elastic_pool:
+  rule: empty_elastic_pool
+  title: SQL elastic pool with no database
+  why_it_matters: A pool with no database is still billed for its compute. An empty pool can be a landing place for a migration.
+  check_first: Confirm who owns {names} and that no database is about to be moved in.
+  portal_steps:
+    - "Open {names} on its SQL server. Databases shows none."
+    - "After the owner confirms, the engineer uses Delete. Azure refuses the delete while a database remains."
+  confirm: The next inventory pull no longer lists {names}.
+  risk: A pool reserved for a migration is not waste. The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this.
+  steps:
+    - "Before anything happens to {names}, confirm the owner and that no database is about to be moved into the pool."
+    - "In the portal, open the pool. Databases must be empty. The engineer uses Delete only after the owner confirms."
+    - "Pull the inventory again and confirm the pool is gone, or still listed if the engineer left it."
+    - "The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this."
+
+unused_nsg:
+  rule: unused_nsg
+  title: Network security group on nothing
+  why_it_matters: No subnet and no network card uses it. An NSG is not billed. The risk is a forgotten control someone thinks is in force, and losing the rules if it is removed.
+  check_first: Confirm who owns {names} and that no subnet is about to be associated. Copy the rules before anyone removes the group.
+  portal_steps:
+    - "Open {names}. Subnets and Network interfaces are both empty."
+    - "The engineer copies the rules, then uses Delete only after the owner confirms."
+  confirm: The next inventory pull no longer lists {names}.
+  risk: Delete loses the rules. It does not change traffic while nothing uses the group. The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this.
+  steps:
+    - "Before anything happens to {names}, confirm the owner and copy the rules. Confirm no subnet is about to use the group."
+    - "In the portal, open the group. Subnets and network interfaces must be empty. The engineer uses Delete only after the owner confirms."
+    - "Pull the inventory again and confirm it is gone, or still listed if the engineer left it."
+    - "The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this."
+
+unused_route_table:
+  rule: unused_route_table
+  title: Route table on nothing
+  why_it_matters: No subnet uses it. A route table is not billed. The routes are what would be lost, including a path to on-prem or a firewall.
+  check_first: Confirm who owns {names} and that no subnet is about to be associated. Copy every route first.
+  portal_steps:
+    - "Open {names}. Subnets is empty. Copy the routes from the Routes page."
+    - "After the network owner confirms nothing should use those routes, the engineer uses Delete."
+  confirm: The next inventory pull no longer lists {names}.
+  risk: The routes cannot be recovered after the engineer removes the table. The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this.
+  steps:
+    - "Before anything happens to {names}, the network owner confirms no subnet should use it, and the routes are copied."
+    - "In the portal, open the route table. Subnets must be empty. The engineer uses Delete only after that confirmation."
+    - "Pull the inventory again and confirm it is gone, or still listed if the engineer left it."
+    - "The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this."
+
+expired_certificate:
+  rule: expired_certificate
+  title: Expired App Service certificate
+  why_it_matters: The certificate expiration date is in the past, so TLS that depends on it is already failing. Renewal is not a removal.
+  check_first: Confirm who owns {names}, which sites still bind it, and whether a renewal is in progress.
+  portal_steps:
+    - "Open {names}. The expiration date is in the past. Note every site that binds it."
+    - "If a site should keep that name, renewal is a change with a CR or SR number, not a removal."
+    - "If the owner confirms it is abandoned, the engineer removes each binding on the site TLS bindings page, then uses Delete on the certificate."
+  confirm: The next inventory pull no longer lists {names}, or shows a later expiration if they renewed by hand.
+  risk: Removing a certificate a site still binds removes that binding. The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this.
+  steps:
+    - "Before anything happens to {names}, confirm the owner, which sites bind it, and whether a renewal is already in progress."
+    - "In the portal, open the certificate. If a site should keep the name, renewal is a change card, not this runbook."
+    - "If the owner confirms it is abandoned, the engineer removes the bindings by hand, then uses Delete, and pulls the inventory again."
+    - "The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this."
+
+workspace_long_retention_no_cap:
+  rule: workspace_long_retention_no_cap
+  title: Log workspace with long retention and no daily cap
+  why_it_matters: Retention over 90 days with no daily cap. The first 31 days are free. Shortening retention deletes data older than the new value.
+  check_first: Confirm who owns {names} and anyone who must keep the logs for compliance. A daily cap that is too low stops ingestion.
+  portal_steps:
+    - "Open {names}. Usage and estimated costs shows Data retention and the daily cap."
+    - "The engineer sets a cap, or shortens retention, only after the owner agrees how many days must be kept. Shortening retention deletes older rows. That click is the engineer's."
+    - "Removing the workspace is a separate decision, also by hand, and is not what this finding asks for."
+  confirm: The next inventory pull no longer raises this finding for {names}.
+  risk: A shorter retention cannot be undone for the rows it drops. A cap drops new logs once it is hit. The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this, and never changes the retention or the cap.
+  steps:
+    - "Before anything happens to {names}, the owner and anyone with a compliance duty agree how many days must be kept."
+    - "In the portal, open Usage and estimated costs. The engineer sets the cap or the retention by hand. Shortening retention deletes older rows."
+    - "Pull the inventory again. The next pull no longer raises this finding, or still does if the engineer left it."
+    - "The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this, and never changes the retention or the cap."
+
+premium_in_nonprod:
+  rule: premium_in_nonprod
+  title: Costly choice in a non-production place
+  why_it_matters: A Premium or Ultra disk, geo-redundant storage, or zone redundancy, where the env tag says non-production. The tag may be wrong. A wrong tag is not a reason to resize.
+  check_first: Confirm with the owner of {names} that the data is really non-prod before any SKU change. If the tag is wrong, stop. Correcting the tag is a change with a CR or SR number, not a resize.
+  portal_steps:
+    - "Open {names}. Note the SKU and the env tag. If the tag is wrong, do not change the SKU."
+    - "If the owner confirms non-prod, a disk size change is on Size + performance and often needs the VM deallocated first. The engineer deallocates and resizes by hand."
+    - "Storage replication is on the storage account Configuration page. Zone redundancy on a plan or database often cannot be turned off without a new resource, which the engineer creates by hand if the owner accepts it."
+  confirm: The next inventory pull shows a cheaper SKU on {names}, or the tag no longer says non-prod, so this finding clears.
+  risk: A disk SKU change can need a deallocate, which drops the temporary disk and a dynamic public IP. Dropping geo-redundancy drops the paired-region copy. The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this.
+  steps:
+    - "Before anything happens to {names}, confirm the env tag with the owner. A wrong tag is a change card, not a resize."
+    - "In the portal, open the resource and read the SKU. The engineer resizes, changes replication, or recreates without zone redundancy by hand, and deallocates first only when the portal requires it."
+    - "Pull the inventory again. The finding clears when the SKU is cheaper or the tag no longer says non-prod."
+    - "The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this."
+
+cost:
+  rule: cost
+  title: Advisor Cost recommendation
+  why_it_matters: Advisor Cost suggestions are often shut down, resize down, or remove unused. Advisor's lookback is evidence, not a verdict. A batch VM looks idle.
+  check_first: Confirm who owns {names}, whether the lookback covered a real idle period, and that a backup exists before anyone removes anything. Read the recommendation text stored with the finding.
+  portal_steps:
+    - "Open Advisor, Cost, and the recommendation named in the finding. Open {names} from Affected resources."
+    - "Read Advisor's own steps. A shut down, a resize down, a scale in or a delete is the engineer's click, after their own change approval."
+    - "A scale out or another addition is a change with a CR or SR number, not this runbook."
+  confirm: The next inventory pull's Advisor rows no longer list that recommendation for {names}, or the resource is gone if the engineer removed it.
+  risk: Advisor can be wrong for a seasonal workload. A resize or a removal is not assumed reversible. The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this.
+  steps:
+    - "Before anything happens to {names}, read the Advisor Cost text and confirm the owner and the lookback, including a batch window."
+    - "In the portal, open Advisor, Cost, then the resource. The engineer follows Advisor's clicks by hand when they remove, shut down or shrink."
+    - "Pull the inventory again. The recommendation is gone, or the resource remains if the engineer left it. An addition is a change card, not this runbook."
+    - "The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this."
+
+security:
+  rule: security
+  title: Advisor Security recommendation
+  why_it_matters: A security recommendation may turn a control on, which is an addition, or remove access, which is a narrowing. A narrowing is a removal and stays a suggestion.
+  check_first: Confirm who owns {names} and what the stored problem and solution text actually changes. Do not treat every security row as a removal, and do not treat a removal as safe.
+  portal_steps:
+    - "Open Advisor, Security, and the recommendation. Open {names}."
+    - "If it only turns a protection on, that is a change with a CR or SR number, not this runbook."
+    - "If it removes access, a public endpoint, a rule or an account, the engineer does that click in the portal after their own approval."
+  confirm: The next inventory pull's Advisor rows no longer list that recommendation for {names}.
+  risk: Removing access can lock out a workload that still uses it. The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this.
+  steps:
+    - "Before anything happens to {names}, read the Advisor Security text with the owner and decide whether it adds a control or removes access."
+    - "In the portal, open Advisor, Security, then the resource. An addition is a change card. A removal is the engineer's click after their own approval."
+    - "Pull the inventory again and confirm that recommendation is gone, or still listed if the engineer left it."
+    - "The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this."
+
+highavailability: &advisor_reliability
+  rule: highavailability
+  title: Advisor Reliability recommendation
+  why_it_matters: The API category is HighAvailability. The portal calls it Reliability. The recommendation may add a replica, or it may require a restart or a delete and recreate.
+  check_first: Confirm who owns {names} and whether the stored recommendation adds capacity or requires a restart, a failover, or a delete and recreate.
+  portal_steps:
+    - "Open Advisor, Reliability, and the recommendation. Open {names}."
+    - "An added replica or zone that does not restart the existing resource is a change with a CR or SR number, not this runbook."
+    - "A restart, a failover, or a delete and recreate is the engineer's click, after their own approval."
+  confirm: The next inventory pull's Advisor rows no longer list that recommendation for {names}.
+  risk: A restart drops in-flight work. Delete and recreate is not undo. The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this.
+  steps:
+    - "Before anything happens to {names}, read the Advisor Reliability text and confirm whether it adds a replica or requires a restart or a recreate."
+    - "In the portal, open Advisor, Reliability, then the resource. An addition that does not restart anything is a change card."
+    - "A restart, failover or recreate is the engineer's click after their own approval. Then pull the inventory again."
+    - "The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this."
+
+reliability:
+  <<: *advisor_reliability
+  rule: reliability
+  title: Advisor Reliability recommendation (portal name)
+
+performance:
+  rule: performance
+  title: Advisor Performance recommendation
+  why_it_matters: Scaling out or adding capacity is an addition. Shrinking a SKU or scaling in is a removal the product never does. A quiet week is not proof the peak is gone.
+  check_first: Confirm who owns {names} and that the lookback was not a quiet period. Read the stored recommendation before anyone changes a SKU.
+  portal_steps:
+    - "Open Advisor, Performance, and the recommendation. Open {names}."
+    - "If it adds capacity, that is a change with a CR or SR number, not this runbook."
+    - "If it shrinks a SKU or scales in, the engineer does that in the portal after their own approval."
+  confirm: The next inventory pull no longer lists that recommendation for {names}, or shows the SKU the engineer set by hand.
+  risk: A smaller SKU can fail a workload that peaks outside the lookback. The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this.
+  steps:
+    - "Before anything happens to {names}, confirm the owner and that the lookback was not a quiet week."
+    - "In the portal, open Advisor, Performance, then the resource. Adding capacity is a change card, not this runbook."
+    - "A smaller SKU or a scale in is the engineer's click after their own approval. Then pull the inventory again."
+    - "The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this."
+
+operationalexcellence:
+  rule: operationalexcellence
+  title: Advisor Operational Excellence recommendation
+  why_it_matters: Tags, alerts and diagnostic settings are additions. A recommendation that removes a resource or a setting is a removal and stays a suggestion.
+  check_first: Confirm who owns {names} and whether the stored recommendation adds a control or removes something another team still uses.
+  portal_steps:
+    - "Open Advisor, Operational excellence, and the recommendation. Open {names}."
+    - "Adding a tag, an alert or a diagnostic setting is a change with a CR or SR number, not this runbook."
+    - "If the recommendation removes a resource or a setting, the engineer does that click after their own approval."
+  confirm: The next inventory pull's Advisor rows no longer list that recommendation for {names}.
+  risk: A cleanup recommendation can name something another team still uses. The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this.
+  steps:
+    - "Before anything happens to {names}, read the Advisor text with the owner and decide whether it adds a control or removes something."
+    - "In the portal, open Advisor, Operational excellence, then the resource. An addition is a change card."
+    - "A removal is the engineer's click after their own approval. Then pull the inventory again."
+    - "The product never deletes, stops, deallocates, restarts, resizes, scales in or swaps this."

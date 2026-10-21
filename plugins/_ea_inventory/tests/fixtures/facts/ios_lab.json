@@ -1,0 +1,19 @@
+{
+  "_comment": "Captured 2026-10-02 from a Cisco 3725, IOS 12.4(15)T14 (lab c3725-lab) via reads/inventory_facts. Ansible drops the ansible_ prefix inside ansible_facts, so the keys are net_*.",
+  "facts": {
+    "net_gather_network_resources": [],
+    "net_gather_subset": [
+      "default"
+    ],
+    "net_system": "ios",
+    "net_model": "3725",
+    "net_image": "tftp://255.255.255.255/unknown",
+    "net_version": "12.4(15)T14",
+    "net_hostname": "c3725-lab",
+    "net_api": "cliconf",
+    "net_python_version": "3.13.5",
+    "net_iostype": "IOS",
+    "net_operatingmode": "autonomous",
+    "net_serialnum": "FTX0945W0MY"
+  }
+}

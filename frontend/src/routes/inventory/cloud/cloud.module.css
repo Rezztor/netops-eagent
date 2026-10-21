@@ -1,0 +1,58 @@
+/* The Cloud screens: tree, list, group, resource page. Tokens only, so both themes work. */
+.stack { display: grid; gap: var(--space-3); min-width: 0; }
+.cols { display: grid; grid-template-columns: minmax(220px, 280px) minmax(0, 1fr); gap: var(--space-4); align-items: start; }
+@media (max-width: 860px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: var(--space-3); }
+.asOf { color: var(--ink-2); font-size: var(--text-base); margin: 0; }
+.dim { color: var(--ink-2); }
+.sub { color: var(--ink-3); font-size: var(--text-xs); }
+.unset { color: var(--ink-3); }
+.link { background: none; border: 0; padding: 0; font: inherit; color: var(--accent); cursor: pointer; text-align: left; }
+.link:hover { text-decoration: underline; }
+.link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* tree */
+.tree { display: flex; flex-direction: column; gap: 2px; padding: var(--space-2); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.treeRow { display: flex; align-items: center; gap: 2px; }
+.twisty { width: 18px; flex-shrink: 0; font: inherit; color: var(--ink-2); background: none; border: 0; cursor: pointer; }
+.twistySpacer { width: 18px; flex-shrink: 0; }
+.treeBtn { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: 6px 8px; border: 1px solid transparent; border-radius: var(--radius-sm); background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.treeBtn:hover { background: var(--surface-alt); }
+.treeBtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.treeOn { border-color: var(--accent); background: var(--accent-wash, var(--surface-alt)); }
+.treeCount { color: var(--ink-2); font-variant-numeric: tabular-nums; font-size: var(--text-sm); }
+.treeWarn { margin: 0 0 4px 20px; padding: 2px 8px; color: var(--warn); font-size: var(--text-xs); }
+
+/* list */
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.toolbarSearch { flex: 1 1 220px; min-width: 0; }
+.check { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); font-size: var(--text-sm); }
+.name { font-weight: 600; }
+.removed td { opacity: 0.55; }
+.removed .name { text-decoration: line-through; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip { padding: 1px 7px; border-radius: 9px; background: var(--surface-alt); color: var(--ink-2); font-family: var(--font-mono); font-size: var(--text-xs); overflow-wrap: anywhere; }
+
+/* group */
+.cat { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) var(--space-4); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.catHead { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); }
+.catTitle { margin: 0; font-size: var(--text-md); font-weight: 700; }
+.line { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: 5px 0; border-top: 1px solid var(--line); }
+.line:first-of-type { border-top: 0; }
+
+/* resource page */
+.crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--ink-2); font-size: var(--text-sm); }
+.titleRow { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.title { margin: 0; font-size: var(--text-xl); font-weight: 700; overflow-wrap: anywhere; }
+.spacer { flex: 1; }
+.blocks { display: grid; gap: var(--space-3); }
+.inner { display: grid; gap: var(--space-2); }
+.innerTitle { margin: 0; font-size: var(--text-base); font-weight: 700; }
+.change { display: flex; flex-direction: column; gap: 2px; padding: 6px 0; border-top: 1px solid var(--line); }
+.change:first-of-type { border-top: 0; }
+.fields { margin: 0; padding-left: 18px; color: var(--ink); font-size: var(--text-sm); }
+.details > summary { cursor: pointer; color: var(--ink-2); font-size: var(--text-sm); margin-bottom: var(--space-2); }
+.mini { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+.mini th { text-align: left; color: var(--ink-3); font-size: 10.5px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; padding: 4px 10px 4px 0; border-bottom: 1px solid var(--line); }
+.mini td { padding: 5px 10px 5px 0; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
+.mini tr:last-child td { border-bottom: 0; }

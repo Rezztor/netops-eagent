@@ -1,0 +1,10 @@
+{
+  "_comment": "UNVERIFIED: constructed from the vendor module documentation, not captured from a live device. Correct on first live run. arista.eos.eos_facts keys from the public module docs only (collection not installed in the executor); values invented.",
+  "facts": {
+    "ansible_net_hostname": "EOS-Spine1",
+    "ansible_net_model": "DCS-7050SX3-48YC8",
+    "ansible_net_serialnum": "JPE20230123",
+    "ansible_net_version": "4.28.3M",
+    "ansible_net_image": "flash:/EOS-4.28.3M.swi"
+  }
+}

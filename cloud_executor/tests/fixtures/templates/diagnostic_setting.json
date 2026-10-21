@@ -1,0 +1,65 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.13.1",
+  "variables": {
+    "name": {
+      "value": "diag-kv-payments-prod"
+    },
+    "target_id": {
+      "value": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.KeyVault/vaults/kv-payments-prod"
+    },
+    "workspace_id": {
+      "value": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.OperationalInsights/workspaces/log-hub-prod-uaen-001"
+    },
+    "logs": {
+      "value": "audit"
+    },
+    "metrics": {
+      "value": true
+    }
+  },
+  "resource_changes": [
+    {
+      "address": "azurerm_monitor_diagnostic_setting.this",
+      "mode": "managed",
+      "type": "azurerm_monitor_diagnostic_setting",
+      "name": "this",
+      "provider_name": "registry.opentofu.org/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "name": "diag-kv-payments-prod",
+          "target_resource_id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.KeyVault/vaults/kv-payments-prod",
+          "log_analytics_workspace_id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.OperationalInsights/workspaces/log-hub-prod-uaen-001",
+          "enabled_log": [
+            {
+              "category_group": "audit",
+              "category": null
+            }
+          ],
+          "enabled_metric": [
+            {
+              "category": "AllMetrics"
+            }
+          ]
+        },
+        "after_unknown": {
+          "id": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {}
+      }
+    }
+  ],
+  "configuration": {
+    "provider_config": {
+      "azurerm": {
+        "name": "azurerm",
+        "full_name": "registry.opentofu.org/hashicorp/azurerm"
+      }
+    }
+  }
+}

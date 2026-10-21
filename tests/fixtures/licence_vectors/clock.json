@@ -1,0 +1,77 @@
+{
+ "description": "The mark of \"The clock\": verdict.next_mark(mark, clock, lease_now).",
+ "cases": [
+  {
+   "name": "first start: the clock becomes the mark",
+   "op": "next_mark",
+   "mark": 0,
+   "clock": 1790864000,
+   "lease_now": null,
+   "expect": 1790864000
+  },
+  {
+   "name": "the clock moved on: the mark rises",
+   "op": "next_mark",
+   "mark": 1790864000,
+   "clock": 1790950400,
+   "lease_now": null,
+   "expect": 1790950400
+  },
+  {
+   "name": "the clock was set back: the mark stays",
+   "op": "next_mark",
+   "mark": 1790864000,
+   "clock": 1790777600,
+   "lease_now": null,
+   "expect": 1790864000
+  },
+  {
+   "name": "the clock was set back a second: the mark stays",
+   "op": "next_mark",
+   "mark": 1790864000,
+   "clock": 1790863999,
+   "lease_now": null,
+   "expect": 1790864000
+  },
+  {
+   "name": "an accepted lease sets the mark to its now",
+   "op": "next_mark",
+   "mark": 1790864000,
+   "clock": 1790864000,
+   "lease_now": 1790864060,
+   "expect": 1790864060
+  },
+  {
+   "name": "an accepted lease lowers a mark left by a wrong server clock",
+   "op": "next_mark",
+   "mark": 1797776000,
+   "clock": 1790864000,
+   "lease_now": 1790864005,
+   "expect": 1790864005
+  },
+  {
+   "name": "an accepted lease sets the mark even below the product's clock",
+   "op": "next_mark",
+   "mark": 1790864000,
+   "clock": 1790950400,
+   "lease_now": 1790864000,
+   "expect": 1790864000
+  },
+  {
+   "name": "after that, the next clock reading raises it again",
+   "op": "next_mark",
+   "mark": 1790864000,
+   "clock": 1790950400,
+   "lease_now": null,
+   "expect": 1790950400
+  },
+  {
+   "name": "an accepted lease with a clock that is behind",
+   "op": "next_mark",
+   "mark": 1790864000,
+   "clock": 1788272000,
+   "lease_now": 1790864060,
+   "expect": 1790864060
+  }
+ ]
+}

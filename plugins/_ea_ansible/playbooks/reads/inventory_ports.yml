@@ -1,0 +1,176 @@
+# Feeds the inventory's Ports tab (plugins/_ea_inventory/helpers/facts/collect_ports.py).
+# Fixed read-only commands, no variables; the last task prints one machine-readable
+# line per host for the application to parse:
+#
+#   EAGENT_PORTS <inventory_hostname> <compact JSON>
+#
+# The JSON is {"platform", "commands": {command: [lines]}, "facts": {...}} (for nxos, eos and
+# junos a command maps to its structured reply instead of lines). The
+# application does the parsing (helpers/facts/ports_parse.py), so a device that
+# prints something unexpected costs one command's worth of data, not the run:
+# a command that fails is recorded with no lines (`failed_when: false`).
+# `facts` holds only ios_facts' interface and neighbour keys; no config text, no
+# credentials. As with reads/inventory_facts the debug callback JSON-escapes the
+# quotes inside the line and the parser undoes that.
+#
+# Run against a device: `sonic_community` (the networkop/sonic-vs lab; most of these commands fail
+# on that image and come back empty, which is expected) and `ios` (Cisco 3725, IOS 12.4(15)T14:
+# `show vlan brief`, `show power inline` and `show license summary` fail there and come back empty,
+# `show vlan-switch brief` carries the VLANs). `ios_facts` puts its keys in `ansible_facts` as `net_*`,
+# without the `ansible_` prefix, so both spellings are selected.
+#
+# `nxos`, `eos` and `junos` have not met a device: written from documented output. All three go over
+# network_cli and ask for the vendor's structured output (`| json`, `| display json`). NX-OS and EOS
+# decode the reply in their cliconf plugin, so `stdout[0]` is already an object; Junos returns the text
+# and the application decodes it. A command that fails (LLDP off, a feature the box lacks) leaves ''.
+- name: Collect ports and parts
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Establish which platform this host is
+      ansible.builtin.set_fact:
+        eagent_platform: >-
+          {{ (ansible_network_os | default('')) | regex_replace('^.*\.', '') }}
+
+    - name: Refuse a platform this entry does not cover
+      ansible.builtin.fail:
+        msg: >-
+          {{ inventory_hostname }} is '{{ eagent_platform }}' (from
+          ansible_network_os), which reads/inventory_ports does not cover. It is
+          written for ios, nxos, eos, junos, fortios, panos and sonic_community.
+      when: eagent_platform not in ['ios', 'nxos', 'eos', 'junos', 'fortios', 'panos', 'sonic_community']
+
+    - name: Collect interface facts from a Cisco IOS device
+      cisco.ios.ios_facts:
+        gather_subset:
+          - interfaces
+          - hardware
+      when: eagent_platform == 'ios'
+
+    - name: Read the show commands from a Cisco IOS device
+      # In check mode ios_command sends only commands that begin with `show`.
+      cisco.ios.ios_command:
+        commands: ["{{ item }}"]
+      loop:
+        - show inventory
+        - show vlan brief
+        - show vlan-switch brief
+        - show interfaces status
+        - show interfaces switchport
+        - show power inline
+        - show license summary
+      failed_when: false
+      register: ios_raw
+      when: eagent_platform == 'ios'
+
+    - name: Read the show commands from a Cisco NX-OS device
+      # In check mode nxos_command sends only commands that begin with `show`.
+      cisco.nxos.nxos_command:
+        commands: ["{{ item }}"]
+      loop:
+        - show interface status | json
+        - show interface switchport | json
+        - show ip interface vrf all | json
+        - show lldp neighbors detail | json
+        - show inventory | json
+      failed_when: false
+      register: nxos_raw
+      when: eagent_platform == 'nxos'
+
+    - name: Read the show commands from an Arista EOS device
+      # In check mode eos_command sends only commands that begin with `show`.
+      arista.eos.eos_command:
+        commands: ["{{ item }}"]
+      loop:
+        - show interfaces status | json
+        - show interfaces description | json
+        - show ip interface | json
+        - show lldp neighbors detail | json
+        - show inventory | json
+      failed_when: false
+      register: eos_raw
+      when: eagent_platform == 'eos'
+
+    - name: Read the show commands from a Junos device
+      # Over network_cli, as in reads/show. The CLI sends only what is written here; the
+      # reply is JSON text, which the application decodes.
+      juniper.device.junos_command:
+        commands: ["{{ item }}"]
+      loop:
+        - show interfaces terse | display json
+        - show interfaces descriptions | display json
+        - show lldp neighbors | display json
+        - show chassis hardware | display json
+      failed_when: false
+      register: junos_raw
+      when: eagent_platform == 'junos'
+
+    - name: Read the show commands from a sonic_community device
+      # Plain SSH and `show` (see interfaces.yml). `raw` is skipped in check mode,
+      # so this task opts out; it runs only the fixed read-only commands below.
+      # A command this image does not have fails; that is recorded, not raised.
+      ansible.builtin.raw: "{{ item }} 2>&1"
+      loop:
+        - show interfaces status
+        - show interfaces description
+        - show vlan brief
+        - show lldp table
+        - show ip interfaces
+        - show interfaces transceiver presence
+        - show platform summary
+      check_mode: false
+      changed_when: false
+      failed_when: false
+      register: sonic_raw
+      when: eagent_platform == 'sonic_community'
+
+    - name: Ask the firewall
+      # FortiGate and Palo Alto: their management API over HTTPS with the stored API token, GET only
+      # (reads/fw/read.yml). The answer is already reduced to named fields; the application maps them to
+      # ports (ports_parse.py). Written from the vendors' documented output, not run against a device.
+      # No LLDP: both APIs have a neighbour listing, but no page the parser was written from shows its fields.
+      ansible.builtin.include_tasks: fw/read.yml
+      vars:
+        fw_read: ports
+        fw_requests:
+          fortios:
+            - "/api/v2/monitor/system/interface?include_vlan=true"
+            - "/api/v2/cmdb/system/interface?format=name%7Calias%7Cdescription%7Cstatus%7Ctype%7Cvlanid%7Cinterface%7Crole"
+            - "/api/v2/cmdb/system/zone?format=name%7Cinterface"
+            - "/api/v2/monitor/system/status"
+          panos:
+            - "<show><interface>all</interface></show>"
+            - "<show><system><info></info></system></show>"
+      when: eagent_platform in ['fortios', 'panos']
+
+    - name: Keep the firewall's answer as the one command
+      ansible.builtin.set_fact:
+        eagent_commands: {ports: "{{ eagent_fw }}"}
+      when: eagent_platform in ['fortios', 'panos']
+
+    - name: Gather each command's output under its command
+      ansible.builtin.set_fact:
+        eagent_commands: "{{ eagent_commands | default({}) | combine({item.item: lines}) }}"
+      vars:
+        # ios: the lines of the first reply; sonic_community: the lines; nxos, eos and junos: the first reply as it
+        # came (an object, or JSON text for Junos), '' when the command failed.
+        lines: >-
+          {{ ((item.stdout_lines | default([])) | first | default([]))
+             if eagent_platform == 'ios' else (item.stdout_lines | default([]))
+             if eagent_platform == 'sonic_community' else ((item.stdout | default([])) | first | default('')) }}
+      loop: >-
+        {{ {'ios': ios_raw, 'nxos': nxos_raw, 'eos': eos_raw, 'junos': junos_raw,
+            'sonic_community': sonic_raw, 'fortios': {'results': []}, 'panos': {'results': []}}[eagent_platform].results }}
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Print the ports line
+      ansible.builtin.debug:
+        msg: >-
+          EAGENT_PORTS {{ inventory_hostname }} {{ {
+            'platform': eagent_platform,
+            'commands': eagent_commands | default({}),
+            'facts': (ansible_facts | default({})) | dict2items
+              | selectattr('key', 'in', ['ansible_net_interfaces', 'ansible_net_neighbors', 'net_interfaces', 'net_neighbors'])
+              | items2dict
+          } | to_json(separators=(',', ':')) }}

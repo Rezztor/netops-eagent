@@ -1,0 +1,31 @@
+# Where audit events are forwarded. Nothing is sent until `enabled` is true and
+# a host is set -- an unconfigured plugin is inert, not failing.
+enabled: false
+host: ""
+port: 514
+
+# Syslog envelope wrapped around each CEF line. rfc3164 is the BSD-era format
+# nearly every collector still accepts; rfc5424 is the structured successor,
+# offered for collectors that prefer it. See helpers/cef.py.
+syslog_format: rfc3164
+
+# Syslog facility number. 16 is local0, the conventional choice for
+# application-generated events. The syslog priority byte this produces is
+# unrelated to the CEF severity field -- see AGENTS.md.
+facility: 16
+
+# The first three CEF header fields, identifying the product to the SIEM.
+# device_version is not here: it is read live from helpers/git.py so it cannot
+# drift from what is actually running.
+device_vendor: "Rezztor"
+device_product: "EAgent"
+
+# CEF severity (0-10) below which events are not forwarded at all. 0 sends
+# everything the audit system emits. See helpers/cef.py for how severity is
+# derived from an event and its own fields.
+min_severity: 0
+
+# How many formatted lines may wait for the sender thread. On overflow the
+# OLDEST is dropped and counted, so a stalled destination costs bounded memory
+# and visible loss rather than unbounded growth or a blocked audit write.
+queue_size: 1000

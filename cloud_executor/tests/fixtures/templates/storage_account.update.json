@@ -1,0 +1,122 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.13.1",
+  "variables": {
+    "resource_group": {
+      "value": "rg-payments-prod-uaen"
+    },
+    "region": {
+      "value": "uaenorth"
+    },
+    "name": {
+      "value": "stpaymentsprod001"
+    },
+    "replication": {
+      "value": "ZRS"
+    },
+    "tags": {
+      "value": {
+        "env": "prod",
+        "owner": "netops",
+        "costcentre": "cc-1001",
+        "project": "payments"
+      }
+    }
+  },
+  "resource_changes": [
+    {
+      "address": "azurerm_storage_account.this",
+      "mode": "managed",
+      "type": "azurerm_storage_account",
+      "name": "this",
+      "provider_name": "registry.opentofu.org/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "update"
+        ],
+        "before": {
+          "name": "stpaymentsprod001",
+          "resource_group_name": "rg-payments-prod-uaen",
+          "location": "uaenorth",
+          "account_kind": "StorageV2",
+          "account_tier": "Standard",
+          "account_replication_type": "ZRS",
+          "https_traffic_only_enabled": true,
+          "min_tls_version": "TLS1_2",
+          "shared_access_key_enabled": false,
+          "default_to_oauth_authentication": true,
+          "allow_nested_items_to_be_public": false,
+          "cross_tenant_replication_enabled": false,
+          "public_network_access_enabled": false,
+          "tags": {
+            "env": "prod",
+            "owner": "netops",
+            "costcentre": "cc-1001"
+          },
+          "blob_properties": [
+            {
+              "delete_retention_policy": [
+                {
+                  "days": 7
+                }
+              ],
+              "container_delete_retention_policy": [
+                {
+                  "days": 7
+                }
+              ]
+            }
+          ],
+          "id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.Fixture/azurerm_storage_account/stpaymentsprod001"
+        },
+        "after": {
+          "name": "stpaymentsprod001",
+          "resource_group_name": "rg-payments-prod-uaen",
+          "location": "uaenorth",
+          "account_kind": "StorageV2",
+          "account_tier": "Standard",
+          "account_replication_type": "ZRS",
+          "https_traffic_only_enabled": true,
+          "min_tls_version": "TLS1_2",
+          "shared_access_key_enabled": false,
+          "default_to_oauth_authentication": true,
+          "allow_nested_items_to_be_public": false,
+          "cross_tenant_replication_enabled": false,
+          "public_network_access_enabled": false,
+          "tags": {
+            "env": "prod",
+            "owner": "netops",
+            "costcentre": "cc-1001",
+            "project": "payments"
+          },
+          "blob_properties": [
+            {
+              "delete_retention_policy": [
+                {
+                  "days": 7
+                }
+              ],
+              "container_delete_retention_policy": [
+                {
+                  "days": 7
+                }
+              ]
+            }
+          ],
+          "id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.Fixture/azurerm_storage_account/stpaymentsprod001"
+        },
+        "after_unknown": {},
+        "before_sensitive": {},
+        "after_sensitive": {}
+      }
+    }
+  ],
+  "configuration": {
+    "provider_config": {
+      "azurerm": {
+        "name": "azurerm",
+        "full_name": "registry.opentofu.org/hashicorp/azurerm"
+      }
+    }
+  }
+}

@@ -1,0 +1,94 @@
+{
+ "_comment": "Written from documented output, not recorded from a run. Shape: OpenTofu JSON plan representation, https://opentofu.org/docs/internals/json-format/ (resource_changes[].change.importing.id is set for a resource an import block brings in; with configuration that matches the remote object the action is no-op) and https://opentofu.org/docs/language/import/ (import blocks). The import ID form with ?api-version= is the one the azapi_resource docs give, https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource (Import).",
+ "format_version": "1.2",
+ "terraform_version": "1.13.1",
+ "variables": {},
+ "resource_changes": [
+  {
+   "address": "azapi_resource.r1",
+   "mode": "managed",
+   "type": "azapi_resource",
+   "name": "r1",
+   "provider_name": "registry.opentofu.org/azure/azapi",
+   "change": {
+    "actions": [
+     "no-op"
+    ],
+    "before": {
+     "id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.Network/virtualNetworks/vnet-a",
+     "name": "vnet-a",
+     "parent_id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen",
+     "type": "Microsoft.Network/virtualNetworks@2024-05-01",
+     "location": "uaenorth",
+     "tags": {
+      "env": "prod",
+      "owner": "netops"
+     },
+     "body": {},
+     "output": {},
+     "timeouts": null
+    },
+    "after": {
+     "id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.Network/virtualNetworks/vnet-a",
+     "name": "vnet-a",
+     "parent_id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen",
+     "type": "Microsoft.Network/virtualNetworks@2024-05-01",
+     "location": "uaenorth",
+     "tags": {
+      "env": "prod",
+      "owner": "netops"
+     },
+     "body": {},
+     "output": {},
+     "timeouts": null
+    },
+    "after_unknown": {},
+    "before_sensitive": {},
+    "after_sensitive": {},
+    "importing": {
+     "id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.Network/virtualNetworks/vnet-a?api-version=2024-05-01"
+    }
+   }
+  },
+  {
+   "address": "azapi_resource.r2",
+   "mode": "managed",
+   "type": "azapi_resource",
+   "name": "r2",
+   "provider_name": "registry.opentofu.org/azure/azapi",
+   "change": {
+    "actions": [
+     "no-op"
+    ],
+    "before": {
+     "id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.Network/virtualNetworks/vnet-a/subnets/snet-app",
+     "name": "snet-app",
+     "parent_id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.Network/virtualNetworks/vnet-a",
+     "type": "Microsoft.Network/virtualNetworks/subnets@2024-05-01",
+     "location": null,
+     "tags": null,
+     "body": {},
+     "output": {},
+     "timeouts": null
+    },
+    "after": {
+     "id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.Network/virtualNetworks/vnet-a/subnets/snet-app",
+     "name": "snet-app",
+     "parent_id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.Network/virtualNetworks/vnet-a",
+     "type": "Microsoft.Network/virtualNetworks/subnets@2024-05-01",
+     "location": null,
+     "tags": null,
+     "body": {},
+     "output": {},
+     "timeouts": null
+    },
+    "after_unknown": {},
+    "before_sensitive": {},
+    "after_sensitive": {},
+    "importing": {
+     "id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.Network/virtualNetworks/vnet-a/subnets/snet-app?api-version=2024-05-01"
+    }
+   }
+  }
+ ]
+}

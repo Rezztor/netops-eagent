@@ -1,0 +1,338 @@
+{
+ "_comment": [
+  "UNVERIFIED: written from documented output, not run against a device. Every value below is copied from Cisco's NX-API CLI reference; `| json` over the CLI returns the same `body` the pages show, which the cliconf plugin decodes before the playbook sees it.",
+  "show interface status | json: https://developer.cisco.com/docs/nx-api-cli-reference-for-the-cisco-nexus-7000-series-platform/interface-commands (rows mgmt0, Ethernet9/1..9/4 of the 'show interface status' example). The page's example has no `name` key (a configured description); the parser reads it when present.",
+  "show interface switchport | json: same page, 'show int switchport' example (rows Ethernet9/1, Ethernet9/2, port-channel12), counters omitted: none are shown. That example has only access ports; the trunk branch is covered in test_ports_parse.py with a copy that changes oper_mode.",
+  "show ip interface vrf all | json: https://developer.cisco.com/docs/nx-api-cli-reference-for-the-cisco-nexus-3500-series-platform/ip-interface-commands/ ('show ip interface 89.1.4.1' example, packet counters left out). The page shows the single-VRF shape; the parser finds rows at any depth, which test_ports_parse.py checks with the rows wrapped in a per-VRF table.",
+  "show lldp neighbors detail | json: https://developer.cisco.com/docs/nx-api-cli-reference-for-the-cisco-nexus-3500-series-platform/lldp-commands ('show lldp neighbors detail' example, rows mgmt0, Eth1/2, Eth1/4; LLDP prints the short port names).",
+  "show inventory | json: https://developer.cisco.com/docs/nx-api-cli-reference-for-the-cisco-nexus-9000-series-platform/inventory-commands (the whole example; the page shows names and descriptions wrapped in quotes and the parser strips them). No transceiver row is in it."
+ ],
+ "platform": "nxos",
+ "commands": {
+  "show interface status | json": {
+   "TABLE_interface": {
+    "ROW_interface": [
+     {
+      "interface": "mgmt0",
+      "state": "connected",
+      "vlan": "routed",
+      "duplex": "full",
+      "speed": "a-1000",
+      "type": "--"
+     },
+     {
+      "interface": "Ethernet9/1",
+      "state": "notconnect",
+      "vlan": "2",
+      "duplex": "auto",
+      "speed": "auto",
+      "type": "SFP-H10GB-CU3M"
+     },
+     {
+      "interface": "Ethernet9/2",
+      "state": "connected",
+      "vlan": "2",
+      "duplex": "full",
+      "speed": "a-10G",
+      "type": "10Gbase-SR"
+     },
+     {
+      "interface": "Ethernet9/3",
+      "state": "notconnect",
+      "vlan": "routed",
+      "duplex": "auto",
+      "speed": "auto",
+      "type": "SFP-H10GB-CU5M"
+     },
+     {
+      "interface": "Ethernet9/4",
+      "state": "sfpAbsent",
+      "vlan": "routed",
+      "duplex": "auto",
+      "speed": "auto",
+      "type": "--"
+     }
+    ]
+   }
+  },
+  "show interface switchport | json": {
+   "TABLE_interface": {
+    "ROW_interface": [
+     {
+      "interface": "Ethernet9/1",
+      "switchport": "Enabled",
+      "switchport_monitor": "Not enabled",
+      "oper_mode": "access",
+      "access_vlan": 2,
+      "access_vlan_name": "VLAN0002",
+      "native_vlan": 1,
+      "native_vlan_name": "default",
+      "trunk_vlans": "1-4094",
+      "fabricpath_topologies": "0",
+      "admin_pvlan_pri_assoc": "none",
+      "admin_pvlan_sec_assoc": "none",
+      "admin_pvlan_pri_mapping": "none",
+      "admin_pvlan_sec_mapping": "none",
+      "admin_pvlan_trunk_native": "none",
+      "admin_pvlan_trunk_encap": "dot1q",
+      "admin_pvlan_trunk_normal": "none",
+      "admin_pvlan_trunk_private": "none",
+      "oper_pvlan": "none"
+     },
+     {
+      "interface": "Ethernet9/2",
+      "switchport": "Enabled",
+      "switchport_monitor": "Not enabled",
+      "oper_mode": "access",
+      "access_vlan": 2,
+      "access_vlan_name": "VLAN0002",
+      "native_vlan": 1,
+      "native_vlan_name": "default",
+      "trunk_vlans": "1-4094",
+      "fabricpath_topologies": "0",
+      "admin_pvlan_pri_assoc": "none",
+      "admin_pvlan_sec_assoc": "none",
+      "admin_pvlan_pri_mapping": "none",
+      "admin_pvlan_sec_mapping": "none",
+      "admin_pvlan_trunk_native": "none",
+      "admin_pvlan_trunk_encap": "dot1q",
+      "admin_pvlan_trunk_normal": "none",
+      "admin_pvlan_trunk_private": "none",
+      "oper_pvlan": "none"
+     },
+     {
+      "interface": "port-channel12",
+      "switchport": "Enabled",
+      "switchport_monitor": "Not enabled",
+      "oper_mode": "access",
+      "access_vlan": 1,
+      "access_vlan_name": "default",
+      "native_vlan": 1,
+      "native_vlan_name": "default",
+      "trunk_vlans": "1-4094",
+      "fabricpath_topologies": "0",
+      "admin_pvlan_pri_assoc": "none",
+      "admin_pvlan_sec_assoc": "none",
+      "admin_pvlan_pri_mapping": "none",
+      "admin_pvlan_sec_mapping": "none",
+      "admin_pvlan_trunk_native": "none",
+      "admin_pvlan_trunk_encap": "dot1q",
+      "admin_pvlan_trunk_normal": "none",
+      "admin_pvlan_trunk_private": "none",
+      "oper_pvlan": "none"
+     }
+    ]
+   }
+  },
+  "show ip interface vrf all | json": {
+   "TABLE_intf": {
+    "ROW_intf": {
+     "intf-name": "Ethernet1/1.53",
+     "prefix": "89.1.4.1",
+     "masklen": "24",
+     "subnet": "89.1.4.0",
+     "admin-state": "TRUE",
+     "link-state": "TRUE",
+     "proto-state": "TRUE",
+     "vrf-name-out": "default",
+     "secondary": "",
+     "mtu": "1500"
+    }
+   }
+  },
+  "show lldp neighbors detail | json": {
+   "TABLE_nbor_detail": {
+    "ROW_nbor_detail": [
+     {
+      "chassis_id": "18ef.6332.e5a3",
+      "chassis_type": "4",
+      "enabled_capability": "B",
+      "l_port_id": "mgmt0",
+      "mgmt_addr": "10.197.122.16",
+      "mgmt_addr_ipv6": "not advertised",
+      "mgmt_addr_ipv6_type": "Address not advertised",
+      "mgmt_addr_type": "IPV4",
+      "port_desc": "GigabitEthernet1/0/35",
+      "port_id": "Gi1/0/35",
+      "port_type": "1",
+      "sys_desc": "Cisco IOS Software, C2975 Software (C2975-LANBASE-M), Version 12.2(46)EX, RELEASE SOFTWARE (fc1) Copyright (c) 1986-2008 by Cisco Systems, Inc. Compiled Mon 03-Nov-08 13:07 by antonino",
+      "sys_name": "SW-INSBU-JWALA-PP52.cisco.com",
+      "system_capability": "B, R",
+      "ttl": "108",
+      "vlan_id": "231"
+     },
+     {
+      "chassis_id": "f44e.0584.7fa9",
+      "chassis_type": "4",
+      "enabled_capability": "B, R",
+      "l_port_id": "Eth1/2",
+      "mgmt_addr": "10.197.122.97",
+      "mgmt_addr_ipv6": "f44e.0584.7fa9",
+      "mgmt_addr_ipv6_type": "802",
+      "mgmt_addr_type": "IPV4",
+      "port_desc": "lsl-c001_Ethernet1/25:364:euNetworks:W_FrontOffice [CRIT]",
+      "port_id": "Ethernet1/2",
+      "port_type": "5",
+      "sys_desc": "Cisco Nexus Operating System (NX-OS) Software 6.0(2)A8(8) TAC support: http://www.cisco.com/tac Copyright (c) 2002-2017, Cisco Systems, Inc. All rights reserved.",
+      "sys_name": "mdr-c002.network.jumptrading.com",
+      "system_capability": "B, R",
+      "ttl": "96",
+      "vlan_id": "not advertised"
+     },
+     {
+      "chassis_id": "f44e.0584.7fab",
+      "chassis_type": "4",
+      "enabled_capability": "B, R",
+      "l_port_id": "Eth1/4",
+      "mgmt_addr": "10.197.122.97",
+      "mgmt_addr_ipv6": "f44e.0584.7fab",
+      "mgmt_addr_ipv6_type": "802",
+      "mgmt_addr_type": "IPV4",
+      "port_desc": "lsl-c001_Ethernet1/25:364:euNetworks:W_FrontOffice [CRIT]",
+      "port_id": "Ethernet1/4",
+      "port_type": "5",
+      "sys_desc": "Cisco Nexus Operating System (NX-OS) Software 6.0(2)A8(8) TAC support: http://www.cisco.com/tac Copyright (c) 2002-2017, Cisco Systems, Inc. All rights reserved.",
+      "sys_name": "mdr-c002.network.jumptrading.com",
+      "system_capability": "B, R",
+      "ttl": "96",
+      "vlan_id": "not advertised"
+     }
+    ]
+   },
+   "neigh_count": "3",
+   "neigh_hdr": "neigh_hdr"
+  },
+  "show inventory | json": {
+   "TABLE_inv": {
+    "ROW_inv": [
+     {
+      "desc": "\"Nexus9000 C9508 (8 Slot) Chassis\"",
+      "name": "\"Chassis\"",
+      "productid": "N9K-C9508",
+      "serialnum": "FGE20330LWZ",
+      "vendorid": "V03"
+     },
+     {
+      "desc": "\"32x100G Ethernet Module\"",
+      "name": "\"Slot 1\"",
+      "productid": "N9K-X9732C-EX",
+      "serialnum": "SAL2039VA2U",
+      "vendorid": "V01"
+     },
+     {
+      "desc": "\"32x100G Ethernet Module\"",
+      "name": "\"Slot 2\"",
+      "productid": "N9K-X9732C-EXM",
+      "serialnum": "FOC20444YD2",
+      "vendorid": "V01"
+     },
+     {
+      "desc": "\"48x10G + 4x40/100G Ethernet Module\"",
+      "name": "\"Slot 3\"",
+      "productid": "N9K-X9788TC-FX",
+      "serialnum": "FOC21240U8B",
+      "vendorid": "V01"
+     },
+     {
+      "desc": "\"36x40/100G Ethernet Module\"",
+      "name": "\"Slot 4\"",
+      "productid": "N9K-X9736C-FX",
+      "serialnum": "FOC210707HG",
+      "vendorid": "V01"
+     },
+     {
+      "desc": "\"8-slot Fabric Module\"",
+      "name": "\"Slot 22\"",
+      "productid": "N9K-C9508-FM-E",
+      "serialnum": "SAL2035URFY",
+      "vendorid": "V01"
+     },
+     {
+      "desc": "\"8-slot Fabric Module\"",
+      "name": "\"Slot 23\"",
+      "productid": "N9K-C9508-FM-E",
+      "serialnum": "SAL2035UUN3",
+      "vendorid": "V01"
+     },
+     {
+      "desc": "\"8-slot Fabric Module\"",
+      "name": "\"Slot 24\"",
+      "productid": "N9K-C9508-FM-E",
+      "serialnum": "SAL2035URF2",
+      "vendorid": "V01"
+     },
+     {
+      "desc": "\"8-slot Fabric Module\"",
+      "name": "\"Slot 26\"",
+      "productid": "N9K-C9508-FM-E",
+      "serialnum": "SAL2035URFP",
+      "vendorid": "V01"
+     },
+     {
+      "desc": "\"Supervisor Module\"",
+      "name": "\"Slot 27\"",
+      "productid": "N9K-SUP-A",
+      "serialnum": "SAL2015NQ3H",
+      "vendorid": "V03"
+     },
+     {
+      "desc": "\"System Controller\"",
+      "name": "\"Slot 29\"",
+      "productid": "N9K-SC-A",
+      "serialnum": "SAL2035UTLL",
+      "vendorid": "V01"
+     },
+     {
+      "desc": "\"System Controller\"",
+      "name": "\"Slot 30\"",
+      "productid": "N9K-SC-A",
+      "serialnum": "SAL2035UTK8",
+      "vendorid": "V01"
+     },
+     {
+      "desc": "\"Nexus9000 C9508 (8 Slot) Chassis Power Supply\"",
+      "name": "\"Power Supply 1\"",
+      "productid": "N9K-PAC-3000W-B",
+      "serialnum": "DTM190203NX",
+      "vendorid": "V02"
+     },
+     {
+      "desc": "\"Nexus9000 C9508 (8 Slot) Chassis Power Supply\"",
+      "name": "\"Power Supply 2\"",
+      "productid": "N9K-PAC-3000W-B",
+      "serialnum": "ART2031F6NX",
+      "vendorid": "V02"
+     },
+     {
+      "desc": "\"Nexus9000 C9508 (8 Slot) Chassis Power Supply\"",
+      "name": "\"Power Supply 3\"",
+      "productid": "N9K-PAC-3000W-B",
+      "serialnum": "ART2031F6NV",
+      "vendorid": "V02"
+     },
+     {
+      "desc": "\"Nexus9000 C9508 (8 Slot) Chassis Fan Module\"",
+      "name": "\"Fan 1\"",
+      "productid": "N9K-C9508-FAN",
+      "serialnum": "FGE201909AE",
+      "vendorid": "V01"
+     },
+     {
+      "desc": "\"Nexus9000 C9508 (8 Slot) Chassis Fan Module\"",
+      "name": "\"Fan 2\"",
+      "productid": "N9K-C9508-FAN",
+      "serialnum": "FGE20190980",
+      "vendorid": "V01"
+     },
+     {
+      "desc": "\"Nexus9000 C9508 (8 Slot) Chassis Fan Module\"",
+      "name": "\"Fan 3\"",
+      "productid": "N9K-C9508-FAN",
+      "serialnum": "FGE201909AJ",
+      "vendorid": "V01"
+     }
+    ]
+   }
+  }
+ }
+}

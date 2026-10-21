@@ -1,0 +1,323 @@
+/*
+ * The component library's styles. Every value comes from a token in
+ * styles/tokens.css -- no literal colours here, so both themes resolve as a set.
+ */
+
+/* ---------- Button ---------- */
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm);
+  padding: 6px 11px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--text-sm);
+  font-weight: 550;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, filter 0.12s;
+}
+.button:hover:not(:disabled) {
+  background: var(--surface-alt);
+}
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+.primary:hover:not(:disabled) {
+  background: var(--accent);
+  filter: brightness(1.08);
+}
+.danger {
+  color: var(--crit);
+  border-color: var(--crit);
+}
+.danger:hover:not(:disabled) {
+  background: var(--crit-wash);
+}
+.ghost {
+  border-color: transparent;
+  background: transparent;
+  color: var(--ink-2);
+}
+.ghost:hover:not(:disabled) {
+  background: var(--surface-alt);
+  color: var(--ink);
+}
+
+/* ---------- Card ---------- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.cardDanger {
+  border-color: var(--crit);
+}
+.cardHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 13px var(--space-4);
+  border-bottom: 1px solid var(--line);
+}
+.cardDanger .cardHead {
+  border-bottom-color: var(--crit);
+  background: var(--crit-wash);
+}
+.cardHeadText {
+  flex: 1;
+  min-width: 0;
+}
+.cardTitle {
+  font-size: 13.5px;
+  font-weight: 650;
+}
+.cardDanger .cardTitle {
+  color: var(--crit);
+}
+.cardDescription {
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+  margin-top: 2px;
+}
+.cardBody {
+  padding: var(--space-1) var(--space-4);
+}
+
+/* ---------- Row ---------- */
+.row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--space-4);
+  align-items: center;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--line);
+}
+.row:last-child {
+  border-bottom: 0;
+}
+.rowLabel {
+  font-size: var(--text-base);
+  font-weight: 550;
+}
+.rowHelp {
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+  margin-top: 2px;
+  max-width: 54ch;
+}
+.rowControl {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* ---------- Tag ---------- */
+.tag {
+  display: inline-block;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border-radius: var(--radius-xs);
+  padding: 2px 6px;
+  white-space: nowrap;
+}
+.tagOk {
+  background: var(--ok-wash);
+  color: var(--ok);
+}
+.tagWarn {
+  background: var(--warn-wash);
+  color: var(--warn);
+}
+.tagCrit {
+  background: var(--crit-wash);
+  color: var(--crit);
+}
+.tagAccent {
+  background: var(--accent-wash);
+  color: var(--accent);
+}
+.tagMuted {
+  background: var(--surface-alt);
+  color: var(--ink-3);
+  border: 1px solid var(--line);
+}
+
+/* ---------- Toggle ---------- */
+.toggle {
+  width: 36px;
+  height: 20px;
+  border-radius: 999px;
+  border: 0;
+  background: var(--line-2);
+  position: relative;
+  cursor: pointer;
+  flex: none;
+  transition: background 0.15s;
+}
+.toggle::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+.toggle[aria-checked="true"] {
+  background: var(--accent);
+}
+.toggle[aria-checked="true"]::after {
+  transform: translateX(16px);
+}
+.toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ---------- ScopeNote ---------- */
+.scopeNote {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 10px 13px;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+.scopeNoteWarn {
+  border-left-color: var(--warn);
+}
+.scopeNoteCrit {
+  border-left-color: var(--crit);
+}
+
+.errorNoteBody {
+  flex: 1;
+  min-width: 0;
+}
+.errorDetails {
+  margin-top: var(--space-1);
+  color: var(--ink-3);
+}
+.errorDetails pre {
+  margin: var(--space-1) 0 0;
+  max-height: 240px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+.errorDismiss {
+  border: 0;
+  background: none;
+  color: var(--ink-3);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+.errorDismiss:hover {
+  color: var(--ink);
+}
+
+/* ---------- Table ---------- */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.table th {
+  text-align: left;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  padding: 9px var(--space-4);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-alt);
+}
+.table td {
+  padding: 11px var(--space-4);
+  border-bottom: 1px solid var(--line);
+  font-size: var(--text-sm);
+}
+.table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+/* ---------- Field ---------- */
+.input,
+.select {
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm);
+  padding: 6px 9px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--text-sm);
+  min-width: 190px;
+  outline: none;
+}
+.input:focus,
+.select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-wash);
+}
+.input[readonly] {
+  background: var(--surface-alt);
+  color: var(--ink-3);
+  cursor: not-allowed;
+}
+
+/* A field the user has actually got wrong.
+ *
+ * `:user-invalid`, not `:invalid`. The latter matches an empty required field
+ * from the moment the form renders, so a fresh form would open covered in red
+ * before anyone typed anything -- which teaches people to ignore it. This
+ * matches only after the field has been edited and left, or after a submit was
+ * attempted, which is when the message is information rather than nagging.
+ *
+ * Nothing in this codebase marked an invalid field at all before: a required
+ * field left empty looked exactly like a filled one, and the only signal was a
+ * submit button that did nothing. */
+.input:user-invalid,
+.select:user-invalid {
+  border-color: var(--crit);
+}
+.input:user-invalid:focus,
+.select:user-invalid:focus {
+  border-color: var(--crit);
+  box-shadow: 0 0 0 3px var(--crit-wash);
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+/* ---------- Empty / status ---------- */
+.centered {
+  display: grid;
+  place-items: center;
+  min-height: 100%;
+  padding: var(--space-6);
+  text-align: center;
+}
+.muted {
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+}

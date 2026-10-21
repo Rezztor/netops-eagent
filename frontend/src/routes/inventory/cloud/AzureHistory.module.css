@@ -1,0 +1,3 @@
+.stack { display: grid; gap: var(--space-3); }
+.changes { display: grid; gap: var(--space-3); padding: var(--space-2) 0; }
+.muted { color: var(--ink-2); }

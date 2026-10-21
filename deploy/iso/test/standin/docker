@@ -1,0 +1,14 @@
+#!/bin/sh
+# A stand-in for `docker`, put first on PATH by REZZTOR_ISO_STANDIN=1
+# scripts/build_iso.sh while it runs the real scripts/build_offline_bundle.sh.
+# `docker save NAME` then gives a tiny image carrying that NAME (built by
+# buildx straight into the tar stream, so the local Docker never holds a
+# stand-in under a real image's name). Everything else is the real docker.
+here="$(cd "$(dirname "$0")" && pwd)"
+PATH="$(printf '%s' "$PATH" | sed "s|$here:||")"
+case "$1 ${2:-}" in
+"image inspect") exit 0 ;;
+"run --rm") exit 0 ;;  # the bundle's look inside its images: a stand-in has nothing to find
+"save "*) exec docker buildx build -q --output "type=docker,name=$2,dest=-" "$here/image" ;;
+esac
+exec docker "$@"

@@ -1,0 +1,70 @@
+{
+  "realm": "rezztor",
+  "enabled": true,
+  "displayName": "Rezztor",
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "groups": [
+    { "name": "eagent-admins" },
+    { "name": "eagent-power" },
+    { "name": "eagent-users" }
+  ],
+  "clients": [
+    {
+      "clientId": "eagent",
+      "name": "Rezztor EAgent",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "dev-client-secret-not-for-production",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": ["http://localhost:5000/auth/callback"],
+      "webOrigins": ["http://localhost:5000"],
+      "attributes": { "pkce.code.challenge.method": "S256" },
+      "protocolMappers": [
+        {
+          "name": "groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "config": {
+            "claim.name": "groups",
+            "full.path": "false",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "alice", "enabled": true, "emailVerified": true,
+      "email": "alice@rezztor.example", "firstName": "Alice", "lastName": "Admin",
+      "credentials": [{ "type": "password", "value": "alice-password", "temporary": false }],
+      "groups": ["/eagent-admins"]
+    },
+    {
+      "username": "bob", "enabled": true, "emailVerified": true,
+      "email": "bob@rezztor.example", "firstName": "Bob", "lastName": "Power",
+      "credentials": [{ "type": "password", "value": "bob-password", "temporary": false }],
+      "groups": ["/eagent-power"]
+    },
+    {
+      "username": "carol", "enabled": true, "emailVerified": true,
+      "email": "carol@rezztor.example", "firstName": "Carol", "lastName": "User",
+      "credentials": [{ "type": "password", "value": "carol-password", "temporary": false }],
+      "groups": ["/eagent-users"]
+    },
+    {
+      "username": "dave", "enabled": true, "emailVerified": true,
+      "email": "dave@rezztor.example", "firstName": "Dave", "lastName": "NoGroup",
+      "credentials": [{ "type": "password", "value": "dave-password", "temporary": false }],
+      "groups": []
+    }
+  ]
+}

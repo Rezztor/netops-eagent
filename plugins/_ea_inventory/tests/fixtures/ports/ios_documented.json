@@ -1,0 +1,93 @@
+{
+ "_comment": "UNVERIFIED: written from documented IOS-XE output (and cisco.ios.ios_facts return keys), not captured from a device. Correct on first live run.",
+ "platform": "ios",
+ "commands": {
+  "show interfaces status": [
+   "Port      Name               Status       Vlan       Duplex  Speed Type",
+   "Gi1/0/1   uplink to core1    connected    trunk      a-full a-1000 10/100/1000BaseTX",
+   "Gi1/0/2                      notconnect   10         auto   auto   10/100/1000BaseTX",
+   "Gi1/0/3   spare              disabled     1          auto   auto   10/100/1000BaseTX",
+   "Te1/1/1   to dist            connected    routed     full   10G    SFP-10GBase-SR",
+   "Te1/1/2                      sfpAbsent    1          auto   auto   unknown"
+  ],
+  "show vlan brief": [
+   "",
+   "VLAN Name                             Status    Ports",
+   "---- -------------------------------- --------- -------------------------------",
+   "1    default                          active    Gi1/0/3",
+   "10   USERS                            active    Gi1/0/2, Gi1/0/4",
+   "                                                Gi1/0/5",
+   "1002 fddi-default                     act/unsup"
+  ],
+  "show power inline": [
+   "Available:1440.0(w)  Used:15.4(w)  Remaining:1424.6(w)",
+   "",
+   "Interface Admin  Oper       Power   Device              Class Max",
+   "                            (Watts)",
+   "--------- ------ ---------- ------- ------------------- ----- ----",
+   "Gi1/0/1   auto   on         15.4    Ieee PD             3     30.0",
+   "Gi1/0/2   auto   off        0.0     n/a                 n/a   30.0"
+  ],
+  "show inventory": [
+   "NAME: \"c93xx Stack\", DESCR: \"c93xx Stack\"",
+   "PID: C9300-48P        , VID: V02  , SN: FCW2245X0AB",
+   "",
+   "NAME: \"Switch 1\", DESCR: \"Cisco Catalyst 9300 48-port PoE+\"",
+   "PID: C9300-48P        , VID: V02  , SN: FCW2245X0AB",
+   "",
+   "NAME: \"Switch 1 - Power Supply A\", DESCR: \"Switch 1 - Power Supply A\"",
+   "PID: PWR-C1-715WAC-P  , VID: V01  , SN: DCC2245X0AB",
+   "",
+   "NAME: \"TenGigabitEthernet1/1/1\", DESCR: \"SFP-10GBase-SR\"",
+   "PID: SFP-10G-SR       , VID: V03  , SN: JUR2245X0AB"
+  ],
+  "show license summary": [
+   "License Usage:",
+   "  License                 Entitlement tag               Count Status",
+   "  -----------------------------------------------------------------------------",
+   "  network-advantage       (C9300-48 Network Advantage)      1 IN USE"
+  ]
+ },
+ "facts": {
+  "ansible_net_interfaces": {
+   "GigabitEthernet1/0/1": {
+    "description": "uplink to core1",
+    "macaddress": "0011.2233.4401",
+    "bandwidth": 1000000,
+    "operstatus": "up",
+    "lineprotocol": "up (connected)",
+    "type": "Gigabit Ethernet"
+   },
+   "GigabitEthernet1/0/3": {
+    "operstatus": "administratively down",
+    "bandwidth": 1000000
+   },
+   "Vlan10": {
+    "operstatus": "up",
+    "ipv4": [
+     {
+      "address": "10.10.0.2",
+      "subnet": "24"
+     }
+    ]
+   },
+   "Loopback0": {
+    "operstatus": "up",
+    "ipv4": [
+     {
+      "address": "10.255.0.7",
+      "subnet": "32"
+     }
+    ]
+   }
+  },
+  "ansible_net_neighbors": {
+   "GigabitEthernet1/0/1": [
+    {
+     "host": "core1.example.net",
+     "port": "TenGigabitEthernet1/0/24"
+    }
+   ]
+  }
+ }
+}

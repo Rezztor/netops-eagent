@@ -1,0 +1,106 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.13.1",
+  "variables": {
+    "resource_group": {
+      "value": "rg-payments-prod-uaen"
+    },
+    "region": {
+      "value": "uaenorth"
+    },
+    "route_table": {
+      "value": "rt-spoke"
+    },
+    "create_table": {
+      "value": true
+    },
+    "name": {
+      "value": "default-to-firewall"
+    },
+    "prefix": {
+      "value": "0.0.0.0/0"
+    },
+    "next_hop_type": {
+      "value": "VirtualAppliance"
+    },
+    "next_hop_ip": {
+      "value": "10.0.1.4"
+    },
+    "tags": {
+      "value": {
+        "env": "prod",
+        "owner": "netops",
+        "costcentre": "cc-1001",
+        "project": "payments"
+      }
+    }
+  },
+  "resource_changes": [
+    {
+      "address": "azurerm_route_table.this[0]",
+      "mode": "managed",
+      "type": "azurerm_route_table",
+      "name": "this",
+      "index": 0,
+      "provider_name": "registry.opentofu.org/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "name": "rt-spoke",
+          "resource_group_name": "rg-payments-prod-uaen",
+          "location": "uaenorth",
+          "tags": {
+            "env": "prod",
+            "owner": "netops",
+            "costcentre": "cc-1001",
+            "project": "payments"
+          }
+        },
+        "after_unknown": {
+          "id": true,
+          "route": true,
+          "subnets": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {}
+      }
+    },
+    {
+      "address": "azurerm_route.this",
+      "mode": "managed",
+      "type": "azurerm_route",
+      "name": "this",
+      "provider_name": "registry.opentofu.org/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "name": "default-to-firewall",
+          "resource_group_name": "rg-payments-prod-uaen",
+          "route_table_name": "rt-spoke",
+          "address_prefix": "0.0.0.0/0",
+          "next_hop_type": "VirtualAppliance",
+          "next_hop_in_ip_address": "10.0.1.4"
+        },
+        "after_unknown": {
+          "id": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {}
+      }
+    }
+  ],
+  "configuration": {
+    "provider_config": {
+      "azurerm": {
+        "name": "azurerm",
+        "full_name": "registry.opentofu.org/hashicorp/azurerm"
+      }
+    }
+  }
+}

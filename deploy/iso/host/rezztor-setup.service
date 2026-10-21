@@ -1,0 +1,21 @@
+[Unit]
+Description=Rezztor first-boot setup on the console
+ConditionPathExists=!/etc/rezztor/setup-done
+After=docker.service systemd-networkd.service systemd-user-sessions.service rezztor-firewall.service
+# The sign-in prompt on the first console waits until setup has finished.
+Before=getty@tty1.service
+
+[Service]
+Type=oneshot
+TimeoutStartSec=0
+Environment=TERM=linux HOME=/root USER=root
+ExecStart=/usr/local/sbin/rezztor-setup first-boot
+StandardInput=tty
+StandardOutput=tty
+StandardError=tty
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,166 @@
+{
+ "_comment": [
+  "UNVERIFIED: written from documented output, not run against a device. `| json` over the CLI returns the eAPI result object, which the cliconf plugin decodes before the playbook sees it. Each command's value is copied from the source named here, so the rows are not one device's.",
+  "show interfaces status | json: https://arista-python-web2py.readthedocs.io/en/latest/capacity-planning.html (Arista's eAPI capacity-planning tutorial; Ethernet8 and Ethernet9 of its 'show interfaces status' example). It shows access ports only; the trunk and routed modes are covered in test_ports_parse.py with copies that change interfaceMode.",
+  "show interfaces description | json: https://github.com/aristanetworks/anta/blob/main/tests/units/anta_tests/test_interfaces.py (Arista Networks' ANTA, Apache-2.0; the VerifyInterfacesStatus 'success' data: Ethernet8, Ethernet2, Ethernet3).",
+  "show ip interface | json: https://github.com/aristanetworks/anta/blob/main/tests/units/anta_tests/test_interfaces.py (ANTA VerifyInterfaceIPv4 'success' data, revision 2: interfaceAddress is an object with primaryIp and secondaryIpsOrderedList). Revision 1 prints a list; the parser takes both.",
+  "show lldp neighbors detail | json: https://github.com/aristanetworks/anta/blob/main/tests/units/anta_tests/test_connectivity.py (ANTA VerifyLLDPNeighbors 'success' data).",
+  "show inventory | json: systemInformation from https://arista-python-web2py.readthedocs.io/en/latest/capacity-planning.html; xcvrSlots from https://github.com/aristanetworks/anta/blob/main/tests/units/anta_tests/test_hardware.py (ANTA VerifyTransceiversManufacturers data: slots 1 and 2 present, slot 3 'Not Present'). Power supplies and fans are not parsed: no cited example shows them."
+ ],
+ "platform": "eos",
+ "commands": {
+  "show interfaces status | json": {
+   "interfaceStatuses": {
+    "Ethernet8": {
+     "vlanInformation": {
+      "interfaceMode": "bridged",
+      "vlanId": 1,
+      "interfaceForwardingModel": "bridged"
+     },
+     "bandwidth": 10000000000,
+     "interfaceType": "10GBASE-SR",
+     "description": "",
+     "autoNegotiateActive": false,
+     "duplex": "duplexFull",
+     "autoNegotigateActive": false,
+     "linkStatus": "notconnect",
+     "lineProtocolStatus": "notPresent"
+    },
+    "Ethernet9": {
+     "vlanInformation": {
+      "interfaceMode": "bridged",
+      "vlanId": 1,
+      "interfaceForwardingModel": "bridged"
+     },
+     "bandwidth": 10000000000,
+     "interfaceType": "Not Present",
+     "description": "",
+     "autoNegotiateActive": false,
+     "duplex": "duplexFull",
+     "autoNegotigateActive": false,
+     "linkStatus": "notconnect",
+     "lineProtocolStatus": "notPresent"
+    }
+   }
+  },
+  "show interfaces description | json": {
+   "interfaceDescriptions": {
+    "Ethernet8": {
+     "interfaceStatus": "up",
+     "description": "",
+     "lineProtocolStatus": "up"
+    },
+    "Ethernet2": {
+     "interfaceStatus": "adminDown",
+     "description": "",
+     "lineProtocolStatus": "down"
+    },
+    "Ethernet3": {
+     "interfaceStatus": "up",
+     "description": "",
+     "lineProtocolStatus": "up"
+    }
+   }
+  },
+  "show ip interface | json": {
+   "interfaces": {
+    "Ethernet2": {
+     "interfaceAddress": {
+      "primaryIp": {
+       "address": "172.30.11.1",
+       "maskLen": 31
+      },
+      "secondaryIpsOrderedList": [
+       {
+        "address": "10.10.10.1",
+        "maskLen": 31
+       },
+       {
+        "address": "10.10.10.10",
+        "maskLen": 31
+       }
+      ]
+     }
+    },
+    "Ethernet12": {
+     "interfaceAddress": {
+      "primaryIp": {
+       "address": "172.30.11.10",
+       "maskLen": 31
+      },
+      "secondaryIpsOrderedList": [
+       {
+        "address": "10.10.10.10",
+        "maskLen": 31
+       },
+       {
+        "address": "10.10.10.20",
+        "maskLen": 31
+       }
+      ]
+     }
+    }
+   }
+  },
+  "show lldp neighbors detail | json": {
+   "lldpNeighbors": {
+    "Ethernet1": {
+     "lldpNeighborInfo": [
+      {
+       "chassisIdType": "macAddress",
+       "chassisId": "001c.73a0.fc18",
+       "systemName": "DC1-SPINE1.local.com",
+       "neighborInterfaceInfo": {
+        "interfaceIdType": "interfaceName",
+        "interfaceId": "Ethernet1",
+        "interfaceId_v2": "Ethernet1",
+        "interfaceDescription": "P2P_LINK_TO_DC1-LEAF1A_Ethernet1"
+       }
+      }
+     ]
+    },
+    "Ethernet2": {
+     "lldpNeighborInfo": [
+      {
+       "chassisIdType": "macAddress",
+       "chassisId": "001c.73f7.d138",
+       "systemName": "DC1-SPINE2.local.com",
+       "neighborInterfaceInfo": {
+        "interfaceIdType": "interfaceName",
+        "interfaceId": "Ethernet1",
+        "interfaceId_v2": "Ethernet1",
+        "interfaceDescription": "P2P_LINK_TO_DC1-LEAF1A_Ethernet2"
+       }
+      }
+     ]
+    }
+   }
+  },
+  "show inventory | json": {
+   "systemInformation": {
+    "name": "DCS-7050SX-128",
+    "description": "96x 10Gb SFP+ + 8x 40Gb QSFP+ 2RU",
+    "mfgDate": "2015-12-21",
+    "hardwareRev": "02.00",
+    "serialNum": "JPE14080459"
+   },
+   "xcvrSlots": {
+    "1": {
+     "mfgName": "Arista Networks",
+     "modelName": "QSFP-100G-DR",
+     "serialNum": "XKT203501340",
+     "hardwareRev": "21"
+    },
+    "2": {
+     "mfgName": "Arista Networks",
+     "modelName": "QSFP-100G-DR",
+     "serialNum": "XKT203501337",
+     "hardwareRev": "21"
+    },
+    "3": {
+     "mfgName": "Not Present"
+    }
+   }
+  }
+ }
+}

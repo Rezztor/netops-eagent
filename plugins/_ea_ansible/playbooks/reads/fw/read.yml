@@ -1,0 +1,86 @@
+# Internal: included by the firewall reads (reads/*.yml), never a catalogue entry, so no
+# agent can name it. Takes `fw_read` (the shape to return) and `fw_requests` (platform ->
+# the exact requests to send, written in the including playbook so the engineer's card and
+# the reviewer see them), and leaves the answer in `eagent_fw`.
+#
+# Both vendors recommend their management API over HTTPS for automation, so this is
+# `ansible.builtin.uri`, run on the executor (`delegate_to: localhost`) with the stored API
+# token. Nothing here can write to a device:
+#   * method is GET, written once below; a request is a FortiOS `/api/v2/monitor|cmdb` path or
+#     a PAN-OS `<show>` command or a `/config` xpath, and the assert refuses anything else;
+#   * PAN-OS `type=op` takes only `<show>` commands, `type=config` only `action=show`;
+#   * tests/test_net_firewall_playbooks.py scans every playbook for the words that would change that.
+# Jobs always run in check mode and `uri` is skipped there, so the task opts out with
+# `check_mode: false` (as the `raw` reads do); the GET and the assert are what make that safe.
+#
+# The token travels in a header (`Authorization: Bearer` for FortiOS, `X-PAN-KEY` for PAN-OS),
+# never in the URL, so it is not in either device's request log. The task is `no_log`: a
+# failed `uri` result lists its headers, and the answer is read by the filter instead, which
+# reports a plain reason. The certificate is verified. `eagent_tls_ca` (a host variable naming a
+# PEM file mounted in the executor) adds a CA to trust; there is no way to switch verification
+# off. Written from documented behaviour, not run against a device.
+- name: Establish which platform this host is
+  ansible.builtin.set_fact:
+    eagent_platform: >-
+      {{ (ansible_network_os | default('')) | regex_replace('^.*\.', '') }}
+
+- name: Refuse a platform this read does not cover
+  ansible.builtin.fail:
+    msg: >-
+      {{ inventory_hostname }} is {{ eagent_platform | default('unknown', true) }}, which this read does
+      not cover. It is written for {{ fw_requests.keys() | list | join(' and ') }}.
+  when: eagent_platform not in fw_requests
+
+- name: Refuse a host with no stored API token
+  ansible.builtin.fail:
+    msg: >-
+      {{ inventory_hostname }} has no API token: store one as an api_token credential and name it on the
+      device's group.
+  when: ansible_httpapi_pass is not defined
+
+- name: Refuse anything that is not a plain read request (FortiOS)
+  ansible.builtin.assert:
+    that: item is match('^/api/v2/(monitor|cmdb)/[a-z0-9_/-]+([?][A-Za-z0-9_=&,.%-]+)?\\Z')
+    fail_msg: "{{ item }} is not a plain read, so nothing was sent."
+    quiet: true
+  loop: "{{ fw_requests[eagent_platform] }}"
+  when: eagent_platform == 'fortios'
+
+- name: Refuse anything that is not a plain read request (PAN-OS)
+  ansible.builtin.assert:
+    that:
+      - >-
+        item is match('^<show>[A-Za-z0-9<>/ -]+</show>\\Z')
+        or item is match('^/config/devices/entry\\[@name=.localhost[.]localdomain.\\]/[A-Za-z0-9/_@=. -]+\\Z')
+      - item is not search('<(request|debug|clear|set|test|commit|load|save|delete|edit|rename|move)\\b')
+    fail_msg: "{{ item }} is not a plain read, so nothing was sent."
+    quiet: true
+  loop: "{{ fw_requests[eagent_platform] }}"
+  when: eagent_platform == 'panos'
+
+- name: Ask the device (GET only)
+  ansible.builtin.uri:
+    url: >-
+      https://{{ ('[' ~ ansible_host ~ ']') if ':' in ansible_host else ansible_host }}:{{ ansible_port | default(443) }}{{
+        item if eagent_platform == 'fortios'
+        else ('/api/?type=op&cmd=' ~ (item | urlencode)) if item.startswith('<')
+        else ('/api/?type=config&action=show&xpath=' ~ (item | urlencode)) }}
+    method: GET
+    headers: >-
+      {{ {'Authorization': 'Bearer ' ~ ansible_httpapi_pass, 'Accept': 'application/json'}
+         if eagent_platform == 'fortios' else {'X-PAN-KEY': ansible_httpapi_pass} }}
+    return_content: true
+    validate_certs: true
+    ca_path: "{{ eagent_tls_ca | default(omit) }}"
+    timeout: 30
+  loop: "{{ fw_requests[eagent_platform] }}"
+  delegate_to: localhost
+  check_mode: false
+  changed_when: false
+  failed_when: false
+  no_log: true
+  register: fw_raw
+
+- name: Keep the parts of the answer this read is for
+  ansible.builtin.set_fact:
+    eagent_fw: "{{ fw_raw.results | eagent_fw(eagent_platform, fw_read) }}"

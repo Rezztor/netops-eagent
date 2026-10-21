@@ -1,0 +1,37 @@
+#!/bin/sh
+# The login shell of every slot account.
+#
+# sshd runs a command as `<the account's shell> -c <command>`, and Debian's bash
+# reads ~/.bashrc first when sshd started it. The application empties a slot by
+# sending commands as that slot, so a .bashrc holding `exit 0` made the kill and
+# the wipe do nothing and still answer success: the next account was handed the
+# last one's files, its running processes and its .bashrc. A command therefore
+# runs in a bash that reads no file from the account's home.
+#
+# A session with no command -- the agent's terminal -- is a login shell as it
+# always was: /etc/profile, then the account's own profile. That is the
+# occupant's own business; the wipe is what stands between two occupants.
+#
+# Limits per account, set here because every session of a slot starts here
+# (there is no PAM: sshd runs with UsePAM no, so limits.conf is never read). The
+# runner is one container with one budget, and without them one account could
+# take it all (agent-safety review S7, 2026-10-19). prlimit rather than the
+# shell's ulimit: it sets soft and hard alike, so the account cannot raise them
+# again, and its units are not the shell's (dash and bash disagree on -f and -p).
+#   nproc  processes and threads of this uid, across all its sessions together:
+#          the kernel counts RLIMIT_NPROC per user, so a fork bomb stops here, at
+#          a sixteenth of the compose file's pids_limit of 4096, and the others
+#          keep the rest.
+#   as     address space of one process: 1.5 GB of the container's 2 GB. Not a
+#          memory limit per account -- there is none without a cgroup each -- but
+#          one allocation can no longer take the container's memory. node,
+#          ipython, pip and a pandoc-to-typst PDF were run under it on 2026-10-19.
+#   fsize  the largest file one process may write: 2 GiB. The workspace volume's
+#          own size is the operator's (INSTALL.md).
+# The release commands run under the same limits; `kill -9 -1` is a builtin and
+# needs no new process, so a slot at its process limit can still be emptied.
+prlimit --pid $$ --nproc=256 --as=1536000000 --fsize=2147483648
+if [ "$#" -eq 0 ]; then
+    exec /bin/bash -l
+fi
+exec /bin/bash --noprofile --norc "$@"

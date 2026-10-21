@@ -1,0 +1,58 @@
+{
+ "_comment": "UNVERIFIED: the lab image (sonic_community_lab.json) cannot run these; shapes are from SONiC's documented tabulate output.",
+ "platform": "sonic_community",
+ "commands": {
+  "show interfaces status": [
+   "Interface        Lanes  Speed   MTU  FEC         Alias    Vlan  Oper  Admin             Type  Asym PFC",
+   "---------  -----------  -----  ----  ---  ------------  ------  ----  -----  ---------------  --------",
+   "Ethernet0  25,26,27,28   100G  9100  N/A  hundredGigE1  routed    up     up  QSFP28 or later       N/A",
+   "Ethernet4  29,30,31,32    10G  9100  N/A  hundredGigE2   trunk  down     up              N/A       N/A",
+   "Ethernet8  33,34,35,36    10G  9100  N/A  hundredGigE3    1000    up     up              N/A       N/A"
+  ],
+  "show interfaces description": [
+   "Interface  Oper  Admin         Alias  Description",
+   "---------  ----  -----  ------------  -----------",
+   "Ethernet0    up     up  hundredGigE1    to spine1",
+   "Ethernet4  down     up  hundredGigE2          N/A"
+  ],
+  "show vlan brief": [
+   "+-----------+-----------------+-------------+----------------+-------------+",
+   "|   VLAN ID | IP Address      | Ports       | Port Tagging   | Proxy ARP   |",
+   "+===========+=================+=============+================+=============+",
+   "|        10 | 10.10.0.1/24    | Ethernet4   | tagged         | disabled    |",
+   "|           |                 | Ethernet8   | untagged       |             |",
+   "+-----------+-----------------+-------------+----------------+-------------+",
+   "|        20 |                 | Ethernet4   | tagged         | disabled    |",
+   "+-----------+-----------------+-------------+----------------+-------------+"
+  ],
+  "show lldp table": [
+   "LocalPort  RemoteDevice  RemotePortID  Capability  RemotePortDescr",
+   "---------  ------------  ------------  ----------  ---------------",
+   "Ethernet0        spine1    Ethernet12          BR          to leaf",
+   "",
+   "Total entries displayed:  1"
+  ],
+  "show ip interfaces": [
+   "Interface  Master  IPv4 address/mask  Admin/Oper  BGP Neighbor  Neighbor IP",
+   "---------  ------  -----------------  ----------  ------------  -----------",
+   "Ethernet0                10.0.0.0/31       up/up        spine1     10.0.0.1",
+   "Loopback0               10.1.0.32/32       up/up           N/A          N/A",
+   "     eth0             192.168.1.5/24       up/up           N/A          N/A"
+  ],
+  "show interfaces transceiver presence": [
+   "     Port     Presence",
+   "---------  -----------",
+   "Ethernet0      Present",
+   "Ethernet4  Not present"
+  ],
+  "show platform summary": [
+   "Platform: x86_64-vendor",
+   "HwSKU: Vendor-48x",
+   "ASIC: broadcom",
+   "Serial Number: SN123",
+   "Model Number: VND-48X",
+   "Hardware Revision: 1"
+  ]
+ },
+ "facts": {}
+}

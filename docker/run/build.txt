@@ -1,0 +1,17 @@
+
+# REZZTOR EAGENT IMAGE BUILDS
+# Run these commands from the project root.
+
+# with smart cache
+docker build -t rezztor/eagent:latest --build-arg CACHE_DATE=$(date +%Y-%m-%d:%H:%M:%S) .
+
+# without cache
+docker build -t rezztor/eagent:latest --no-cache .
+
+# multi-arch, pushed to the internal registry
+docker buildx build -t <registry>/rezztor/eagent:latest \
+    --platform linux/amd64,linux/arm64 --push \
+    --build-arg CACHE_DATE=$(date +%Y-%m-%d:%H:%M:%S) .
+
+# plain output
+--progress=plain

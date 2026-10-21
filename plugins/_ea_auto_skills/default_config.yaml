@@ -1,0 +1,30 @@
+# What the plugin does after a task completes.
+#   personal - draft a skill, apply it privately to the user who did the work,
+#              and queue it for an administrator to consider promoting
+#   review   - draft and queue for promotion, but apply nothing automatically
+#   off      - capture nothing
+#
+# Ships off. Every other mode spends a utility-model call on each qualifying
+# turn and can add to what the agent reads on every later one, so an operator
+# should choose that rather than inherit it from an upgrade. Turn it on from
+# the Skills screen.
+# Quoted: YAML reads a bare off, on, no and yes as booleans.
+mode: "off"
+
+# Tasks shorter than this are not worth generalising from. Counted as tool
+# calls in the completed turn, excluding the closing response tool.
+min_tool_calls: 2
+
+# The skill catalog is rebuilt on every system prompt, and each entry costs
+# prompt budget for the user who owns it. Refuse to induce more than this.
+max_personal_skills: 25
+
+# Promotion requests waiting for an administrator, instance-wide.
+max_pending_promotions: 50
+
+# Size ceilings for a generated skill.
+max_skill_md_chars: 10000
+max_skill_bytes: 40000
+
+# Seconds to wait for the review model before abandoning the capture.
+review_timeout_seconds: 120

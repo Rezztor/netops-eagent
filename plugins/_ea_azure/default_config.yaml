@@ -1,0 +1,26 @@
+# The Azure tenant this plugin reads. The credential is deliberately not here: it lives in usr/.env
+# (REZZTOR_AZURE_CLIENT_SECRET or REZZTOR_AZURE_CLIENT_CERT), never in this file. See helpers/credential.py.
+cloud: public              # only "public" in phase 1; the hosts live in client.CLOUDS, never in settings
+tenant_id: ""
+client_id: ""
+auth: certificate          # certificate | secret
+secret_expires_on: ""      # typed by the administrator for a secret; a certificate's date is read from the certificate
+subscriptions_mode: all    # all | only | except
+subscription_ids: []
+schedule: {frequency: weekly, weekday: sat, time: "02:00", timezone: UTC}   # frequency: off | daily | weekly
+keep_removed_days: 90
+keep_history_days: 365
+min_pull_interval_minutes: 15
+timeout_seconds: 30
+page_size: 1000            # halved on a truncated or oversized answer, floor 100
+max_resources: 100000      # a pull that passes this stops and is recorded failed
+read_approval: every_time  # live reads (azure_read): every_time asks on a card, once_per_chat asks once per resource per chat, log_only never asks (audited); an unknown value asks every time
+# Log queries (azure_read with `kql` or a named log read), run as a separate log application whose certificate is in usr/.env
+# (REZZTOR_AZURE_LOGS_CERT), never here. Workspaces are the only ones a query can reach: [{name: <short name>, id: <workspace GUID>}].
+# tables: the only tables a query may read (the default is network and platform diagnostics; identity tables are never in it).
+# max_timespan: the longest time range one query may ask for (PT1H to P30D).
+logs:
+  client_id: ""
+  workspaces: []
+  tables: [AzureDiagnostics, AzureMetrics, AZFWNetworkRule, AZFWApplicationRule, AZFWNatRule, AZFWDnsQuery, AZFWThreatIntel, AZFWIdpsSignature, NTANetAnalytics, Heartbeat, Perf]
+  max_timespan: P7D

@@ -1,0 +1,32 @@
+# Create a VLAN on community SONiC (networkop/sonic-vs), over plain SSH.
+#
+# `raw`, as the sonic_community reads: that image has no `sonic-cli`, so network_cli
+# never opens. `config` needs root, and a SONiC login reaches it through `sudo` (the
+# lab image ships none, so scripts/lab/sonic-vs.sh gives it a stand-in). `raw` is skipped in check mode, so the commands an engineer
+# approves are the entry's reviewed_cli, and this task only runs on apply.
+# The rollback is `changes/sonic_community_vlan_del`.
+- name: Add a VLAN
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Establish which platform this host is
+      ansible.builtin.set_fact:
+        eagent_platform: >-
+          {{ (ansible_network_os | default('')) | regex_replace('^.*\.', '') }}
+
+    - name: Refuse a platform this entry does not cover
+      ansible.builtin.assert:
+        that:
+          - eagent_platform == 'sonic_community'
+          - (vlan_id | int) >= 2
+          - (vlan_id | int) <= 4094
+        fail_msg: "{{ inventory_hostname }} is {{ eagent_platform | default('unknown', true) }}, or the VLAN id is out of range; nothing was sent."
+        quiet: true
+
+    - name: Add the VLAN
+      ansible.builtin.raw: "sudo config vlan add {{ vlan_id | int }}"
+      register: change
+
+    - name: Report what the device said
+      ansible.builtin.debug:
+        var: change.stdout_lines

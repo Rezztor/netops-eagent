@@ -1,0 +1,8 @@
+name: _audit
+title: Audit Log
+description: Emits a structured, secret-masked record of who did what, for shipping to a SIEM.
+version: 1.0.0
+settings_sections: []
+per_project_config: false
+per_agent_config: false
+always_enabled: true

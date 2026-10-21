@@ -1,0 +1,100 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.13.1",
+  "variables": {
+    "region": {
+      "value": "uaenorth"
+    },
+    "name": {
+      "value": "fl-vnet-hub-prod"
+    },
+    "network_watcher": {
+      "value": "NetworkWatcher_uaenorth"
+    },
+    "network_watcher_rg": {
+      "value": "NetworkWatcherRG"
+    },
+    "vnet_id": {
+      "value": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-hub-prod-uaen/providers/Microsoft.Network/virtualNetworks/vnet-hub-prod-uaen-001"
+    },
+    "storage_id": {
+      "value": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.Storage/storageAccounts/stpaymentsprod001"
+    },
+    "retention_days": {
+      "value": 30
+    },
+    "analytics_workspace_guid": {
+      "value": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+    },
+    "analytics_workspace_id": {
+      "value": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.OperationalInsights/workspaces/log-hub-prod-uaen-001"
+    },
+    "tags": {
+      "value": {
+        "env": "prod",
+        "owner": "netops",
+        "costcentre": "cc-1001",
+        "project": "payments"
+      }
+    }
+  },
+  "resource_changes": [
+    {
+      "address": "azurerm_network_watcher_flow_log.this",
+      "mode": "managed",
+      "type": "azurerm_network_watcher_flow_log",
+      "name": "this",
+      "provider_name": "registry.opentofu.org/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "name": "fl-vnet-hub-prod",
+          "network_watcher_name": "NetworkWatcher_uaenorth",
+          "resource_group_name": "NetworkWatcherRG",
+          "location": "uaenorth",
+          "target_resource_id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-hub-prod-uaen/providers/Microsoft.Network/virtualNetworks/vnet-hub-prod-uaen-001",
+          "storage_account_id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.Storage/storageAccounts/stpaymentsprod001",
+          "enabled": true,
+          "version": 2,
+          "tags": {
+            "env": "prod",
+            "owner": "netops",
+            "costcentre": "cc-1001",
+            "project": "payments"
+          },
+          "retention_policy": [
+            {
+              "enabled": true,
+              "days": 30
+            }
+          ],
+          "traffic_analytics": [
+            {
+              "enabled": true,
+              "workspace_id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+              "workspace_region": "uaenorth",
+              "workspace_resource_id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.OperationalInsights/workspaces/log-hub-prod-uaen-001",
+              "interval_in_minutes": 10
+            }
+          ]
+        },
+        "after_unknown": {
+          "id": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {}
+      }
+    }
+  ],
+  "configuration": {
+    "provider_config": {
+      "azurerm": {
+        "name": "azurerm",
+        "full_name": "registry.opentofu.org/hashicorp/azurerm"
+      }
+    }
+  }
+}

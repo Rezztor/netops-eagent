@@ -1,0 +1,245 @@
+/*
+ * Styles for the shared foundation primitives (dialogs, toasts, tabs, table
+ * controls, drawers). Every value comes from a token in styles/tokens.css --
+ * no literal colours -- so both themes resolve together, exactly like
+ * primitives.module.css.
+ */
+
+/* ---------- Modal / dialog ---------- */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  background: rgba(12, 27, 30, 0.45);
+  animation: fade 0.12s ease-out;
+}
+.dialog {
+  width: 100%;
+  max-width: 460px;
+  max-height: calc(100dvh - 2 * var(--space-4));
+  overflow: auto;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 40px rgba(12, 27, 30, 0.25);
+  animation: rise 0.14s ease-out;
+}
+.dialogWide {
+  max-width: 640px;
+}
+.dialogHead {
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--line);
+}
+.dialogDanger .dialogHead {
+  border-bottom-color: var(--crit);
+  background: var(--crit-wash);
+}
+.dialogTitle {
+  font-size: var(--text-lg);
+  font-weight: 650;
+}
+.dialogDanger .dialogTitle {
+  color: var(--crit);
+}
+.dialogBody {
+  padding: var(--space-4);
+  font-size: var(--text-base);
+  color: var(--ink-2);
+  display: grid;
+  gap: var(--space-3);
+}
+.dialogFoot {
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--line);
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+/* ---------- Drawer (right-hand edit panel) ---------- */
+.drawerOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(12, 27, 30, 0.45);
+  animation: fade 0.12s ease-out;
+}
+.drawer {
+  width: 100%;
+  max-width: 420px;
+  height: 100dvh;
+  overflow: auto;
+  background: var(--surface);
+  border-left: 1px solid var(--line);
+  box-shadow: -12px 0 40px rgba(12, 27, 30, 0.2);
+  animation: slide 0.16s ease-out;
+  display: flex;
+  flex-direction: column;
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@keyframes slide {
+  from {
+    transform: translateX(16px);
+  }
+}
+
+/* ---------- Toasts ---------- */
+.toaster {
+  position: fixed;
+  z-index: var(--z-toast);
+  bottom: var(--space-4);
+  right: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: min(380px, calc(100vw - 2 * var(--space-4)));
+}
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  font-size: var(--text-sm);
+  color: var(--ink);
+  animation: rise 0.14s ease-out;
+}
+.toastOk {
+  border-left-color: var(--ok);
+}
+.toastErr {
+  border-left-color: var(--crit);
+}
+.toastText {
+  flex: 1;
+  min-width: 0;
+}
+.toastClose {
+  border: 0;
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+  font-size: var(--text-md);
+  line-height: 1;
+  padding: 0 2px;
+}
+.toastClose:hover {
+  color: var(--ink);
+}
+
+/* ---------- Tabs ---------- */
+.tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--line);
+}
+.tab {
+  border: 0;
+  background: transparent;
+  color: var(--ink-3);
+  padding: 8px 12px;
+  font-size: var(--text-sm);
+  font-weight: 550;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.tab:hover {
+  color: var(--ink);
+}
+.tabActive {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  border-radius: var(--radius-xs);
+}
+
+/* ---------- Table controls ---------- */
+.controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  padding: var(--space-3) 0;
+}
+.search {
+  position: relative;
+  flex: 1;
+  min-width: 180px;
+}
+.searchInput {
+  width: 100%;
+  padding-left: 30px;
+}
+.searchIcon {
+  position: absolute;
+  left: 9px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--ink-3);
+  pointer-events: none;
+}
+.spacer {
+  flex: 1;
+}
+.sortHeader {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+.sortHeader:hover {
+  color: var(--ink);
+}
+.sortArrow {
+  font-size: 9px;
+  color: var(--accent);
+}
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+}
+.paginationSpacer {
+  flex: 1;
+}
+.emptyRow {
+  padding: var(--space-5) var(--space-4);
+  text-align: center;
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+}

@@ -1,0 +1,617 @@
+#!/usr/bin/env python3
+"""rezztor-guard: the firewall of our own that says what each container may reach.
+
+    rezztor-guard print     write the rule set to standard output; changes nothing
+    rezztor-guard check     the same, and ask nft whether it would load
+    rezztor-guard apply     write /etc/rezztor/guard.nft and load it (root)
+    rezztor-guard runner    load the loopback rules into the running runner (root);
+                            --watch: again at every start of it (rezztor-guard-runner.service)
+
+It replaces runner-firewall.sh (ADR 0079). The table is ours alone, `inet
+rezztor_guard`, at priority -10. It only ever drops: an `accept` here ends this
+table and nothing else, so Docker's own rules still decide after it. It never
+flushes the rule set, and a load swaps the old table for the new one in one
+transaction, so there is no moment without it and nothing of Docker's is touched.
+
+What it reads, all optional:
+
+  /etc/rezztor/networks/networks.json   the network list the appliance writes.
+        Missing means "one flat network, nothing known": the executor and the
+        application reach what they reach today, and the runner, the search
+        engine and the cloud executor reach public addresses only.
+  /etc/rezztor/guard.json               {"form": "full" | "small",
+        "container_block": "172.31.248.0/21",
+        "infra":        [{"address": "10.0.30.8", "protocol": "tcp", "port": 3128}],
+        "app_services": [{"address": "10.20.0.9", "protocol": "tcp", "port": 17774}],
+        "ssh_if":       ["vlan300"]}
+        `infra` is a proxy or another service every container may reach on a
+        private address. `app_services` are the services inside a devices-only
+        network the application may use, named one by one. `ssh_if` names the
+        interfaces SSH answers on while it is switched on; without it, those
+        of the networks with the role "users".
+
+A network whose roles are exactly ["devices"] is closed to everything but the
+executor. A network that is also for the internet or for users (one flat
+network written into a list, or a combined one) is a device network for the
+executor and stays open to the application, as it was before there was a list:
+a model server or an identity provider on the customer's own network works.
+  the host's resolver files             their DNS servers join `infra` on port 53,
+        because Docker hands exactly those servers to the containers.
+  /etc/rezztor/ssh-on                   present: SSH is switched on (full form).
+
+Two forms. "small" (the default, a hand install) judges only what enters or
+leaves our own bridges, so the customer's other traffic on their own server is
+left alone. "full" (the appliance) also refuses to route between the customer's
+networks and closes the host itself: 443, 80, ping, and SSH while switched on.
+
+The runner is one container in which every user has an account of their own
+(ADR 0038), so what one account may reach of another's over the runner's own
+loopback is not a question for the host's tables. `runner` enters the runner's
+network namespace and loads `inet rezztor_runner` there: a slot account reaches
+nothing over loopback but Docker's resolver. Docker makes a new namespace at
+every start of the container, so `--watch` follows Docker's events and loads it
+again each time (ADR 0087). The uids are the slot accounts in the container's own
+/etc/passwd; RUNNER_SLOT_BASE_UID and RUNNER_SLOTS in its environment are a cross-check.
+
+Standard library only: this runs on the host before Docker starts.
+"""
+
+import argparse
+import ipaddress
+import json
+import os
+import re
+import subprocess
+import sys
+import tempfile
+import time
+
+NETWORKS = "/etc/rezztor/networks/networks.json"
+CONF = "/etc/rezztor/guard.json"
+OUT = "/etc/rezztor/guard.nft"
+SSH_ON = "/etc/rezztor/ssh-on"
+RESOLV = "/etc/resolv.conf:/run/systemd/resolve/resolv.conf"
+# Must contain every subnet in the Compose files; tests/test_deployment_hardening.py compares them.
+BLOCK = "172.31.248.0/21"
+# The bridge names the Compose files pin. Rules name them; a name that changes
+# in one place and not the other fences nothing, and the same test says so.
+BRIDGES = ("rz-app", "rz-ansible", "rz-runner", "rz-search", "rz-cloud", "rz-backend", "rz-clouddb")
+EXECUTOR = "rz-ansible"
+# The runner's network, which it shares with the application, and the one port opened on it.
+RUNNER_BRIDGE = "rz-runner"
+RUNNER_SSH_PORT = 2222
+# The runner's container, as the Compose file names it; tests/test_deployment_hardening.py compares.
+RUNNER = "rezztor-eagent-runner"
+# Where the runner's own /etc/passwd is read from: <PROC>/<pid>/root/etc/passwd.
+PROC = "/proc"
+# The slot accounts the runner image creates, eagent-000 upward.
+SLOT_NAME = re.compile(r"eagent-\d{3,}")
+# Docker's resolver inside every container. Docker redirects its port 53 to a port of its own.
+DOCKER_DNS = "127.0.0.11"
+# Code a model wrote, a search engine and the Azure executor: public addresses only.
+FENCED = ("rz-runner", "rz-search", "rz-cloud")
+# The database bridges: nothing leaves them.
+SEALED = ("rz-backend", "rz-clouddb")
+# 169.254/16 carries the cloud metadata address; 100.64/10 is where NetBird and
+# Tailscale put their peers, so an estate reached over a mesh is private too.
+PRIVATE = ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "169.254.0.0/16", "100.64.0.0/10")
+ROLES = {"internet", "users", "devices"}
+IFNAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,14}")
+
+
+class GuardError(ValueError):
+    """The network list or guard.json is not acceptable. Nothing is loaded from it."""
+
+
+def _net(value, what):
+    try:
+        return ipaddress.IPv4Network(value if isinstance(value, str) else None)
+    except (ValueError, TypeError):
+        raise GuardError(f"{what}: {value!r} is not an IPv4 network like 10.0.100.0/24") from None
+
+
+def _addr(value, what):
+    try:
+        return ipaddress.IPv4Address(value if isinstance(value, str) else None)
+    except (ValueError, TypeError):
+        raise GuardError(f"{what}: {value!r} is not an IPv4 address") from None
+
+
+def _load(path):
+    """The JSON in `path`, or None when the file or its directory is not there."""
+    try:
+        with open(path, encoding="utf-8") as handle:
+            return json.load(handle)
+    except (FileNotFoundError, NotADirectoryError):
+        return None
+    except (OSError, ValueError, RecursionError) as error:
+        raise GuardError(f"{path} cannot be read: {error}") from None
+
+
+def check_networks(doc, block=BLOCK):
+    """Validate the network list. Every value that reaches a rule is checked
+    here, because the rules are text and the list is a file on disk."""
+    if doc is None:
+        return []
+    if not isinstance(doc, dict) or doc.get("version") != 1 or not isinstance(doc.get("networks"), list):
+        raise GuardError('the network list must be {"version": 1, "networks": [...]}')
+    block = _net(block, "container_block")
+    seen, out = {}, []
+    for entry in doc["networks"]:
+        if not isinstance(entry, dict):
+            raise GuardError("every network must be an object")
+        name = entry.get("name")
+        what = f"network {name!r}"
+        roles = entry.get("roles")
+        if not isinstance(roles, list) or not roles or not set(map(str, roles)) <= ROLES:
+            raise GuardError(f"{what}: roles must be a non-empty list of {sorted(ROLES)}")
+        interface = entry.get("interface")
+        if not isinstance(interface, str) or not IFNAME.fullmatch(interface) or interface.startswith("rz-"):
+            raise GuardError(f"{what}: {interface!r} is not an interface name it can use")
+        if interface in seen:
+            raise GuardError(f"{what}: interface {interface} is already used by {seen[interface]!r}")
+        seen[interface] = name
+        subnet = _net(entry.get("subnet"), f"{what} subnet")
+        try:
+            address = ipaddress.IPv4Interface(entry["address"] if isinstance(entry.get("address"), str) else None)
+        except (ValueError, TypeError):
+            raise GuardError(f"{what}: address {entry.get('address')!r} is not like 10.0.100.5/24") from None
+        if address.ip not in subnet:
+            raise GuardError(f"{what}: the address {address} is not inside its subnet {subnet}")
+        if entry.get("gateway") is not None:
+            _addr(entry["gateway"], f"{what} gateway")
+        routed = entry.get("routed_subnets") or []
+        if not isinstance(routed, list):
+            raise GuardError(f"{what}: routed_subnets must be a list")
+        routed = [_net(value, f"{what} routed subnet") for value in routed]
+        for net in [subnet, *routed]:
+            if net.prefixlen < 8:
+                raise GuardError(f"{what}: {net} is wider than /8: that is a default route, not a device subnet")
+            if net.overlaps(block):
+                raise GuardError(f"{what}: {net} overlaps {block}, which the containers use")
+        for other in out:
+            if subnet.overlaps(other["subnet"]):
+                raise GuardError(f"{what}: {subnet} overlaps {other['subnet']} of {other['name']!r}")
+        out.append({"name": name, "roles": set(roles), "interface": interface, "subnet": subnet, "routed": routed})
+    return out
+
+
+def check_conf(doc):
+    doc = {} if doc is None else doc
+    if not isinstance(doc, dict) or doc.get("form", "small") not in ("small", "full"):
+        raise GuardError('guard.json must be an object, and "form" is "small" or "full"')
+    conf = {"form": doc.get("form", "small"), "container_block": str(_net(doc.get("container_block", BLOCK), "container_block"))}
+    for key in ("infra", "app_services"):
+        entries = doc.get(key) or []
+        if not isinstance(entries, list):
+            raise GuardError(f"guard.json: {key} must be a list")
+        conf[key] = set()
+        for entry in entries:
+            if not isinstance(entry, dict) or entry.get("protocol") not in ("tcp", "udp"):
+                raise GuardError(f"guard.json: every entry of {key} needs an address, a protocol (tcp or udp) and a port")
+            port = entry.get("port")
+            if isinstance(port, bool) or not isinstance(port, int) or not 1 <= port <= 65535:
+                raise GuardError(f"guard.json: {key}: port {port!r} is not a port number")
+            conf[key].add((_addr(entry.get("address"), f"guard.json {key}"), entry["protocol"], port))
+    conf["ssh_if"] = doc.get("ssh_if")
+    if conf["ssh_if"] is not None and not (isinstance(conf["ssh_if"], list) and all(
+            isinstance(name, str) and IFNAME.fullmatch(name) and not name.startswith("rz-") for name in conf["ssh_if"])):
+        raise GuardError("guard.json: ssh_if must be a list of interface names")
+    return conf
+
+
+def dns_servers(paths=RESOLV):
+    """The IPv4 DNS servers the host's resolver files name. Docker picks one of
+    these files to decide where a container's queries go; which one depends on
+    whether the first names only the local stub, so both are read. A loopback
+    address is the host itself, which the input rules cover."""
+    found = []
+    for path in paths.split(":"):
+        try:
+            with open(path, encoding="utf-8") as handle:
+                for line in handle:
+                    words = line.split()
+                    if len(words) >= 2 and words[0] == "nameserver":
+                        try:
+                            address = ipaddress.IPv4Address(words[1])
+                        except ValueError:
+                            continue
+                        if not address.is_loopback and address not in found:
+                            found.append(address)
+        except OSError:
+            continue
+    return found
+
+
+def _names(names):
+    return "{ " + ", ".join(f'"{name}"' for name in names) + " }"
+
+
+def _set(name, kind, elements, comment):
+    body = f"  set {name} {{ type {kind};"
+    if kind == "ipv4_addr":
+        body += " flags interval;"
+    if elements:
+        body += " elements = { " + ", ".join(elements) + " }"
+    return f"  # {comment}\n{body} }}"
+
+
+def _services(entries):
+    return [f"{address} . {protocol} . {port}" for address, protocol, port in sorted(entries)]
+
+
+def rules(networks, conf, dns=(), ssh=False):
+    """The rule set as text. `networks` and `conf` are already validated."""
+    full = conf["form"] == "full"
+    only = [n for n in networks if n["roles"] == {"devices"}]
+    dev_if = sorted(n["interface"] for n in only)
+    ui_if = sorted(n["interface"] for n in networks if "users" in n["roles"])
+    # Where the executor may go: every network that carries devices. What is closed to everybody
+    # else: only the networks that carry nothing but devices.
+    dev_net = [str(net) for net in ipaddress.collapse_addresses(
+        net for n in networks if "devices" in n["roles"] for net in [n["subnet"], *n["routed"]])]
+    dev_only = [str(net) for net in ipaddress.collapse_addresses(net for n in only for net in [n["subnet"], *n["routed"]])]
+    infra = conf["infra"] | {(address, protocol, 53) for address in dns for protocol in ("tcp", "udp")}
+    service = "ipv4_addr . inet_proto . inet_service"
+    # With a network list, web and SSH answer on the networks with the role
+    # "users". Without one, on every interface that is not a bridge of ours.
+    front = "iifname @ui_if" if ui_if else 'iifname != "rz-*" iifname != @dev_if'
+    ssh_if = sorted(set(conf.get("ssh_if") or [])) if conf.get("ssh_if") is not None else None
+    ssh_front = front if ssh_if is None else "iifname @ssh_if"
+
+    out = [
+        "# Written by rezztor-guard. Do not edit: the next apply replaces it.",
+        f"# form: {conf['form']}; networks: {len(networks)}; device prefixes: {len(dev_net)}; ssh: {'on' if ssh and full else 'off'}",
+        '# Replaces only its own two tables. Never "flush ruleset": that would delete Docker\'s rules too.',
+        "table inet rezztor_guard",
+        "delete table inet rezztor_guard",
+        "",
+        "table inet rezztor_guard {",
+        _set("dev_if", "ifname", [f'"{name}"' for name in dev_if], "interfaces that carry devices and nothing else"),
+        _set("ui_if", "ifname", [f'"{name}"' for name in ui_if], "interfaces where users open the web interface"),
+        _set("ssh_if", "ifname", [f'"{name}"' for name in ssh_if or []], "interfaces SSH answers on while it is switched on, when guard.json names them"),
+        _set("dev_net4", "ipv4_addr", dev_net, "every device prefix, on a link or behind a gateway: where the executor may go"),
+        _set("dev_only4", "ipv4_addr", dev_only, "the prefixes of networks that carry devices and nothing else: closed to everybody else"),
+        _set("infra", service, _services(infra), "DNS servers and the proxy: every container may reach these"),
+        _set("app_to_dev", service, _services(conf["app_services"]), "services inside a devices-only network the application may use"),
+        _set("private4", "ipv4_addr", list(PRIVATE), "fixed"),
+        "",
+        "  chain forward {",
+        "    type filter hook forward priority -10; policy accept;",
+        "    ct state established,related accept",
+    ]
+    if full:
+        out += ["    # F1. The appliance is not a router: one side of every forwarded packet is a bridge of ours.",
+                '    iifname != "rz-*" oifname != "rz-*" drop']
+    else:
+        out += ["    # Not ours. On a hand install this is the customer's own server and its other traffic.",
+                '    iifname != "rz-*" oifname != "rz-*" accept']
+    out += [
+        "    ct state invalid drop",
+        '    iifname != "rz-*" jump from_outside',
+        '    oifname "rz-*" jump between_bridges',
+        f'    iifname "{EXECUTOR}" jump from_executor',
+        "    jump from_containers",
+        "  }",
+        "  chain from_outside {",
+    ]
+    if full:
+        out += ["    # F2. Nothing from outside is forwarded to a container. The door is nginx on the host."]
+    else:
+        out += ["    # F2. Only a port the Compose file published (the web interface) is forwarded to a container.",
+                "    ct status dnat accept"]
+    out += [
+        "    drop",
+        "  }",
+        "  chain between_bridges {",
+        "    # Containers that share a network talk; Docker decides the rest. This traffic passes here",
+        "    # only on a kernel that sends bridged packets through the forward hook.",
+        *[f'    iifname "{name}" oifname "{name}" accept' for name in BRIDGES],
+        "    # Two different bridges of ours: never.",
+        "    drop",
+        "  }",
+        "  chain from_executor {",
+    ]
+    if dev_if or dev_net:
+        out += [
+            "    # F3. The executor reaches device networks, and nothing else but the DNS servers.",
+            "    oifname @dev_if accept",
+            "    ip daddr @dev_net4 accept",
+            "    meta l4proto { tcp, udp } th dport 53 ip daddr . meta l4proto . th dport @infra accept",
+            "    drop",
+        ]
+    else:
+        out += ["    # No device network is known: the executor reaches what the host reaches, as before.",
+                "    accept"]
+    out += [
+        "  }",
+        "  chain from_containers {",
+        "    ip daddr . meta l4proto . th dport @infra accept",
+        "    # F4. Nobody else reaches a devices-only network, except the application's named services.",
+        "    # A network that is also for the internet or for users stays as open as it was without a list.",
+        '    iifname "rz-app" ip daddr . meta l4proto . th dport @app_to_dev accept',
+        "    oifname @dev_if drop",
+        "    ip daddr @dev_only4 drop",
+        "    # F5. User code, web search and the cloud executor: public addresses only.",
+        f"    iifname {_names(FENCED)} ip daddr @private4 drop",
+        f"    meta nfproto ipv6 iifname {_names(FENCED)} drop",
+        "    # The database bridges have no way out.",
+        f"    iifname {_names(SEALED)} drop",
+        "  }",
+        "",
+        "  chain input {",
+    ]
+    if full:
+        out += [
+            "    type filter hook input priority -10; policy drop;",
+            '    iifname "lo" accept',
+            "    ct state established,related accept",
+            "    ct state invalid drop",
+            "    icmp type echo-request limit rate 10/second accept",
+            "    # IPv6 is off on device networks: no neighbour discovery or router advertisement from there.",
+            "    iifname != @dev_if icmpv6 type { echo-request, nd-neighbor-solicit, nd-neighbor-advert, nd-router-advert } accept",
+            "    # The answer to a DHCP request arrives before any connection exists.",
+            "    iifname != @dev_if udp sport 67 udp dport 68 accept",
+            "    # I1. The web interface (nginx), and SSH while it is switched on.",
+            f"    {front} tcp dport {{ 80, 443 }} accept",
+            *([f"    {ssh_front} tcp dport 22 accept"] if ssh else []),
+            "    # I2. Containers ask the bridge gateway for DNS and nothing else on the host.",
+            '    iifname "rz-*" meta l4proto { tcp, udp } th dport 53 accept',
+            "    # Everything else is dropped: device networks, user code, a Docker API somebody opened.",
+        ]
+    else:
+        out += [
+            "    # The host is the customer's own server: only what our fenced containers and the database",
+            "    # bridges send to it is judged. The application and the executor reach it as before.",
+            "    type filter hook input priority -10; policy accept;",
+            f"    iifname != {_names(FENCED + SEALED)} accept",
+            "    ct state established,related accept",
+            "    meta l4proto { tcp, udp } th dport 53 accept",
+            "    drop",
+        ]
+    out += [
+        "  }",
+        "}",
+        "",
+        "# Traffic between two containers on one bridge never reaches the inet hooks unless br_netfilter is",
+        "# loaded, so what has to hold there is a table of the bridge family, replaced the same way.",
+        "table bridge rezztor_guard",
+        "delete table bridge rezztor_guard",
+        "",
+        "table bridge rezztor_guard {",
+        "  chain forward {",
+        "    type filter hook forward priority -10; policy accept;",
+        "    # B1. On the runner's network a connection is opened to the runner's sshd and to nothing else:",
+        "    # user code does not reach the application's own port there, whose login throttle does not",
+        "    # count private addresses.",
+        f'    meta ibrname "{RUNNER_BRIDGE}" tcp flags & (syn | ack) == syn tcp dport != {RUNNER_SSH_PORT} drop',
+        "  }",
+        "}",
+        "",
+    ]
+    return "\n".join(out)
+
+
+def runner_rules(base, count):
+    """The rules for the runner's own network namespace. `base` and `count` are
+    the image's first slot uid and its number of slots."""
+    if not all(isinstance(n, int) and not isinstance(n, bool) for n in (base, count)) \
+            or base < 1 or not 1 <= count <= 65535 or base + count > 2 ** 32 - 1:
+        raise GuardError(f"the runner's slot uids are not usable: first {base!r}, count {count!r}")
+    slots = f"{base}-{base + count - 1}"
+    return "\n".join([
+        "# Written by rezztor-guard into the runner's network namespace, again at every start of the runner.",
+        "table inet rezztor_runner",
+        "delete table inet rezztor_runner",
+        "",
+        "table inet rezztor_runner {",
+        "  chain output {",
+        "    type filter hook output priority -10; policy accept;",
+        "    # L1. A slot account reaches nothing over loopback but Docker's resolver: a server one account",
+        "    # starts on 127.0.0.1 or on the runner's own address is not a way into another's files.",
+        "    # `ct original`, because Docker has already redirected port 53 to a port of its own here.",
+        f'    oifname "lo" meta skuid {slots} ct original ip daddr != {DOCKER_DNS} drop',
+        f'    oifname "lo" meta skuid {slots} ct original proto-dst != 53 drop',
+        f'    oifname "lo" meta skuid {slots} meta nfproto ipv6 drop',
+        "    # L2. Nor by broadcast or multicast: a copy of those comes back to every socket here through eth0,",
+        "    # not lo. And nothing conntrack could not place, which the two rules above would not judge.",
+        f"    meta skuid {slots} fib daddr type {{ broadcast, multicast }} drop",
+        f"    meta skuid {slots} ct state invalid,untracked drop",
+        "  }",
+        "}",
+        "",
+    ])
+
+
+def runner_slots(pid, env):
+    """The first uid and the number of the runner's slot accounts, read from its
+    own /etc/passwd: the accounts are what the kernel judges, an environment
+    variable only says what the image meant. The two have to agree, and the
+    uids have to be one unbroken range."""
+    with open(f"{PROC}/{pid}/root/etc/passwd", encoding="utf-8") as handle:
+        uids = sorted(int(fields[2]) for fields in (line.split(":") for line in handle)
+                      if len(fields) > 2 and SLOT_NAME.fullmatch(fields[0]))
+    if not uids:
+        raise GuardError("its /etc/passwd has no eagent-NNN account")
+    base, count = uids[0], len(uids)
+    if uids != list(range(base, base + count)):
+        raise GuardError(f"the eagent-NNN uids are not one range: {uids[0]}..{uids[-1]} with {count} accounts")
+    for name, value in (("RUNNER_SLOT_BASE_UID", base), ("RUNNER_SLOTS", count)):
+        if name in env and env[name] != str(value):
+            raise GuardError(f"{name}={env[name]} in its environment, {value} in its /etc/passwd")
+    return base, count
+
+
+def runner_apply():
+    """Load `runner_rules` into the running runner. 0 when it is loaded or the
+    runner is not running (the next start loads it), 1 when it could not be."""
+    try:
+        found = subprocess.run(["docker", "inspect", "-f", "{{.State.Pid}} {{json .Config.Env}}", RUNNER],
+                               capture_output=True, text=True)
+    except FileNotFoundError:
+        print("rezztor-guard: 'docker' is not installed, so the runner cannot be found.", file=sys.stderr)
+        return 1
+    if found.returncode:
+        print(f"rezztor-guard: no container {RUNNER}: nothing to load yet.")
+        return 0
+    try:
+        pid, env = found.stdout.strip().split(" ", 1)
+        env = dict(item.split("=", 1) for item in json.loads(env) if "=" in item)
+        pid = int(pid)
+    except (ValueError, TypeError) as error:
+        print(f"rezztor-guard: docker inspect {RUNNER} said something else ({error}): nothing loaded.", file=sys.stderr)
+        return 1
+    if pid <= 0:
+        print(f"rezztor-guard: {RUNNER} is not running: the next start loads the rules.")
+        return 0
+    try:
+        base, count = runner_slots(pid, env)
+        text = runner_rules(base, count)
+    except (OSError, ValueError, GuardError) as error:
+        print(f"rezztor-guard: the slot accounts of {RUNNER} are not known ({error}): nothing loaded.", file=sys.stderr)
+        return 1
+    try:
+        done = subprocess.run(["nsenter", "-t", str(pid), "-n", "nft", "-f", "-"], input=text, text=True,
+                              capture_output=True)
+    except FileNotFoundError:
+        print("rezztor-guard: 'nsenter' is not installed (package util-linux): nothing loaded.", file=sys.stderr)
+        return 1
+    if done.returncode:
+        print(f"rezztor-guard: the runner refused the loopback rules: {done.stderr.strip()}", file=sys.stderr)
+        return 1
+    print(f"rezztor-guard: loaded the loopback rules into {RUNNER} (pid {pid})")
+    return 0
+
+
+def runner_watch():
+    """Load the runner's rules now and at every start of it. Docker's events are
+    followed before the first load, so a start in between is not missed; when
+    Docker goes away, the loop waits and begins again.
+
+    A load that fails ends the watch with an error, so the unit shows it and
+    systemd tries again with a growing delay: a watch that carried on would say
+    "active" over a runner whose accounts reach each other."""
+    def load(events):
+        if runner_apply():
+            events.terminate()
+            # <3> is journald's "error" for a line on standard error (SyslogLevelPrefix).
+            print(f"<3>rezztor-guard: the loopback rules are NOT loaded into {RUNNER}; stopping so that "
+                  "the unit shows it.", file=sys.stderr)
+            raise SystemExit(1)
+
+    while True:
+        try:
+            events = subprocess.Popen(
+                ["docker", "events", "--filter", "type=container", "--filter", "event=start",
+                 "--filter", f"container={RUNNER}", "--format", "{{.Actor.ID}}"],
+                stdout=subprocess.PIPE, text=True)
+        except FileNotFoundError:
+            raise SystemExit("rezztor-guard: 'docker' is not installed, so the runner cannot be followed.") from None
+        load(events)
+        for _ in events.stdout:
+            load(events)
+        events.wait()
+        time.sleep(5)
+
+
+def build(args):
+    conf = check_conf(_load(args.conf))
+    networks = check_networks(_load(args.networks), conf["container_block"])
+    if conf["form"] == "full" and networks and not any("users" in n["roles"] for n in networks):
+        print("rezztor-guard: no network has the role 'users': the web interface answers on no listed network",
+              file=sys.stderr)
+    return rules(networks, conf, dns_servers(args.resolv), os.path.exists(args.ssh_flag)), conf, networks
+
+
+def nft(*argv, text=None):
+    try:
+        return subprocess.run(["nft", *argv], input=text, text=True, capture_output=True)
+    except FileNotFoundError:
+        raise SystemExit("rezztor-guard: 'nft' is not installed (package nftables), so nothing was loaded.") from None
+
+
+def _load_rules(text, out):
+    """Load `text`, and keep it as `out` only if the kernel took it. `nft -f` is
+    one transaction: a file it refuses changes nothing, and the table that was
+    loaded stays. So a file on disk is always one that loaded."""
+    os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
+    with tempfile.NamedTemporaryFile("w", dir=os.path.dirname(out) or ".", delete=False, encoding="utf-8") as handle:
+        handle.write(text)
+    result = nft("-f", handle.name)
+    if result.returncode:
+        os.unlink(handle.name)
+        return result.stderr.strip() or "nft refused the rules"
+    os.chmod(handle.name, 0o644)
+    os.replace(handle.name, out)
+    return None
+
+
+def apply(args):
+    """Load the guard. A list that cannot be used never leaves the machine
+    without a fence: the last good rule set is loaded, or the no-list form."""
+    problem, conf, networks, loaded = None, None, [], None
+    try:
+        text, conf, networks = build(args)
+        problem = _load_rules(text, args.out)
+        if problem is None:
+            loaded = "the new rules"
+    except GuardError as error:
+        problem = str(error)
+    if loaded is None and os.path.exists(args.out) and nft("-f", args.out).returncode == 0:
+        loaded = "the last good rules"
+    if loaded is None:
+        try:
+            conf = check_conf(_load(args.conf))
+        except GuardError:
+            conf = check_conf(None)
+        networks = []
+        failure = _load_rules(rules([], conf, dns_servers(args.resolv), os.path.exists(args.ssh_flag)), args.out)
+        if failure:
+            print(f"rezztor-guard: {problem}\nrezztor-guard: NOTHING is loaded: {failure}", file=sys.stderr)
+            return 1
+        loaded = "the rules for one flat network"
+    if conf and conf["form"] == "full":
+        # IPv6 stays off on a device network, so a router advertisement there cannot add a default route.
+        for network in networks:
+            if network["roles"] == {"devices"}:
+                try:
+                    with open(f"/proc/sys/net/ipv6/conf/{network['interface']}/disable_ipv6", "w") as handle:
+                        handle.write("1")
+                except OSError:
+                    pass
+    if problem:
+        print(f"rezztor-guard: {problem}\nrezztor-guard: loaded {loaded} instead.", file=sys.stderr)
+        return 1
+    print(f"rezztor-guard: loaded {args.out}")
+    return 0
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(prog="rezztor-guard", description=__doc__.split("\n\n")[0])
+    parser.add_argument("command", choices=("print", "check", "apply", "runner"))
+    parser.add_argument("--watch", action="store_true", help="runner: load again at every start of the runner")
+    parser.add_argument("--networks", default=NETWORKS)
+    parser.add_argument("--conf", default=CONF)
+    parser.add_argument("--out", default=OUT)
+    parser.add_argument("--resolv", default=RESOLV, help="resolver files, colon separated")
+    parser.add_argument("--ssh-flag", default=SSH_ON)
+    args = parser.parse_args(argv)
+    try:
+        if args.command == "apply":
+            return apply(args)
+        if args.command == "runner":
+            return runner_watch() if args.watch else runner_apply()
+        text = build(args)[0]
+        if args.command == "print":
+            sys.stdout.write(text)
+            return 0
+        result = nft("-c", "-f", "-", text=text)
+        sys.stderr.write(result.stderr)
+        return result.returncode
+    except GuardError as error:
+        print(f"rezztor-guard: {error}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

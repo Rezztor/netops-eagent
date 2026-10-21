@@ -1,0 +1,341 @@
+/*
+ * Settings: an index beside a pane, not one column of cards.
+ *
+ * The screen this replaced grew by one card per plugin and had no addresses,
+ * so state could only be learned by scrolling to it. Here the index carries
+ * the state and each section is a route.
+ *
+ * Height is the thing to get right. Settings is rendered inside `contentFull`
+ * (flex, overflow hidden), so this grid must be bounded and each column must
+ * own its own scroller with `min-height: 0` -- otherwise the columns grow to
+ * fit their content and the whole page scrolls again, which is the bug this
+ * screen exists to fix.
+ */
+
+.layout {
+  display: grid;
+  grid-template-columns: var(--list) minmax(0, 1fr);
+  gap: var(--space-4);
+  flex: 1;
+  min-height: 0;
+}
+
+/* ---------- the index ---------- */
+
+.index {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.indexHead {
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--line);
+}
+
+.search {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.searchInput {
+  width: 100%;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  color: var(--ink);
+  background: var(--surface-alt);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm);
+  padding: 7px 32px 7px 10px;
+}
+.searchInput::placeholder {
+  color: var(--ink-3);
+}
+.searchKey {
+  position: absolute;
+  right: 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-3);
+  border: 1px solid var(--line-2);
+  border-radius: 3px;
+  padding: 0 4px;
+  pointer-events: none;
+}
+
+.indexScroll {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding: var(--space-2) 10px var(--space-4);
+}
+
+.group {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  padding: 13px 8px 5px;
+}
+.groupCount {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0;
+  opacity: 0.75;
+}
+
+.item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 7px 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink-2);
+  font-family: inherit;
+  font-size: var(--text-base);
+  font-weight: 500;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.item:hover {
+  background: var(--surface-alt);
+  color: var(--ink);
+}
+.itemActive {
+  background: var(--accent-wash);
+  color: var(--accent);
+  font-weight: 600;
+}
+.itemLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mark {
+  background: var(--accent);
+  color: var(--surface);
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+.empty {
+  padding: var(--space-4) 8px;
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+}
+
+/* ---------- attention ---------- */
+
+.attention {
+  margin: var(--space-2) var(--space-3) 0;
+  border: 1px solid var(--warn);
+  background: var(--warn-wash);
+  border-radius: var(--radius-sm);
+  padding: 9px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.attentionLabel {
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--warn);
+}
+.attentionItem {
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: 550;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: var(--ink);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--line-2);
+  text-underline-offset: 3px;
+}
+.attentionItem:hover {
+  text-decoration-color: currentColor;
+}
+
+/* ---------- the pane ---------- */
+
+.pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+.paneScroll {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  /* Room for the sticky save bar, so the last row is never sat on. */
+  padding-bottom: var(--space-3);
+  display: grid;
+  gap: var(--space-4);
+  align-content: start;
+}
+
+.paneHead {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.crumb {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+.crumbPath {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+}
+.paneTitle {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.paneDesc {
+  font-size: var(--text-base);
+  color: var(--ink-2);
+  max-width: 62ch;
+}
+
+/* Mobile only: the way back to the index. */
+.back {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-sm);
+  font-weight: 550;
+  color: var(--accent);
+  text-decoration: none;
+  padding: 2px 0;
+}
+
+/* ---------- overview (no section selected) ---------- */
+
+.overviewGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--space-3);
+}
+.overviewCard {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  text-align: left;
+  padding: var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.12s, transform 0.12s;
+}
+.overviewCard:hover {
+  border-color: var(--line-2);
+}
+.overviewTop {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.overviewTitle {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+.overviewSummary {
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+/* ---------- the save bar ---------- */
+
+/*
+ * Sticky to the bottom of the pane rather than a button in the card header.
+ * A header button on a ten-row section scrolls out of sight exactly when it is
+ * needed. Nothing here auto-saves, so the bar has to say what is unsaved.
+ */
+.saveBar {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 10px var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  box-shadow: 0 -2px 8px rgba(12, 27, 30, 0.06), var(--shadow);
+}
+.saveBarText {
+  flex: 1;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+.saveBarText b {
+  color: var(--ink);
+  font-weight: 620;
+}
+.saveBarError {
+  border-color: var(--crit);
+  color: var(--crit);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .item,
+  .overviewCard {
+    transition: none;
+  }
+}
+
+/* ---------- narrow ---------- */
+
+/*
+ * Below this width the two panes become one: the route decides which is on
+ * screen. `/settings` is the index, `/settings/<id>` is the section, and the
+ * back link appears to return. No two-pane compromise at phone width.
+ */
+@media (max-width: 860px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .layout[data-view="section"] .index {
+    display: none;
+  }
+  .layout[data-view="index"] .pane {
+    display: none;
+  }
+  .back {
+    display: inline-flex;
+  }
+}

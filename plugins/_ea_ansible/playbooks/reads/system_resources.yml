@@ -1,0 +1,24 @@
+# `hosts: all` scoped by the job's --limit, per tests/test_net_catalogue.py.
+#
+# CPU, memory and disk use.
+# FortiGate (fortios): the REST API, GET only. Palo Alto (panos): the XML API, `show` commands
+# only. Both over HTTPS with the stored API token, through reads/fw/read.yml, which holds every
+# rule about how the call is made. Written from the vendors' documented output, not run against a
+# device (see the catalogue).
+- name: Read system resource use
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Ask the firewall
+      ansible.builtin.include_tasks: fw/read.yml
+      vars:
+        fw_read: system_resources
+        fw_requests:
+          fortios:
+            - "/api/v2/monitor/system/resource/usage?interval=1-min"
+          panos:
+            - "<show><system><resources></resources></system></show>"
+
+    - name: Show the answer
+      ansible.builtin.debug:
+        var: eagent_fw

@@ -1,0 +1,4 @@
+{
+  "_comment": "UNVERIFIED: constructed. The phase contract states community SONiC returns empty facts; this file encodes that statement, not a capture.",
+  "facts": {}
+}

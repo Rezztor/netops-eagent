@@ -1,0 +1,26 @@
+# The cloud executor: a separate container that holds the Azure keys and runs OpenTofu. This plugin never runs
+# model code and never holds an Azure key; it talks to the executor over this socket with a bearer job token
+# (REZZTOR_CLOUD_JOB_TOKEN in usr/.env or REZZTOR_CLOUD_JOB_TOKEN_FILE), never a setting in this file.
+executor_url: unix:///run/cloud-socket/cloud.sock
+timeout_seconds: 60
+
+# The guard rails. The executor stores and enforces them (set from Settings with `plugins.manage`, through
+# /v1/admin/guardrails); this block is the seed the Settings screen starts from and what the application assumes
+# until the executor has answered. There is no `deletes_allowed` and no `max_deletes`: deleting, stopping,
+# restarting, resizing and scaling in are not configurable (ADR 0065).
+guardrails:
+  subscriptions: []                 # guids; empty = nothing can change
+  resource_groups: {existing: [], new_prefix: "rg-"}
+  regions: []                       # empty = the regions already in the inventory, filled by the Settings screen
+  resource_types: []                # empty = the types the templates declare
+  vm_sizes_max_vcpu: 8
+  usd_month_per_change: 250
+  usd_month_total: 1000
+  low_risk_usd_month: 20
+  max_resources: 40
+  allow_free_code: false
+  allow_unknown_price: false
+  # The CR or SR number an engineer types to approve: a full match, case-insensitive, 40 characters at most.
+  # A pattern that matches the empty string, does not compile or is longer than 100 characters is refused on save.
+  reference_pattern: "(CR|SR)-?[0-9]{4,10}"
+  document_valid_days: 14           # 1 to 30; read by the application

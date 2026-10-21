@@ -1,0 +1,11 @@
+# Largest file the agent may attach, in megabytes.
+#
+# It comes back through the runner's SSH command channel base64-encoded, because
+# the application image has ssh but no scp or sftp. That is fine for documents
+# and reports and wrong for disk images: the whole file is held in memory twice
+# on the way through. Raise it knowingly.
+max_file_mb: 25
+
+# How many attachments one user may accumulate before the oldest are removed.
+# They live in that user's own directory and nothing else prunes them.
+max_files_per_user: 200

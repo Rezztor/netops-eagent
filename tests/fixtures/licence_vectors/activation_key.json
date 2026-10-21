@@ -1,0 +1,197 @@
+{
+ "description": "Activation keys: keys.normalise(input) and keys.key_hash.",
+ "cases": [
+  {
+   "name": "canonical",
+   "op": "normalise",
+   "input": "REZ-01234-56789-ABCDE-FGHJK-MNPQC",
+   "expect": "ok",
+   "normalised": "0123456789ABCDEFGHJKMNPQC",
+   "hash": "4xw1B8puTxLttnoJF6kaL5inIviNYV5tB6-yVCKYWhg"
+  },
+  {
+   "name": "lower case",
+   "op": "normalise",
+   "input": "rez-01234-56789-abcde-fghjk-mnpqc",
+   "expect": "ok",
+   "normalised": "0123456789ABCDEFGHJKMNPQC",
+   "hash": "4xw1B8puTxLttnoJF6kaL5inIviNYV5tB6-yVCKYWhg"
+  },
+  {
+   "name": "spaces instead of dashes",
+   "op": "normalise",
+   "input": "REZ 01234 56789 ABCDE FGHJK MNPQC",
+   "expect": "ok",
+   "normalised": "0123456789ABCDEFGHJKMNPQC",
+   "hash": "4xw1B8puTxLttnoJF6kaL5inIviNYV5tB6-yVCKYWhg"
+  },
+  {
+   "name": "no separators",
+   "op": "normalise",
+   "input": "0123456789ABCDEFGHJKMNPQC",
+   "expect": "ok",
+   "normalised": "0123456789ABCDEFGHJKMNPQC",
+   "hash": "4xw1B8puTxLttnoJF6kaL5inIviNYV5tB6-yVCKYWhg"
+  },
+  {
+   "name": "no separators with prefix",
+   "op": "normalise",
+   "input": "REZ0123456789ABCDEFGHJKMNPQC",
+   "expect": "ok",
+   "normalised": "0123456789ABCDEFGHJKMNPQC",
+   "hash": "4xw1B8puTxLttnoJF6kaL5inIviNYV5tB6-yVCKYWhg"
+  },
+  {
+   "name": "surrounding whitespace",
+   "op": "normalise",
+   "input": "  REZ-01234-56789-ABCDE-FGHJK-MNPQC\n",
+   "expect": "ok",
+   "normalised": "0123456789ABCDEFGHJKMNPQC",
+   "hash": "4xw1B8puTxLttnoJF6kaL5inIviNYV5tB6-yVCKYWhg"
+  },
+  {
+   "name": "without the REZ prefix",
+   "op": "normalise",
+   "input": "01234-56789-ABCDE-FGHJK-MNPQC",
+   "expect": "ok",
+   "normalised": "0123456789ABCDEFGHJKMNPQC",
+   "hash": "4xw1B8puTxLttnoJF6kaL5inIviNYV5tB6-yVCKYWhg"
+  },
+  {
+   "name": "O read as 0, I and L as 1",
+   "op": "normalise",
+   "input": "REZ-OI234-56789-ABCDE-FGHJK-MNPQC",
+   "expect": "ok",
+   "normalised": "0123456789ABCDEFGHJKMNPQC",
+   "hash": "4xw1B8puTxLttnoJF6kaL5inIviNYV5tB6-yVCKYWhg"
+  },
+  {
+   "name": "L read as 1",
+   "op": "normalise",
+   "input": "REZ-0l234-56789-ABCDE-FGHJK-MNPQC",
+   "expect": "ok",
+   "normalised": "0123456789ABCDEFGHJKMNPQC",
+   "hash": "4xw1B8puTxLttnoJF6kaL5inIviNYV5tB6-yVCKYWhg"
+  },
+  {
+   "name": "all zeros",
+   "op": "normalise",
+   "input": "REZ-00000-00000-00000-00000-00000",
+   "expect": "ok",
+   "normalised": "0000000000000000000000000",
+   "hash": "p8O3-nb5f375JW1ldtQu_aKe5ZB7NDEUUj7P_qQixbk"
+  },
+  {
+   "name": "highest value",
+   "op": "normalise",
+   "input": "REZ-YYYYY-YYYYY-YYYYY-YYYYY-YYYYA",
+   "expect": "ok",
+   "normalised": "YYYYYYYYYYYYYYYYYYYYYYYYA",
+   "hash": "zBZSRNswB7NQEvYEhu4stPpSvmsSgXZpcvaMwWGuXAA"
+  },
+  {
+   "name": "lower case prefix",
+   "op": "normalise",
+   "input": "rez-01234-56789-abcde-fghjk-mnpqc",
+   "expect": "ok",
+   "normalised": "0123456789ABCDEFGHJKMNPQC",
+   "hash": "4xw1B8puTxLttnoJF6kaL5inIviNYV5tB6-yVCKYWhg"
+  },
+  {
+   "name": "Z in the key body",
+   "op": "normalise",
+   "input": "REZ-012Z4-56789-ABCDE-FGHJK-MNPQC",
+   "expect": "bad_char"
+  },
+  {
+   "name": "Z for 0 (the old mod-32 blind spot)",
+   "op": "normalise",
+   "input": "REZ-Z1234-56789-ABCDE-FGHJK-MNPQC",
+   "expect": "bad_char"
+  },
+  {
+   "name": "Z as the check character",
+   "op": "normalise",
+   "input": "REZ-01234-56789-ABCDE-FGHJK-MNPQZ",
+   "expect": "bad_char"
+  },
+  {
+   "name": "prefix twice",
+   "op": "normalise",
+   "input": "REZ-REZ-01234-56789-ABCDE-FGHJK-MNPQC",
+   "expect": "bad_length"
+  },
+  {
+   "name": "wrong check character",
+   "op": "normalise",
+   "input": "REZ-01234-56789-ABCDE-FGHJK-MNPQ1",
+   "expect": "bad_check"
+  },
+  {
+   "name": "transposed characters",
+   "op": "normalise",
+   "input": "REZ-10234-56789-ABCDE-FGHJK-MNPQC",
+   "expect": "bad_check"
+  },
+  {
+   "name": "one character changed",
+   "op": "normalise",
+   "input": "REZ-11234-56789-ABCDE-FGHJK-MNPQC",
+   "expect": "bad_check"
+  },
+  {
+   "name": "24 characters",
+   "op": "normalise",
+   "input": "0123456789ABCDEFGHJKMNPQ",
+   "expect": "bad_length"
+  },
+  {
+   "name": "26 characters",
+   "op": "normalise",
+   "input": "0123456789ABCDEFGHJKMNPQC0",
+   "expect": "bad_length"
+  },
+  {
+   "name": "27 characters with prefix",
+   "op": "normalise",
+   "input": "REZ0123456789ABCDEFGHJKMNPQ",
+   "expect": "bad_length"
+  },
+  {
+   "name": "29 characters with prefix",
+   "op": "normalise",
+   "input": "REZ0123456789ABCDEFGHJKMNPQC0",
+   "expect": "bad_length"
+  },
+  {
+   "name": "empty",
+   "op": "normalise",
+   "input": "",
+   "expect": "bad_length"
+  },
+  {
+   "name": "only the prefix",
+   "op": "normalise",
+   "input": "REZ-",
+   "expect": "bad_length"
+  },
+  {
+   "name": "letter U",
+   "op": "normalise",
+   "input": "REZ-012U4-56789-ABCDE-FGHJK-MNPQC",
+   "expect": "bad_char"
+  },
+  {
+   "name": "punctuation",
+   "op": "normalise",
+   "input": "REZ-012!4-56789-ABCDE-FGHJK-MNPQC",
+   "expect": "bad_char"
+  },
+  {
+   "name": "not a string",
+   "op": "normalise",
+   "input": 12345,
+   "expect": "bad_length"
+  }
+ ]
+}

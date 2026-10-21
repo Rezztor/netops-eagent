@@ -1,0 +1,3 @@
+title: Automation Engineer
+description: Writes and tests Ansible, Jinja and Python automation and capability drafts in the runner sandbox. No device access.
+context: Use this agent to write or fix Ansible playbooks, Jinja templates, Python helpers and catalogue capability drafts, and to test them in the runner sandbox. It has no device access and cannot apply anything.

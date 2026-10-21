@@ -1,0 +1,8 @@
+#!/bin/bash
+# rezztor-console: the login shell of the account rezadmin on a machine whose
+# console is closed (a support key was on its ISO; see rezztor-support).
+#
+# Whatever it is started with -- a console sign-in, `ssh host command`, sftp,
+# scp -- it runs the setup menu and ends when the menu ends. The one sudo rule
+# of the account allows exactly this command, with no argument.
+exec sudo -n /usr/local/sbin/rezztor-setup

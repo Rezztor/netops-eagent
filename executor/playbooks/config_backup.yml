@@ -1,0 +1,117 @@
+# Internal: run by executor/backups.py, never a catalogue entry, so no agent can name it
+# and nothing here takes a variable from a caller (the host list becomes --limit after a
+# name check; `eagent_backup_dir` is a directory the executor made for this one run).
+#
+# Fixed read-only commands only. The configuration text is the most sensitive thing this
+# executor ever holds, so every task that can see it is `no_log: true` and the text goes to
+# a 0600 file in the job's private directory, which the executor encrypts and deletes. It
+# never reaches a job event or the job's output.
+#
+# Only `sonic_community` and `ios` have met a device; `nxos`, `eos`, `junos` and `sonic` follow reads/interfaces. `fortios` and
+# `panos` are written from the vendors' documented API (not run against a device) and use the same call rules as
+# plugins/_ea_ansible/playbooks/reads/fw/read.yml: GET over HTTPS from the executor, the token in a header, verified TLS.
+- name: Back up device configuration
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Establish which platform this host is
+      ansible.builtin.set_fact:
+        eagent_platform: >-
+          {{ (ansible_network_os | default('')) | regex_replace('^.*\.', '') }}
+
+    - name: Refuse a platform this playbook does not cover
+      ansible.builtin.fail:
+        msg: >-
+          {{ inventory_hostname }} is {{ eagent_platform | default('unknown', true) }},
+          which the backup does not cover. It is written for ios, nxos, eos, junos, sonic,
+          sonic_community, fortios and panos.
+      when: eagent_platform not in ['ios', 'nxos', 'eos', 'junos', 'sonic', 'sonic_community', 'fortios', 'panos']
+
+    - name: Read the running configuration from a Cisco IOS device
+      cisco.ios.ios_command:
+        commands: [show running-config]
+      when: eagent_platform == 'ios'
+      register: eagent_ios
+      no_log: true
+
+    - name: Read the running configuration from a Cisco NX-OS device
+      cisco.nxos.nxos_command:
+        commands: [show running-config]
+      when: eagent_platform == 'nxos'
+      register: eagent_nxos
+      no_log: true
+
+    - name: Read the running configuration from an Arista EOS device
+      arista.eos.eos_command:
+        commands: [show running-config]
+      when: eagent_platform == 'eos'
+      register: eagent_eos
+      no_log: true
+
+    - name: Read the configuration from a Junos device
+      # The set form is one statement per line, which is what makes a diff between two
+      # backups readable. The command is fixed here; nothing from a caller reaches it.
+      juniper.device.junos_command:
+        commands: [show configuration | display set]
+      when: eagent_platform == 'junos'
+      register: eagent_junos
+      no_log: true
+
+    - name: Read the running configuration from a SONiC device
+      dellemc.enterprise_sonic.sonic_command:
+        commands: [show running-configuration]
+      when: eagent_platform == 'sonic'
+      register: eagent_sonic
+      no_log: true
+
+    - name: Read the configuration file of a sonic_community device
+      # `raw` is skipped in check mode; this job does not run in check mode, and the
+      # command is a fixed read.
+      ansible.builtin.raw: cat /etc/sonic/config_db.json
+      changed_when: false
+      when: eagent_platform == 'sonic_community'
+      register: eagent_community
+      no_log: true
+
+    - name: Download the configuration of a FortiGate or Palo Alto firewall (GET only)
+      # FortiOS: the config backup endpoint, global scope (every VDOM). PAN-OS: the configuration export. Both only
+      # return the file; neither changes the device. A non-200 answer fails the task, so an error body is never stored
+      # as a configuration; PAN-OS can also answer 200 with an error `<response>`, which `failed_when` catches.
+      ansible.builtin.uri:
+        url: >-
+          https://{{ ('[' ~ ansible_host ~ ']') if ':' in ansible_host else ansible_host }}:{{ ansible_port | default(443) }}{{
+            '/api/v2/monitor/system/config/backup?scope=global' if eagent_platform == 'fortios'
+            else '/api/?type=export&category=configuration' }}
+        method: GET
+        headers: >-
+          {{ {'Authorization': 'Bearer ' ~ ansible_httpapi_pass} if eagent_platform == 'fortios'
+             else {'X-PAN-KEY': ansible_httpapi_pass} }}
+        return_content: true
+        validate_certs: true
+        ca_path: "{{ eagent_tls_ca | default(omit) }}"
+        timeout: 120
+      delegate_to: localhost
+      check_mode: false
+      changed_when: false
+      failed_when: eagent_fw_backup.status | default(0) != 200 or (eagent_fw_backup.content | default('')) is match('^\\s*<response ')
+      when: eagent_platform in ['fortios', 'panos']
+      register: eagent_fw_backup
+      no_log: true
+
+    # config_db.json is one JSON document. Written as text it would be re-parsed by the
+    # templater and come out on a single line; `to_nice_json` gives one key per line in a
+    # stable order, which is what makes a diff between two backups readable.
+    - name: Write the text to the job's private directory
+      ansible.builtin.copy:
+        content: >-
+          {{ eagent_ios.stdout[0] if eagent_platform == 'ios'
+             else eagent_nxos.stdout[0] if eagent_platform == 'nxos'
+             else eagent_eos.stdout[0] if eagent_platform == 'eos'
+             else eagent_junos.stdout[0] if eagent_platform == 'junos'
+             else eagent_sonic.stdout[0] if eagent_platform == 'sonic'
+             else eagent_fw_backup.content if eagent_platform in ['fortios', 'panos']
+             else (eagent_community.stdout | from_json | to_nice_json) }}
+        dest: "{{ eagent_backup_dir }}/{{ inventory_hostname }}.txt"
+        mode: "0600"
+      delegate_to: localhost
+      no_log: true

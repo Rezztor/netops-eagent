@@ -1,0 +1,86 @@
+# Simple actions: one ARM call each, reviewed like the template catalogue (build contract, "Simple actions").
+# The whole list is seven additive actions: four starts, two scale-outs, tags. `actions.py` refuses an entry whose name
+# is not in its ALLOWED tuple, whose method is not POST or PATCH, whose suffix is not the one its kind allows, or whose
+# `requires` is not an action the change role grants (tests/test_actions.py reads role.json). Loosening any of that is a
+# security change: extend tests/test_actions.py first.
+#
+# Written from Microsoft's REST reference (learn.microsoft.com/rest/api/...), not run against a tenant:
+#   compute/virtual-machines/start (2025-04-01), compute/virtual-machine-scale-sets/update (sku.capacity),
+#   appservice/app-service-plans/update, resources/tags/update-at-scope (2021-04-01).
+# unverified: web sites start (2024-04-01), AKS start (2025-01-01) and PostgreSQL flexible start (2024-08-01) are
+#   proved in test session 2; so is the instance-count PATCH of an App Service plan: the PATCH schema Microsoft lists
+#   has no `sku`, so Azure may ignore it. The verify step reads the capacity back and answers verify_failed if it did.
+#
+# `current` reads the state before the call (a start is refused unless the state is in `startable`); `verify` reads it
+# after (`via` is the GET suffix, `path` a dotted path, `expect` the value). `response: drop` means Azure's answer body
+# is never kept. `backout` is text for the engineer, printed in the change document, never run.
+
+- name: vm_start
+  resource_type: microsoft.compute/virtualmachines
+  call: {method: POST, suffix: /start, api_version: "2025-04-01"}
+  risk: low
+  current: {via: /instanceView, path: statuses, startable: [PowerState/deallocated, PowerState/stopped]}
+  verify: {via: /instanceView, path: statuses, expect: PowerState/running}
+  response: drop
+  requires: Microsoft.Compute/virtualMachines/start/action
+  backout: Deallocate it yourself in the portal, after your own approval.
+
+- name: site_start
+  resource_type: microsoft.web/sites
+  call: {method: POST, suffix: /start, api_version: "2024-04-01"}
+  risk: low
+  current: {via: "", path: properties.state, startable: [Stopped]}
+  verify: {via: "", path: properties.state, expect: Running}
+  response: drop
+  requires: Microsoft.Web/sites/start/Action
+  backout: Stop the app yourself in the portal, after your own approval.
+
+- name: aks_start
+  resource_type: microsoft.containerservice/managedclusters
+  call: {method: POST, suffix: /start, api_version: "2025-01-01"}
+  risk: low
+  current: {via: "", path: properties.powerState.code, startable: [Stopped]}
+  verify: {via: "", path: properties.powerState.code, expect: Running}
+  response: drop
+  requires: Microsoft.ContainerService/managedClusters/start/action
+  backout: Stop the cluster yourself in the portal, after your own approval.
+
+- name: pg_flexible_start
+  resource_type: microsoft.dbforpostgresql/flexibleservers
+  call: {method: POST, suffix: /start, api_version: "2024-08-01"}
+  risk: low
+  current: {via: "", path: properties.state, startable: [Stopped]}
+  verify: {via: "", path: properties.state, expect: Ready}
+  response: drop
+  requires: Microsoft.DBforPostgreSQL/flexibleServers/start/action
+  backout: Stop the server yourself in the portal, after your own approval.
+
+- name: vmss_scale_out
+  resource_type: microsoft.compute/virtualmachinescalesets
+  call: {method: PATCH, suffix: "", api_version: "2025-04-01"}
+  risk: high                      # more instances are more cost: always the high tier
+  current: {via: "", path: sku.capacity}
+  verify: {via: "", path: sku.capacity, expect: "{capacity}"}
+  response: drop
+  requires: Microsoft.Compute/virtualMachineScaleSets/write
+  backout: Reduce the instance count yourself in the portal, after your own approval. If an autoscale setting exists it may change the count again.
+
+- name: plan_scale_out
+  resource_type: microsoft.web/serverfarms
+  call: {method: PATCH, suffix: "", api_version: "2024-04-01"}
+  risk: high
+  current: {via: "", path: sku.capacity}
+  verify: {via: "", path: sku.capacity, expect: "{capacity}"}
+  response: drop
+  requires: Microsoft.Web/serverfarms/write
+  backout: Reduce the instance count yourself in the portal, after your own approval. If an autoscale setting exists it may change the count again.
+
+- name: tags_merge
+  resource_type: "*"              # any one resource, or a resource group, inside the allowed subscriptions and groups
+  call: {method: PATCH, suffix: /providers/Microsoft.Resources/tags/default, api_version: "2021-04-01"}
+  risk: low
+  current: {via: /providers/Microsoft.Resources/tags/default, path: properties.tags}
+  verify: {via: /providers/Microsoft.Resources/tags/default, path: properties.tags}
+  response: drop
+  requires: Microsoft.Resources/tags/write
+  backout: Remove or change the tag yourself in the portal, after your own approval. A tag can drive automation or policy; check what reads it first.

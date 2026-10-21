@@ -1,0 +1,84 @@
+# Ignore common unwanted files globally
+**/.DS_Store
+**/.env
+**/__pycache__/
+*.py[cod]
+**/.conda/
+**/node_modules/
+
+#Ignore IDE files
+.cursor/*
+# Keep the Cloud Agent environment definition tracked so it follows the branch.
+!.cursor/environment.json
+!.cursor/install.sh
+!.cursor/start.sh
+.windsurf/
+
+# ignore test files in root dir
+/*.test.py
+
+# Ignore all contents of the virtual environment directory
+.venv/
+
+# obsolete folders
+/memory/
+/knowledge/custom/
+/instruments/
+/logs/
+
+# Handle tmp and usr directory
+tmp/**
+!tmp/**/
+
+# hack to keep .gitkeep but ignore nested repos
+# Ignore everything under usr
+usr/**
+# Ignore nested repos
+/usr/**/.git
+# Allow git to traverse directories
+!usr/**/
+# Re-ignore everything again
+usr/**/*
+# But allow .gitkeep files
+!usr/**/.gitkeep
+
+
+# Global rule to include .gitkeep files anywhere
+!**/.gitkeep
+
+# for browser-use
+agent_history.gif
+
+.agent/**
+.claude/**
+.playwright-cli/
+.playwright-mcp/
+
+# Frontend build output
+frontend/dist/
+
+# Pinned developer tooling (shellcheck), fetched rather than committed.
+deploy/dev/.bin/
+
+# Runner SSH keypair. docs/setup/deployment.md tells every operator to generate
+# this here, and the private half must never be committed.
+docker/run/runner_key
+docker/run/runner_key.pub
+
+# handoff: local paths/usernames from graphify
+graphify-out/.graphify_python
+graphify-out/.graphify_root
+
+# Licensed vendor lab images (Cisco IOSv, Dynamips, FortiManager, ...) must never be committed.
+image/
+
+# Written by scripts/build_local.sh for the image build; see BUILD_INPUTS in scripts/sign_release.py
+/build_inputs.sha256
+
+# dev/run.sh: its generated settings, keys, pid files and logs, and the DEV licence stamp it writes into the
+# working tree (a UAT-style trust of the licence server's DEV root, ADR 0085; dev/README.md)
+/dev/.env.dev
+/dev/keys/
+/dev/data/
+/build_info.json
+/licence_trust.json

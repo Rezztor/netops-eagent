@@ -1,0 +1,7 @@
+name: _ea_azure
+title: Azure
+description: Reads what exists in an Azure tenant, read-only, and keeps it as a dated snapshot with a change log. The agent and the Inventory screen see the stored snapshot; nothing in Azure can be changed from here.
+version: 0.1.0
+settings_sections: []
+per_project_config: false
+per_agent_config: false

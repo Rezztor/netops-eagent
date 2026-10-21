@@ -1,0 +1,28 @@
+# Which executor credential a platform's devices use, by name: {ios: lab-cisco}.
+# Names only -- the secret lives on the executor and never here. A platform with
+# no entry keeps whatever credential its `inv_<platform>` group already names.
+credential_by_platform: {}
+
+# SolarWinds bulk feed (ADR 0042). Off until an administrator turns it on here
+# AND configures the SolarWinds plugin. It only ever stages proposals.
+solarwinds:
+  enabled: false
+  max_nodes: 2000
+  stale_days: 7
+  min_platform_confidence: 0.6
+
+# What a complete record holds (the Data quality report) and how many days ahead a
+# warranty, support or end-of-life date counts as "soon". Declared values only.
+required_fields: [name, device_type, role, vendor, model, serial, mgmt_ip, place_id, status]
+# How deep `place_id` must go to count as filled in: site, location, building, floor, room or rack.
+required_place_level: room
+lifecycle_soon_days: 90
+
+# A device whose newest config backup was last checked more than this many days ago is "stale"
+# on the Health tab. Backups are encrypted on the executor (ADR 0047); the executor's own
+# timer is REZZTOR_ANSIBLE_BACKUP_INTERVAL_HOURS.
+backup_stale_days: 7
+
+# Refresh facts, then ports, of every active device every N hours, as `system:schedule` (0 = off). Facts still reach
+# devices only as requests or conflicts; ports replace the observed snapshot. Recorded as source `schedule`.
+refresh_interval_hours: 0

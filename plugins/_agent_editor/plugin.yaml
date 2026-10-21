@@ -1,0 +1,5 @@
+name: _agent_editor
+title: Agent Editor
+description: Deterministic sparse editor for Rezztor EAgent profiles.
+version: 1.0.0
+always_enabled: true

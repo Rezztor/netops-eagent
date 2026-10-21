@@ -1,0 +1,26 @@
+# Clear an interface's description.
+#
+# The rollback for `changes/ios_interface_description`. It removes the description; it
+# does not restore an earlier one, because nothing in a change record holds the old
+# text (the earlier version of this entry merged the change's own description back, which
+# undid nothing -- found by rolling a change back on a real Cisco 3725, 2026-10-02).
+# That is the right undo for an interface that had no description, which is what the
+# change's summary asks the approver to check.
+#
+# `ios_config` rather than `ios_interfaces`: a resource module's `merged` state cannot
+# remove an attribute. The lines are fixed; only the interface name comes from a variable
+# and the catalogue constrains it.
+- name: Clear an interface description
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Remove the description
+      cisco.ios.ios_config:
+        parents: "interface {{ interface }}"
+        lines:
+          - no description
+      register: change
+
+    - name: Report the commands the module pushed
+      ansible.builtin.debug:
+        var: change.commands

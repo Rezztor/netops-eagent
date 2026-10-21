@@ -1,0 +1,11 @@
+# OpenTofu's CLI configuration for the cloud executor. Image-owned and read-only (TF_CLI_CONFIG_FILE points here).
+#
+# Providers come from the filesystem mirror and from nowhere else. There is no `direct` block, so a provider that is
+# not in /opt/mirror cannot be installed: `tofu init` fails instead of fetching code from the internet at run time.
+# The mirror holds exactly the two providers the build pinned (see Dockerfile and NOTICE).
+provider_installation {
+  filesystem_mirror {
+    path    = "/opt/mirror"
+    include = ["registry.opentofu.org/hashicorp/azurerm", "registry.opentofu.org/azure/azapi"]
+  }
+}

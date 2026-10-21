@@ -1,0 +1,614 @@
+# Rezztor EAgent — single-host deployment.
+#
+# Two containers, deliberately. The application never executes agent-written
+# code; the runner does, as an unprivileged user with nothing worth reaching.
+# See docs/internal/decisions/0006-code-execution-is-not-sandboxed-yet.md.
+
+# A proxy, when this network needs one to reach the internet. Empty, the default, is no proxy: every
+# client treats an empty proxy variable as unset. The application, the cloud executor and the runner get
+# them, in both spellings because curl reads only the lower-case http_proxy. The Ansible executor gets
+# none: it reaches devices and nothing else. The names this stack resolves by itself never go through it.
+x-proxy: &proxy
+  HTTP_PROXY: "${HTTP_PROXY-}"
+  HTTPS_PROXY: "${HTTPS_PROXY-}"
+  NO_PROXY: "localhost,127.0.0.1,searxng,runner,postgres,host.docker.internal${NO_PROXY:+,${NO_PROXY}}"
+  http_proxy: "${HTTP_PROXY-}"
+  https_proxy: "${HTTPS_PROXY-}"
+  no_proxy: "localhost,127.0.0.1,searxng,runner,postgres,host.docker.internal${NO_PROXY:+,${NO_PROXY}}"
+
+services:
+  eagent:
+    container_name: rezztor-eagent
+    image: rezztor/eagent:latest
+    depends_on:
+      runner:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      # Only to start the executor first when it is running. The socket volume
+      # takes its owner from whichever container first mounts it, and the
+      # unprivileged executor can only create its socket in a volume it seeded.
+      ansible:
+        condition: service_started
+        required: false
+      # The same reason as the executor above: the socket volume takes its owner from whichever container first
+      # mounts it, and the unprivileged cloud executor can only create its socket in a volume it seeded.
+      cloud:
+        condition: service_started
+        required: false
+    ports:
+      - "${REZZTOR_BIND_ADDRESS:+${REZZTOR_BIND_ADDRESS}:}${REZZTOR_PORT:-50080}:8080"
+    # `docker compose up -d --wait` depends on this existing. It was written
+    # for the appliance update engine's rollback, which went with k3s on
+    # 2026-09-18; the healthcheck is worth keeping on its own terms, and the
+    # paragraph below is why.
+    #
+    # `docker compose up --wait` treats a service with NO healthcheck as
+    # satisfied the moment its container is running, so an application that
+    # starts and exits two seconds later would pass the wait. `docker compose up
+    # -d --wait` holds on this instead, which is what makes "it started" mean
+    # "it answers" -- for the installer, and for whoever is watching an upgrade.
+    #
+    # python3 rather than curl: the image carries an interpreter by definition
+    # and does not carry curl. start_period is generous because a cold start
+    # runs the database migrations.
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/api/health', timeout=5).status == 200 else 1)\""]
+      interval: 15s
+      timeout: 10s
+      retries: 40
+      start_period: 120s
+    volumes:
+      # Everything durable: accounts, settings, conversations, memory, uploads.
+      - eagent_usr:/eagent/usr
+      # The private half of the runner key, read-only. The public half goes
+      # in RUNNER_AUTHORIZED_KEY; the runner never sees this file.
+      - ./runner_key:/run/keys/runner_key:ro
+      # Where this writes each user's public key for sshd to read.
+      - runner_keys:/run/runner/keys
+      # The executor's socket (ADR 0051). Not mounted by the runner.
+      - ansible_socket:/run/ansible-socket
+      # The cloud executor's socket. Not mounted by the runner.
+      - cloud_socket:/run/cloud-socket
+    environment:
+      <<: *proxy
+      # Seed administrator, first boot only. Change immediately after.
+      REZZTOR_ADMIN_USER: "${REZZTOR_ADMIN_USER:-admin}"
+      REZZTOR_ADMIN_PASSWORD: "${REZZTOR_ADMIN_PASSWORD:?set a strong password}"
+      # Must be stable, or every restart signs all users out.
+      FLASK_SECRET_KEY: "${FLASK_SECRET_KEY:?set a stable random value}"
+      # Network automation. Set only when the `ansible` profile is running --
+      # these two are what let the application find the executor without an
+      # administrator retyping its address into a settings form. Leaving them
+      # empty is the correct state for a deployment with no executor: the
+      # plugin then reports itself unconfigured rather than unreachable.
+      # Web search, by service name. This was hardcoded to
+      # localhost:55510 while the search engine lived in this container.
+      REZZTOR_SEARXNG_URL: "${REZZTOR_SEARXNG_URL-http://searxng:8080}"
+      # The executor's Unix socket, and no other way: the application is not on
+      # the executor's network, so there is no TCP address to fall back to.
+      REZZTOR_ANSIBLE_EXECUTOR_URL: "unix:///run/ansible-socket/executor.sock"
+      # The job token, the same value the executor is started with.
+      REZZTOR_ANSIBLE_EXECUTOR_TOKEN: "${REZZTOR_ANSIBLE_EXECUTOR_TOKEN-}"
+      # The administration token too, which edits the inventory and the device
+      # credentials (ADR 0036): Settings -> Network automation then works on
+      # the first start, with nothing to paste. Agent code never runs in this
+      # container and no handler returns the value. To keep it away from the
+      # application all the same, set REZZTOR_ANSIBLE_APP_ADMIN_TOKEN to nothing
+      # in .env; the executor holds its own copy either way.
+      REZZTOR_ANSIBLE_ADMIN_TOKEN: "${REZZTOR_ANSIBLE_APP_ADMIN_TOKEN-${REZZTOR_ANSIBLE_ADMIN_TOKEN-}}"
+      # Azure changes (ADR 0061). Set only when the `cloud` profile is running, and empty is the correct state for
+      # a deployment with no cloud executor. Unlike the Ansible executor, the application holds BOTH tokens here:
+      # the job token to plan and apply, the admin token because the Settings screen (permission plugins.manage)
+      # saves the guard rails and makes the keys through the executor. The executor refuses to serve the admin
+      # plane when the two are equal, and neither token is ever put in a chat, an audit line or a card.
+      REZZTOR_CLOUD_JOB_TOKEN: "${REZZTOR_CLOUD_JOB_TOKEN-}"
+      REZZTOR_CLOUD_ADMIN_TOKEN: "${REZZTOR_CLOUD_ADMIN_TOKEN-}"
+      # Creates the database role the executor connects as (eagent_cloud), with its few grants. Without it there is
+      # no such role and the executor cannot start; the application role cannot read the state either way.
+      REZZTOR_DB_CLOUD_PASSWORD: "${REZZTOR_DB_CLOUD_PASSWORD-}"
+      # Where agent code runs. Declaring this makes the application use the
+      # runner instead of executing in its own container.
+      # Storage. Two roles: this URL is the owner, used for migrations at
+      # startup; the application serves requests as eagent_app, which cannot
+      # bypass row-level security.
+      REZZTOR_DB_URL: "postgresql://eagent:${REZZTOR_DB_PASSWORD:?set a database password}@postgres:5432/eagent"
+      REZZTOR_DB_APP_PASSWORD: "${REZZTOR_DB_APP_PASSWORD:?set an application database password}"
+      REZZTOR_RUNNER_HOST: runner
+      # One account per user on that runner, rather than one shared by everyone.
+      REZZTOR_RUNNER_POOL: shared
+      REZZTOR_RUNNER_KEYS_DIR: /run/runner/keys
+      # The image's pool size. Set here so the image and the database are told
+      # the same number from one place.
+      REZZTOR_RUNNER_SLOTS: "128"
+      # 2222, not 22: sshd in the runner is unprivileged and cannot bind a
+      # privileged port. That is the point -- see ADR 0019.
+      REZZTOR_RUNNER_PORT: "2222"
+      REZZTOR_RUNNER_USER: eagent
+      # Key authentication, not a password. The runner has no root, cannot
+      # set a password on its own account, and its sshd refuses password
+      # auth outright. Generate the pair once:
+      #   ssh-keygen -t ed25519 -f ./runner_key -N ""
+      # then put the public half in RUNNER_AUTHORIZED_KEY in your .env.
+      REZZTOR_RUNNER_IDENTITY_FILE: /run/keys/runner_key
+      # Trust-on-first-use, persisted so a changed host key is refused
+      # afterwards. The fallback path only: with REZZTOR_RUNNER_POOL=shared the
+      # pool pins the runner's host key from the public half its entrypoint
+      # publishes, and connects with StrictHostKeyChecking=yes. These stay so
+      # that turning the pool off does not silently turn host key checking off
+      # with it.
+      REZZTOR_RUNNER_KNOWN_HOSTS: /eagent/usr/.runner_known_hosts
+      REZZTOR_RUNNER_HOST_KEY_CHECKING: accept-new
+      # Fail closed: refuse to execute in this container if the runner is
+      # unreachable, rather than silently falling back.
+      REZZTOR_REQUIRE_REMOTE_EXECUTION: "true"
+      # The embedding model is baked into the image at /opt/models, so nothing
+      # should ask huggingface.co whether there is a newer one. Without this the
+      # hub lookup fails by timeout rather than refusal -- 167 seconds on every
+      # start before it falls back to the cache it already had. Both definitions
+      # lived in the Helm chart and went with it on 2026-09-18; this is their
+      # home now. Set HF_HUB_OFFLINE=0 on a deployment that deliberately pulls a
+      # different model.
+      HF_HUB_OFFLINE: "${HF_HUB_OFFLINE-1}"
+      # Same shape: LiteLLM fetches a model price list on start and already
+      # carries one.
+      LITELLM_LOCAL_MODEL_COST_MAP: "${LITELLM_LOCAL_MODEL_COST_MAP-True}"
+    # Reaches model servers running on the host (Ollama, LM Studio, vLLM), which
+    # is how a deployment keeps inference on-premises. Granted to the
+    # application only -- the runner deliberately has no route to the host.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # Not root once it serves: the image's initialize.sh starts as root only to hand uid 1000 the usr volume and
+    # the update inbox, then drops to it with setpriv. These four are what that needs, and the application holds
+    # none of them; no-new-privileges keeps it from getting any back (ADR 0022, amended 2026-10-16).
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_READ_SEARCH
+      - SETUID
+      - SETGID
+    ulimits:
+      nofile: { soft: 65535, hard: 65535 }
+    # app_net is the application's own way out, and gw_priority makes it the default route whatever
+    # Docker would otherwise pick among four networks. So its internet traffic always enters the host
+    # on rz-app, and the guard's rules for user code and for the executor never meet it. It is not on
+    # ansible_net: the executor is reached over the socket above, and a rule that says "only this
+    # bridge reaches devices" has to be about the executor alone.
+    networks:
+      app_net:
+        gw_priority: 1
+      backend:
+      runner_net:
+      searxng_net:
+    restart: unless-stopped
+
+  runner:
+    container_name: rezztor-eagent-runner
+    image: rezztor/eagent-runner:latest
+    environment:
+      <<: *proxy
+      # A public key, not a password. The runner has no root and cannot set a
+      # password on its own account; sshd there refuses password auth outright.
+      RUNNER_AUTHORIZED_KEY: ${RUNNER_AUTHORIZED_KEY:?set the runner public key}
+    expose:
+      - '2222'
+    # No `user:`, and that is the whole switch. The entrypoint runs the slot pool
+    # only when it starts as root, because only root may setuid into another
+    # account -- started unprivileged it serves one shared account instead, which
+    # is what the image declares. Leaving `user: "1000:1000"` here would have left
+    # every user in one home while looking entirely correct.
+    #
+    # Verified by running this image with exactly these settings and attacking
+    # it from one slot account against another. See the ADR superseding 0019.
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      # The five sshd needs to hand a session to a slot account, and no more.
+      # Dropping ALL also drops DAC_OVERRIDE, so this root cannot read or write
+      # where the file modes forbid it -- verified: root in this container
+      # cannot open a slot's 0700 home. Sessions themselves hold nothing:
+      # CapEff is all zeroes.
+      - SETUID
+      - SETGID
+      # A pty is created root:tty and sshd hands it to the session's own uid.
+      # Without this that chown fails and the session is torn down before a
+      # prompt ever arrives; `ssh host cmd` still works, which is why this
+      # survived -- the code execution tool opens a pty and nothing else does.
+      - CHOWN
+      # And the second half of the same story: on a pty login sshd writes a
+      # record to the kernel audit log, and dies with
+      # `linux_audit_write_entry failed: Operation not permitted` when it
+      # cannot. Writing audit records is all this grants -- not reading them,
+      # not configuring the subsystem.
+      - AUDIT_WRITE
+      # sshd's privilege separation chroots to /run/sshd. Without this it
+      # accepts the key and then dies with
+      # `chroot("/run/sshd"): Operation not permitted`, which reads as a bad key.
+      - SYS_CHROOT
+    # Azure's sign-in and management names lead nowhere from here. The product reaches Azure through its own
+    # identity, behind the approval card; agent code that signed in from the runner (an Azure CLI and a device code,
+    # seen on 2026-10-04) would hold the engineer's own rights with none of that in front of it. The application
+    # refuses such a command by its text; this is the layer under it, for a command the text match did not see.
+    # The slot accounts can not edit /etc/hosts (read-only root, no privilege).
+    # Ceiling: a hosts entry names exact hosts, not every regional or sovereign-cloud name, and a script can use
+    # an address it resolved elsewhere. Default-deny egress through an allow-list proxy is the full control; it
+    # changes how the runner installs packages, so it is a product decision, not this entry.
+    extra_hosts:
+      # Both families: with only the IPv4 line the resolver still asked DNS for the IPv6 address.
+      - "login.microsoftonline.com=0.0.0.0"
+      - "login.microsoftonline.com=[::]"
+      - "device.login.microsoftonline.com=0.0.0.0"
+      - "device.login.microsoftonline.com=[::]"
+      - "login.microsoft.com=0.0.0.0"
+      - "login.microsoft.com=[::]"
+      - "login.windows.net=0.0.0.0"
+      - "login.windows.net=[::]"
+      - "login.live.com=0.0.0.0"
+      - "login.live.com=[::]"
+      - "management.azure.com=0.0.0.0"
+      - "management.azure.com=[::]"
+      - "management.core.windows.net=0.0.0.0"
+      - "management.core.windows.net=[::]"
+      - "graph.microsoft.com=0.0.0.0"
+      - "graph.microsoft.com=[::]"
+      - "graph.windows.net=0.0.0.0"
+      - "graph.windows.net=[::]"
+    pids_limit: 4096
+    mem_limit: 2g
+    cpus: 2.0
+    tmpfs:
+      # exec is required, not an oversight: a virtualenv's entry points are
+      # files the runner has to be able to run, and docker defaults tmpfs to
+      # noexec, which silently breaks `pip install`.
+      #
+      # mode=1777 is stated rather than left to the tmpfs default, because the
+      # default is what it is and reading it as deliberate cost us a finding.
+      # Both paths are shared by all 128 slot accounts, so they have to be
+      # world-writable, and the sticky bit is the only thing a mount can do
+      # about it: it stops one slot deleting another's files, not reading them.
+      # What separates the contents is in the image -- `umask 077` and a
+      # per-slot TMPDIR in /etc/profile.d/10-slot-session.sh. Neither of these
+      # two paths is an isolation boundary; /workspace is.
+      - /home/eagent:rw,exec,nosuid,mode=1777,size=512m,uid=1000,gid=1000
+      - /tmp:rw,exec,nosuid,mode=1777,size=512m,uid=1000,gid=1000
+    volumes:
+      # The host key, and only the host key. A volume rather than a tmpfs like
+      # the paths above, and that difference is the whole point.
+      #
+      # The entrypoint generates a host key per container and prints the public
+      # half so the caller can pin it before ever connecting. The retired
+      # pod-per-user pool read that line from the pod's logs, so a fresh pod was pinned
+      # afresh and its runtime directory is correctly ephemeral. Nothing on this
+      # side reads it: Compose has one long-lived runner, and the application
+      # pins with `accept-new`, which accepts an unknown key and *refuses* a
+      # changed one.
+      #
+      # So on a tmpfs the key was regenerated on every restart and every image
+      # update, and code execution stopped with "host key verification failed"
+      # until somebody deleted usr/.runner_known_hosts by hand. Keeping it makes
+      # the pin stay true, which is what pinning is for.
+      #
+      # The private half still never leaves the container -- this volume is not
+      # mounted anywhere else. Losing `noexec` costs nothing: the directory holds
+      # two key files, and /workspace and /tmp are executable regardless.
+      - runner_state:/run/runner
+      # The per-user homes. A named volume rather than a tmpfs because Docker
+      # seeds an empty one from the image, ownership included -- which is how
+      # 128 directories arrive owned 0700 by their own account without this
+      # container ever having to chown them. A tmpfs here would cover them, and
+      # every slot session would land in a home that does not exist.
+      - runner_workspace:/workspace
+      # Written by the application, read by sshd. Nested inside runner_state's
+      # mount point on purpose: the host key lives in runner_state and stays
+      # there, so the application never gets a mount that contains it.
+      - runner_keys:/run/runner/keys
+    networks: [runner_net]
+    restart: unless-stopped
+
+  # The Ansible executor. Deliberately publishes no ports: the application
+  # reaches it over a Unix socket in a shared volume, and nothing outside this
+  # host can reach it at all.
+  #
+  # Disabled by default -- remove the `profiles` line to run it. It has nothing
+  # to talk to until an inventory is mounted below.
+  ansible:
+    container_name: rezztor-eagent-ansible
+    image: rezztor/eagent-ansible:latest
+    profiles: ["ansible"]
+    environment:
+      # Without this the executor accepts nothing at all, rather than accepting
+      # everything. Generate one: openssl rand -hex 32
+      # Not `:?`. Compose interpolates every service before it decides which
+      # profiles to run, so a required variable on a profiled service makes the
+      # base stack refuse to start. The executor fails closed on an empty token
+      # and says so, which is the check that actually protects anything.
+      REZZTOR_ANSIBLE_EXECUTOR_TOKEN: "${REZZTOR_ANSIBLE_EXECUTOR_TOKEN-}"
+      # A second token, for editing the inventory and the credentials. It must
+      # not equal the one above: the agent carries that one, and if they matched
+      # a compromised agent could rewrite the inventory its own playbooks reach.
+      # The executor refuses to serve the configuration plane if they are equal.
+      REZZTOR_ANSIBLE_ADMIN_TOKEN: "${REZZTOR_ANSIBLE_ADMIN_TOKEN:-}"
+      # 32 random bytes, base64: head -c32 /dev/urandom | base64
+      # Without it the executor stores no credential at all, rather than storing
+      # one in the clear.
+      REZZTOR_ANSIBLE_CREDENTIAL_KEY: "${REZZTOR_ANSIBLE_CREDENTIAL_KEY:-}"
+      # The same three secrets from a mounted file (a Docker secret, say) instead of
+      # the environment; setting both forms of one is refused. See
+      # docs/guides/security-credentials.md.
+      REZZTOR_ANSIBLE_CREDENTIAL_KEY_FILE: "${REZZTOR_ANSIBLE_CREDENTIAL_KEY_FILE-}"
+      REZZTOR_ANSIBLE_EXECUTOR_TOKEN_FILE: "${REZZTOR_ANSIBLE_EXECUTOR_TOKEN_FILE-}"
+      REZZTOR_ANSIBLE_ADMIN_TOKEN_FILE: "${REZZTOR_ANSIBLE_ADMIN_TOKEN_FILE-}"
+      # Listen on this socket and on no TCP port. An empty value means the socket
+      # too (`:-`): nothing could reach a TCP listener, because the application is
+      # not on this container's network. The directory is the ansible_socket volume.
+      REZZTOR_ANSIBLE_SOCKET: "${REZZTOR_ANSIBLE_SOCKET:-/run/ansible-socket/executor.sock}"
+      REZZTOR_ANSIBLE_JOB_TIMEOUT: "300"
+      REZZTOR_ANSIBLE_MAX_DEVICES: "10"
+      # One job at a time still, but a second arrival waits rather than being
+      # refused. Raising the first of these means two plays can touch the estate
+      # at once, which is a decision about the network, not about throughput.
+      REZZTOR_ANSIBLE_MAX_CONCURRENT_JOBS: "1"
+      REZZTOR_ANSIBLE_MAX_QUEUED_JOBS: "20"
+      REZZTOR_ANSIBLE_MAX_JOBS_PER_MINUTE: "10"
+      # Uncomment once an inventory is mounted below.
+      # REZZTOR_ANSIBLE_INVENTORY: /etc/ansible/inventory/hosts
+      # The break-glass console. Unset means no listener at all -- an executor
+      # that published a port because someone forgot to turn it off is not a
+      # thing that should be possible. Loopback unless you also set
+      # REZZTOR_ANSIBLE_PUBLIC_BIND, which needs TLS in front of it: the console
+      # authenticates with HTTP Basic, so credentials travel in the clear.
+      REZZTOR_ANSIBLE_PUBLIC_PORT: "${REZZTOR_ANSIBLE_PUBLIC_PORT:-}"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 256
+    mem_limit: 1g
+    tmpfs:
+      # ansible-runner needs a writable private data directory and Ansible needs
+      # a home. Both are tmpfs, so a job leaves nothing behind.
+      - /tmp:rw,exec,nosuid,size=256m,uid=1000,gid=1000
+      - /home/ansible:rw,nosuid,size=64m,uid=1000,gid=1000
+    volumes:
+      # Job history, and the only writable path that outlives the container.
+      # A tmpfs here would mean a restart forgets what was pushed to a device.
+      - ansible_state:/var/lib/eagent-ansible
+      # The socket the application connects to. Shared with the application and
+      # with nothing else: the runner executes agent-written code and must not
+      # be able to reach the executor.
+      - ansible_socket:/run/ansible-socket
+      # The network list an appliance writes on the host (networks.json), read-only: which
+      # networks exist and what each is for. No secret is in it. The directory is mounted, not
+      # the file, so a list replaced on the host is seen at once. An empty or missing directory
+      # means "one flat network, nothing known", which is every hand install.
+      - ${REZZTOR_NETWORKS_DIR:-/etc/rezztor/networks}:/etc/rezztor/networks:ro
+      # Device inventory and credentials mount here, read-only. They live in
+      # this container and nowhere else -- never in the application, never in
+      # the runner. Uncomment with the env var above once you have them.
+      #   - ./ansible/inventory:/etc/ansible/inventory:ro
+    networks: [ansible_net]
+    restart: unless-stopped
+
+
+  # The cloud executor (ADR 0061): OpenTofu and two providers behind an API on a Unix socket. Started only with
+  # `--profile cloud`, and only worth starting once the two Azure apps exist (docs/guides/azure-changes.md).
+  #
+  # It accepts reviewed code, holds the keys that change Azure and the passphrase that encrypts OpenTofu's state, and
+  # is the only container with a route to Azure's write APIs. So it has its own container (not the application, not
+  # the runner, not the Ansible executor), its own two networks, and nothing else mounts its volumes:
+  #   cloud_net  egress to Azure, the price list and nothing it initiates inward. The application is not on it.
+  #   cloud_db   internal, this container and postgres only: the state lives in PostgreSQL, encrypted (ADR 0064).
+  # It publishes no port, and it listens on a Unix socket that only the application and this container mount.
+  # The runner gets neither network nor volume.
+  cloud:
+    container_name: rezztor-eagent-cloud
+    image: rezztor/eagent-cloud:latest
+    profiles: ["cloud"]
+    environment:
+      <<: *proxy
+      # Not `:?`. Compose interpolates every service before it decides which profiles to run, so a required variable
+      # here would stop the base stack. The executor fails closed instead: no token, no key, no passphrase, no
+      # database password, and it accepts nothing or says exactly what is missing.
+      REZZTOR_CLOUD_JOB_TOKEN: "${REZZTOR_CLOUD_JOB_TOKEN-}"
+      # Must differ from the job token; the executor refuses the admin plane if they are equal (ADR 0036).
+      REZZTOR_CLOUD_ADMIN_TOKEN: "${REZZTOR_CLOUD_ADMIN_TOKEN-}"
+      # openssl rand -base64 32. Seals the private halves of the Azure keys at rest (AES-256-GCM). Losing it loses the keys.
+      REZZTOR_CLOUD_KEY: "${REZZTOR_CLOUD_KEY-}"
+      # Encrypts OpenTofu's state and plan files (at least 16 characters). Losing it makes every state unreadable: the
+      # executor can no longer plan a change to anything it made. Back it up beside .env; the database holds only
+      # ciphertext, so a backup of the database does not carry it.
+      REZZTOR_CLOUD_STATE_PASSPHRASE: "${REZZTOR_CLOUD_STATE_PASSPHRASE-}"
+      REZZTOR_DB_CLOUD_PASSWORD: "${REZZTOR_DB_CLOUD_PASSWORD-}"
+      # The same four secrets from a mounted file (a Docker secret, say) instead of the environment; setting both
+      # forms of one is refused.
+      REZZTOR_CLOUD_JOB_TOKEN_FILE: "${REZZTOR_CLOUD_JOB_TOKEN_FILE-}"
+      REZZTOR_CLOUD_ADMIN_TOKEN_FILE: "${REZZTOR_CLOUD_ADMIN_TOKEN_FILE-}"
+      REZZTOR_CLOUD_KEY_FILE: "${REZZTOR_CLOUD_KEY_FILE-}"
+      REZZTOR_CLOUD_STATE_PASSPHRASE_FILE: "${REZZTOR_CLOUD_STATE_PASSPHRASE_FILE-}"
+      REZZTOR_DB_CLOUD_PASSWORD_FILE: "${REZZTOR_DB_CLOUD_PASSWORD_FILE-}"
+      REZZTOR_CLOUD_JOB_TIMEOUT: "1800"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # Providers start a process per plugin; a bound turns a runaway plan into a container restart.
+    pids_limit: 512
+    mem_limit: 3g
+    tmpfs:
+      # Every plan and apply runs in a fresh directory here and removes it. exec: a provider is a program, and if
+      # `init` ever has to copy one instead of linking it, a noexec mount would stop it silently.
+      - /tmp:rw,exec,nosuid,size=1g,uid=1000,gid=1000
+      - /home/cloud:rw,nosuid,size=64m,uid=1000,gid=1000
+    volumes:
+      # The job history, the cost ledger, the guard rails and the sealed keys: the one writable path that outlives
+      # the container. Nothing else mounts it.
+      - cloud_state:/var/lib/eagent-cloud
+      # The socket the application connects to. Shared with the application and with nothing else.
+      - cloud_socket:/run/cloud-socket
+    networks: [cloud_net, cloud_db]
+    restart: unless-stopped
+
+  # Web search. Its own container since the decomposition was finished: it used
+  # to run inside the application image under supervisord, which worked here and
+  # silently did not once it moved out of this container. One image, one process.
+  #
+  # No ports published. The application reaches it by service name; a search
+  # engine on the host network is an open proxy.
+  searxng:
+    container_name: rezztor-eagent-searxng
+    image: searxng/searxng:2026.8.29-d226b78bc
+    environment:
+      SEARXNG_SETTINGS_PATH: /etc/searxng/settings.yml
+      # Without this SearXNG signs cookies with a shipped default.
+      SEARXNG_SECRET: "${REZZTOR_SEARXNG_SECRET:?set a searxng secret}"
+      SEARXNG_BIND_ADDRESS: "0.0.0.0"
+    volumes:
+      # `formats: [json]` in here is what makes the search API exist at all --
+      # upstream serves HTML only and answers a JSON query with 403.
+      - ./searxng/settings.yml:/etc/searxng/settings.yml:ro
+    # Not on `backend`: that network is internal, and a search engine with no
+    # route off the host returns an empty result for every query.
+    networks: [searxng_net]
+    restart: unless-stopped
+
+  # Everything durable except uploads and editable content. See
+  # docs/internal/storage-plan.md for what lives here and what deliberately
+  # does not.
+  postgres:
+    container_name: rezztor-eagent-postgres
+    # pgvector rather than plain postgres from the start: agent memory moves
+    # here in phase 4, and swapping the image later would mean a migration
+    # nobody needs to have.
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: eagent
+      POSTGRES_DB: eagent
+      # The owner role. The application does not connect as this -- it is not
+      # subject to row-level security -- it only runs migrations with it.
+      POSTGRES_PASSWORD: "${REZZTOR_DB_PASSWORD:?set a database password}"
+    # No ports. The application reaches it by service name; publishing it would
+    # put the whole instance's state on the host network.
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eagent -d eagent"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [backend, cloud_db]
+    restart: unless-stopped
+
+networks:
+  # Compose puts every service on one network by default, which means the
+  # runner -- the container that exists to execute agent-written code -- can
+  # reach the database and the Ansible executor by name. Verified from inside a
+  # running runner before this was written, and again after.
+  #
+  # One network per conversation, so each container can reach only what it
+  # actually talks to. Docker isolates bridge networks from each other, so this
+  # is enforcement rather than convention.
+  #
+  # Every network has a fixed bridge name and a fixed subnet, because the guard
+  # on the host (rezztor-guard, ADR 0079) writes its rules against the names,
+  # and a subnet Docker picked from its pool can land on a customer's own
+  # 172.x or 192.168.x network without any error. All seven sit in one block,
+  # 172.31.248.0/21. If that block is in use on your network, set
+  # REZZTOR_NET_PREFIX to two other octets (10.99 gives 10.99.248.0/21); the
+  # installer checks the block against this host's addresses and routes.
+  # tests/test_deployment_hardening.py holds the names and the block to the guard.
+
+  # The application's own way out: the model, the licence check-in, your
+  # services. Nothing else is on it.
+  app_net:
+    driver_opts:
+      com.docker.network.bridge.name: rz-app
+    ipam:
+      config:
+        - subnet: ${REZZTOR_NET_PREFIX:-172.31}.249.0/24
+
+  # The application and the database. `internal` removes the gateway, so
+  # postgres has no route off this host in either direction.
+  backend:
+    internal: true
+    driver_opts:
+      com.docker.network.bridge.name: rz-backend
+    ipam:
+      config:
+        - subnet: ${REZZTOR_NET_PREFIX:-172.31}.254.0/24
+
+  # The application ssh-ing into the runner. Not internal: agent code installs
+  # packages, and a runner with no egress cannot do its job. The runner never
+  # initiates a connection to the application, but a Docker network has no
+  # direction -- what this buys is the absence of postgres and ansible from it,
+  # not an unreachable application.
+  runner_net:
+    driver_opts:
+      com.docker.network.bridge.name: rz-runner
+    ipam:
+      config:
+        - subnet: ${REZZTOR_NET_PREFIX:-172.31}.250.0/24
+
+  # The application and the search engine. Not internal -- searching the web is
+  # the one thing this workload does. Deliberately separate from runner_net: the
+  # runner executes agent-written code and must not get a general purpose egress
+  # proxy just because search exists.
+  searxng_net:
+    driver_opts:
+      com.docker.network.bridge.name: rz-search
+    ipam:
+      config:
+        - subnet: ${REZZTOR_NET_PREFIX:-172.31}.252.0/24
+
+  # The Ansible executor, alone. Not internal: the executor is the only workload
+  # that reaches the estate (ADR 0023, ADR 0030), which is the whole point of
+  # it. The application is not on it: it talks to the executor over the socket.
+  ansible_net:
+    driver_opts:
+      com.docker.network.bridge.name: rz-ansible
+    ipam:
+      config:
+        - subnet: ${REZZTOR_NET_PREFIX:-172.31}.251.0/24
+
+  # The cloud executor and the internet, for Azure and the price list. Not internal: reaching management.azure.com
+  # is the whole job. The application, the runner and the database are not on it.
+  cloud_net:
+    driver_opts:
+      com.docker.network.bridge.name: rz-cloud
+    ipam:
+      config:
+        - subnet: ${REZZTOR_NET_PREFIX:-172.31}.253.0/24
+
+  # The cloud executor and the database, nobody else. `internal` removes the gateway, so the state and its
+  # passphrase-encrypted ciphertext have no route off this host.
+  cloud_db:
+    internal: true
+    driver_opts:
+      com.docker.network.bridge.name: rz-clouddb
+    ipam:
+      config:
+        - subnet: ${REZZTOR_NET_PREFIX:-172.31}.255.0/24
+
+volumes:
+  eagent_usr:
+  # Only the runner's ssh host key. Deleting it is safe and costs one manual
+  # step: the runner generates a new key and the application refuses it until
+  # usr/.runner_known_hosts is removed too.
+  runner_keys:
+  runner_workspace:
+  runner_state:
+  ansible_state:
+  # The executor's Unix socket, shared by the application and the executor only.
+  ansible_socket:
+  # The cloud executor's keys, guard rails, ledger and job history. Losing it loses the keys, not the changes.
+  cloud_state:
+  # The cloud executor's Unix socket, shared by the application and the executor only.
+  cloud_socket:
+  postgres_data:

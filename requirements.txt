@@ -1,0 +1,106 @@
+# The bridge between the web server and Flask. Nothing imported it by name: uvicorn takes it when it is installed
+# and falls back to its own older bridge when it is not, without a word. That one sends header names as Flask
+# wrote them, so compression kept the uncompressed Content-Length and every font, script and stylesheet arrived
+# cut short; it also reads a request body whole before the product sees any of it. Removed on 2026-10-11 as
+# unused, back the same day. helpers/ui_server.py now imports it by name.
+a2wsgi==1.10.8
+# helpers/users.py hashes every account password with this. It was never
+# declared, and arrived only because paramiko happened to depend on it --
+# so dropping paramiko took authentication down with it until this line
+# existed. Declared explicitly now: a dependency the product imports
+# directly must not rely on another package to install it.
+bcrypt==5.0.0
+# The SolarWinds and Azure clients, the executor client, OIDC and helpers/network.py
+# import this directly; it was only ever installed by other packages. Same reason.
+requests==2.34.2
+faiss-cpu==1.11.0
+fastmcp==3.2.4
+fasta2a==0.5.0
+flask[async]==3.1.3
+GitPython==3.1.62
+giturlparse==0.14.0
+kokoro>=0.9.2
+simpleeval==1.0.5
+# langchain 1.x (2026-10-12). The `langchain` package itself is gone from here: what was imported from it
+# lives in langchain-core, langchain-text-splitters and, for the embedding cache and the file store,
+# langchain-classic. Core 1.2.22 closed the path traversal of the old prompt loaders (GHSA-qh6h-p6c9-ff54),
+# which nothing here calls.
+langchain-core==1.4.9
+langchain-community==0.4.2
+langchain-classic==1.0.8
+langchain-text-splitters==1.1.3
+langchain-unstructured==1.0.1
+liteparse==2.0.3
+litellm==1.88.6  # CVE-2026-42271 fix: patched floor is 1.83.7
+openai==2.41.1
+openai-whisper==20250625
+lxml_html_clean>=0.4.0  # CVE-2024-52595 fix: XSS CWE-79 CVSS 8.4
+markdown==3.10.3
+# 1.30 closed GHSA-84m7-p3x7-pcfv. fastmcp 3.2.4 takes anything below 2.0.
+mcp==1.30.0
+pypdf==6.19.0
+python-dotenv==1.2.2
+pytz==2024.2
+# 5.6.0 stopped a model folder on disk from running its own Python whatever trust_remote_code said
+# (GHSA-jhr6-gm9c-rqjv).
+sentence-transformers==5.6.1
+# Held, so that an image build takes what the suite ran on. 5.10 closed the last of five advisories against
+# the 4.57 the image carried unnamed until 2026-10-12 (model loading and saving that runs or writes what a
+# model folder says: GHSA-xrqw-3rrv-vx5w, GHSA-fgcw-684q-jj6r, GHSA-29pf-2h5f-8g72, GHSA-69w3-r845-3855,
+# GHSA-x9r9-c232-4q39).
+transformers==5.19.0
+tiktoken==0.8.0
+# 0.18.18 closed the MSG attachment path traversal (CVE-2025-64712), 0.24.0 the fetching of any address given
+# as `url=` (GHSA-4mvj-m6j5-pmf7; the parser here hands it a file and never a URL). It came with langchain 1.x
+# and numpy 2, on which the suite was run on 2026-10-12.
+unstructured[all-docs]==0.24.1
+# The model its text heuristics read. Not on PyPI, and unstructured installs it from GitHub at the first
+# document when it is missing: the version here is the one it asks for (unstructured/nlp/tokenize.py), and
+# the image build proves it loads.
+en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
+# Held, so that an image build takes what was tested: left free, an earlier unstructured-inference replaced
+# the CPU-only torch with the CUDA one (2.5 GB more). The image build looks for that.
+unstructured-inference==1.6.13
+numpy==2.5.4
+unstructured-client==0.31.0
+webcolors==24.6.0
+nest-asyncio==1.6.0
+crontab==1.0.1
+markdownify==1.1.0
+pydantic==2.11.7
+pymupdf==1.25.3
+pytesseract==0.3.13
+pdf2image==1.17.0
+pathspec>=0.12.1
+psutil>=7.0.0
+soundfile==0.13.1
+imapclient>=3.0.1
+html2text>=2024.2.26
+beautifulsoup4>=4.12.3
+boto3>=1.35.0
+chardet<6  # unstructured may pull chardet; requests warns when chardet>=6 is present
+exchangelib>=5.4.3
+pywinpty==3.0.2; sys_platform == "win32"
+python-socketio>=5.14.2
+uvicorn>=0.38.0
+watchdog==6.0.0
+wsproto>=1.2.0
+# Security floor pins for transitive dependencies
+# These packages are pulled transitively — floor pins prevent resolver regressions
+Pillow>=10.2.0  # security floor: heap buffer overflow CWE-122, eval injection CWE-95, DoS CWE-400
+nltk>=3.9.3  # security floor: RCE CWE-94, code injection CWE-94
+h11>=0.16.0  # security floor: HTTP request smuggling CWE-444
+urllib3>=2.6.0  # security floor: resource exhaustion CWE-770, data amplification CWE-409
+cryptography>=46.0.0  # security floor: insufficient data authenticity CWE-345
+setuptools>=78.1.1  # security floor: path traversal in PackageIndex.download (GHSA-5rjg-fvgr-3xxf); the image venv carried 78.1.0
+
+# Storage. psycopg 3, with the binary build so no libpq is needed at image
+# build time, and the pool because a web application that opens a connection
+# per request spends more time connecting than querying.
+psycopg[binary]==3.2.3
+psycopg_pool==3.2.4
+# Verifies OIDC identity tokens in helpers/oidc.py. Was already present
+# transitively; declared because we depend on it directly now.
+PyJWT>=2.10.0
+werkzeug>=3.0.3  # security floor: RCE CWE-94
+starlette==1.3.1  # security fix: Host header validation bypass GHSA-86qp-5c8j-p5mr

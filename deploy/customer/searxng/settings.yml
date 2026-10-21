@@ -1,0 +1,37 @@
+# SearXNG settings for the Rezztor EAgent deployment.
+#
+# `formats: [json]` is the load-bearing line. Upstream serves HTML only and
+# answers a JSON query with 403, so without it the container comes up healthy,
+# passes its checks, and refuses every search the agent makes. It is a contract
+# with helpers/searxng.py, not a preference.
+use_default_settings:
+  engines:
+    remove:
+      # Wikidata returns variant payloads that break the searxng bootstrap init
+      # path; radio browser crashes on x86 in gethostbyaddr.
+      - wikidata
+      - radio browser
+
+general:
+  instance_name: "Rezztor EAgent"
+  donation_url: false
+  contact_url: false
+
+search:
+  safe_search: 0
+  formats:
+    - json
+
+server:
+  # Overwritten from SEARXNG_SECRET, which the compose file requires. The
+  # bundled install this replaces ran with the literal key "dummy".
+  secret_key: "overwritten-by-env"
+  bind_address: "0.0.0.0"
+  port: 8080
+  # Off: the only client is the application container, and the limiter's
+  # trusted-proxy logic assumes a loopback caller that no longer exists.
+  limiter: false
+  image_proxy: false
+
+ui:
+  static_use_hash: true

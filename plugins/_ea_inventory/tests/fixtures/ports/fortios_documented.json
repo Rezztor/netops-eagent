@@ -1,0 +1,134 @@
+{
+ "_comment": "UNVERIFIED: written from documented output, not captured from a device; values are invented. Keyed by the request reads/inventory_ports sends. monitor/system/interface fields (name, alias, description, mac, ip, mask, link, speed in Mbps, duplex, type) and include_vlan=true: https://support.zabbix.com/browse/ZBX-26408 (an API response with those fields) and the FortiOS REST API reference (https://fndn.fortinet.net, needs an account). cmdb/system/interface fields (status, type, vlanid, interface, role, alias, description) and cmdb/system/zone (name, interface[].interface-name): https://docs.ansible.com/ansible/latest/collections/fortinet/fortios/fortios_system_interface_module.html and fortios_system_zone_module.html. monitor/system/status: tests/fixtures/firewall/README.md.",
+ "/api/v2/monitor/system/interface?include_vlan=true": {
+  "http_method": "GET",
+  "results": {
+   "port1": {
+    "id": "port1",
+    "name": "port1",
+    "alias": "wan",
+    "description": "uplink",
+    "mac": "00:09:0f:00:00:01",
+    "ip": "192.0.2.2",
+    "mask": 30,
+    "link": true,
+    "speed": 1000,
+    "duplex": 1,
+    "type": "physical",
+    "tx_bytes": 1,
+    "rx_bytes": 2
+   },
+   "port2": {
+    "id": "port2",
+    "name": "port2",
+    "mac": "00:09:0f:00:00:02",
+    "ip": "0.0.0.0",
+    "mask": 0,
+    "link": false,
+    "speed": 0,
+    "duplex": 0,
+    "type": "physical"
+   },
+   "port3": {
+    "id": "port3",
+    "name": "port3",
+    "mac": "00:09:0f:00:00:03",
+    "ip": "10.0.0.1",
+    "mask": 24,
+    "link": true,
+    "speed": 10000,
+    "duplex": 1,
+    "type": "physical"
+   },
+   "vlan10": {
+    "id": "vlan10",
+    "name": "vlan10",
+    "ip": "10.10.0.1",
+    "mask": 24,
+    "link": true,
+    "type": "vlan"
+   }
+  },
+  "vdom": "root",
+  "status": "success",
+  "http_status": 200
+ },
+ "/api/v2/cmdb/system/interface?format=name%7Calias%7Cdescription%7Cstatus%7Ctype%7Cvlanid%7Cinterface%7Crole": {
+  "http_method": "GET",
+  "results": [
+   {
+    "name": "port1",
+    "alias": "wan",
+    "description": "uplink",
+    "status": "up",
+    "type": "physical",
+    "vlanid": 0,
+    "interface": "",
+    "role": "wan"
+   },
+   {
+    "name": "port2",
+    "status": "down",
+    "type": "physical",
+    "vlanid": 0,
+    "interface": "",
+    "role": "lan"
+   },
+   {
+    "name": "vlan10",
+    "description": "staff",
+    "status": "up",
+    "type": "vlan",
+    "vlanid": 10,
+    "interface": "port3",
+    "role": "lan"
+   },
+   {
+    "name": "port4",
+    "status": "up",
+    "type": "physical",
+    "vlanid": 0,
+    "interface": "",
+    "role": "lan"
+   }
+  ],
+  "status": "success",
+  "http_status": 200
+ },
+ "/api/v2/cmdb/system/zone?format=name%7Cinterface": {
+  "http_method": "GET",
+  "results": [
+   {
+    "name": "LAN",
+    "interface": [
+     {
+      "interface-name": "vlan10"
+     },
+     {
+      "interface-name": "port3"
+     }
+    ]
+   }
+  ],
+  "status": "success",
+  "http_status": 200
+ },
+ "/api/v2/monitor/system/status": {
+  "http_method": "GET",
+  "results": {
+   "model_name": "FortiGate",
+   "model_number": "60F",
+   "model": "FGT60F",
+   "hostname": "FW-Edge1",
+   "log_disk_status": "available"
+  },
+  "vdom": "root",
+  "path": "system",
+  "name": "status",
+  "status": "success",
+  "http_status": 200,
+  "serial": "FGT60F0000000001",
+  "version": "v7.2.4",
+  "build": 1396
+ }
+}

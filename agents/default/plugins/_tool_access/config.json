@@ -1,0 +1,23 @@
+{
+  "mode": "custom",
+  "default": "block",
+  "mcp_default": "block",
+  "allowed": [
+    "local:refused",
+    "local:search_engine",
+    "local:skills_tool",
+    "local:notify_user",
+    "local:wait",
+    "plugin:_document_query:document_query",
+    "plugin:_code_execution:code_execution_tool",
+    "plugin:_code_execution:input",
+    "plugin:_text_editor:text_editor",
+    "plugin:_ea_interaction:ask_user",
+    "plugin:_memory:behaviour_adjustment",
+    "plugin:_memory:memory_delete",
+    "plugin:_memory:memory_forget",
+    "plugin:_memory:memory_load",
+    "plugin:_memory:memory_save"
+  ],
+  "blocked": []
+}

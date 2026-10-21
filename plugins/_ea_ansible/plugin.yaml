@@ -1,0 +1,10 @@
+name: _ea_ansible
+title: Network Automation
+description: Lets the agent inspect network devices and firewalls through Ansible, and — only after an engineer has approved the exact commands — change them. The application never connects to a device; a dedicated Ansible executor is the only bridge.
+version: 0.1.0
+# settings_sections is deliberately empty. The field is inert in this fork --
+# nothing in the React frontend reads it -- so claiming a section would promise
+# a settings panel that never renders.
+settings_sections: []
+per_project_config: false
+per_agent_config: false

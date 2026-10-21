@@ -1,0 +1,131 @@
+/*
+ * Design tokens for Rezztor EAgent.
+ *
+ * Kept in step with the approved reference pages in
+ * docs/internal/reference-ui/ (console.html, settings.html) so the built
+ * application and the reviewed design cannot drift apart. Change a colour here,
+ * not in a component -- and change it in the reference pages and in
+ * helpers/login_page.py in the same commit, because those two carry their own
+ * copies of these values and nothing links them automatically.
+ *
+ * Three theme states, not two. An explicit choice stamps data-theme on <html>;
+ * the default "system" setting stamps nothing, and only prefers-color-scheme
+ * separates light from dark there. So: the bare :root block defines the whole
+ * light palette, the media query redefines only the tokens (guarded so an
+ * explicit light choice still beats a dark OS), and the [data-theme="dark"]
+ * block redefines them again so the toggle wins in both directions.
+ *
+ * Semantic colour (ok / warn / crit) is deliberately separate from the accent:
+ * state has to read at a glance without competing with brand.
+ */
+
+:root {
+  /* Surfaces and text. The greys carry a slight green bias so they read as
+     chosen alongside the accent rather than left over from another palette. */
+  --bg: #f2f7f8;
+  --surface: #ffffff;
+  --surface-alt: #f6fafb;
+  --ink: #0c1b1e;
+  --ink-2: #405a5e;
+  /* Muted text: hints, timestamps, placeholders. Was #748c90 (3.3:1 on --bg);
+     this clears WCAG AA 4.5:1 on --bg, --surface, --surface-alt and
+     --accent-wash. The dark value clears it on every dark surface too. */
+  --ink-3: #566d71;
+  --line: #dce7e9;
+  --line-2: #c4d5d8;
+
+  /* Accent: a deep teal, chosen 2026-08-23 over four alternatives (ADR 0017),
+     then moved cyan-ward for headroom. Teal and the --ok green below are
+     neighbours on the wheel, and a link that reads as a status defeats the
+     brand/state separation this file is built on. At 183 degrees the accent
+     clears --ok by dE76 33; at the mid-teal it started from, only 25. Do not
+     rotate it back toward green without rechecking that pairing. */
+  --accent: #08696e;
+  --accent-ink: #ffffff;
+  --accent-wash: #e1f2f3;
+
+  /* state */
+  --ok: #1b7a4b;
+  --ok-wash: #e3f3ea;
+  --warn: #9a6410;
+  --warn-wash: #faefdc;
+  --crit: #a32c28;
+  --crit-wash: #f9e5e4;
+
+  /* type */
+  --font-ui: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --text-xs: 12px;
+  --text-sm: 12.5px;
+  --text-base: 13px;
+  --text-md: 14px;
+  --text-lg: 15px;
+  --text-xl: 21px;
+
+  /* space: a 4px scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 22px;
+  --space-6: 32px;
+
+  /* structure */
+  --rail: 246px;
+  --rail-collapsed: 64px;
+  --list: 268px;
+  --radius: 8px;
+  --radius-sm: 6px;
+  --radius-xs: 4px;
+  --shadow: 0 1px 2px rgba(12, 27, 30, 0.05), 0 1px 3px rgba(12, 27, 30, 0.04);
+
+  --z-topbar: 20;
+  --z-modal: 100;
+  --z-toast: 200;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #091517;
+    --surface: #101f22;
+    --surface-alt: #14272a;
+    --ink: #e2eef0;
+    --ink-2: #9cb3b6;
+    --ink-3: #839b9d;
+    --line: #1e3134;
+    --line-2: #2c4548;
+    --accent: #39b8bd;
+    --accent-ink: #041214;
+    --accent-wash: #0d262a;
+    --ok: #4fbe85;
+    --ok-wash: #12241a;
+    --warn: #d9a34b;
+    --warn-wash: #26200f;
+    --crit: #e0736c;
+    --crit-wash: #2a1614;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #091517;
+  --surface: #101f22;
+  --surface-alt: #14272a;
+  --ink: #e2eef0;
+  --ink-2: #9cb3b6;
+  --ink-3: #839b9d;
+  --line: #1e3134;
+  --line-2: #2c4548;
+  --accent: #39b8bd;
+  --accent-ink: #041214;
+  --accent-wash: #0d262a;
+  --ok: #4fbe85;
+  --ok-wash: #12241a;
+  --warn: #d9a34b;
+  --warn-wash: #26200f;
+  --crit: #e0736c;
+  --crit-wash: #2a1614;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}

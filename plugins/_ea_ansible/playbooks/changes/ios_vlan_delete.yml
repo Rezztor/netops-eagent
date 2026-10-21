@@ -1,0 +1,20 @@
+# Remove a VLAN from Cisco IOS.
+#
+# The rollback for `changes/ios_vlan_name`. Deleting is only the right undo for
+# a VLAN this change created; for a rename, the undo is another rename, which is
+# why the catalogue entry's summary says so and the approver reads both sets of
+# commands before deciding.
+- name: Delete a VLAN
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Delete the VLAN
+      cisco.ios.ios_vlans:
+        config:
+          - vlan_id: "{{ vlan_id | int }}"
+        state: deleted
+      register: change
+
+    - name: Report the commands the module would push
+      ansible.builtin.debug:
+        var: change.commands

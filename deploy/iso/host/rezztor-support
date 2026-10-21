@@ -1,0 +1,249 @@
+#!/usr/bin/env python3
+"""rezztor-support: the one way to a root shell on a machine whose console is closed.
+
+    rezztor-support closed               exit 0 when this machine's console is closed
+    rezztor-support challenge [recover]  print the challenge to read out to Rezztor
+    rezztor-support verify [recover]     read a code on standard input; exit 0 when it opens this machine
+    rezztor-support recover              the console password recovery (the login of the account rezrecover)
+
+A console is closed when the ISO it was installed from carried a support key
+(/opt/rezztor/support-keys/*.pub). The account rezadmin then gets the setup
+menu and nothing else, and a root shell opens only for a code Rezztor signed
+for the challenge this machine shows: one machine, one challenge, a few hours.
+The menu entry "Support access" runs this tool; the customer's guide says the
+same in the customer's words, because nobody should find a door in their
+machine they were not told about.
+
+What a code is: 4 bytes of expiry (seconds since 1970) and the 64 bytes of an
+Ed25519 signature over `rezztor-support-1|<challenge>|<expiry>`, in base32.
+`scripts/sign_release.py support-code` writes it and is the only writer.
+openssl checks the signature, as it does for an update (rezztor-update).
+
+A lost console password: the account rezrecover signs in on a local console
+only (never over SSH) and gets `recover`, which shows a challenge of its own
+and takes a code signed over `rezztor-recover-1|<challenge>|<expiry>`
+(`support-code --purpose recover`). Its one power is a new password for
+rezadmin: no shell, no menu. A support code does not recover and a recovery
+code opens no shell, because the signed text names its purpose.
+
+What this does not do: it does not close the machine to whoever holds its
+disk. A hypervisor administrator who attaches the disk elsewhere reads it.
+And a shell opened here is root for whoever is at the keyboard until it is
+left. Python, standard library only.
+"""
+
+import base64
+import binascii
+import getpass
+import hashlib
+import json
+import os
+import subprocess
+import sys
+import tempfile
+import time
+
+KEYS = "/opt/rezztor/support-keys"
+MACHINE_ID = "/etc/machine-id"
+# Gone at a restart, which is as it should be: a challenge does not outlive the boot it was shown in.
+STATE = "/run/rezztor/support.json"
+LOG = "/var/log/rezztor/setup.log"
+PREFIX = b"rezztor-support-1"
+PURPOSES = {"support": PREFIX, "recover": b"rezztor-recover-1"}
+CHALLENGE_HOURS = 24  # how long a shown challenge waits for its code
+LONGEST_DAYS = 7  # no code is good for longer, whatever it says
+TRIES = 5  # wrong codes before a new challenge is needed
+
+
+def key_files() -> list[str]:
+    try:
+        return sorted(os.path.join(KEYS, name) for name in os.listdir(KEYS) if name.endswith(".pub"))
+    except OSError:
+        return []
+
+
+def closed() -> bool:
+    return bool(key_files())
+
+
+def _log(text: str) -> None:
+    try:
+        with open(LOG, "a", encoding="utf-8") as handle:
+            handle.write(time.strftime("%Y-%m-%dT%H:%M:%SZ ", time.gmtime()) + text + "\n")
+    except OSError:
+        pass
+
+
+def _state_file(purpose: str) -> str:
+    return STATE if purpose == "support" else os.path.join(os.path.dirname(STATE), f"{purpose}.json")
+
+
+def _state(purpose: str = "support") -> dict:
+    try:
+        with open(_state_file(purpose), encoding="utf-8") as handle:
+            state = json.load(handle)
+        if time.time() - state["made"] < CHALLENGE_HOURS * 3600 and state["tries"] < TRIES:
+            return state
+    except (OSError, ValueError, KeyError, TypeError):
+        pass
+    return {}
+
+
+def _save(state: dict, purpose: str = "support") -> None:
+    os.makedirs(os.path.dirname(STATE), mode=0o700, exist_ok=True)
+    handle = os.open(_state_file(purpose), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(handle, "w", encoding="utf-8") as out:
+        json.dump(state, out)
+
+
+def challenge(purpose: str = "support") -> str:
+    """The challenge that is waiting, or a new one: RZ-<this machine>-<this request>."""
+    state = _state(purpose)
+    if not state:
+        with open(MACHINE_ID, encoding="utf-8") as handle:
+            machine = hashlib.sha256(handle.read().strip().encode()).hexdigest()[:8].upper()
+        once = base64.b32encode(os.urandom(5)).decode()
+        state = {"challenge": f"RZ-{machine}-{once}", "made": time.time(), "tries": 0}
+        _save(state, purpose)
+    return state["challenge"]
+
+
+def message(challenge_text: str, expires: int, purpose: str = "support") -> bytes:
+    return PURPOSES[purpose] + b"|" + challenge_text.encode() + b"|" + str(expires).encode()
+
+
+def decode(code: str) -> tuple[int, bytes] | None:
+    """(expiry, signature) of a typed code, or None. Spaces, dashes and lower case are the typist's."""
+    text = "".join(code.split()).replace("-", "").upper()
+    try:
+        raw = base64.b32decode(text + "=" * (-len(text) % 8))
+    except (binascii.Error, ValueError):
+        return None
+    if len(raw) != 68:
+        return None
+    return int.from_bytes(raw[:4], "big"), raw[4:]
+
+
+def signed_by(body: bytes, signature: bytes) -> str:
+    """The name of the support key that signed `body`, or ""."""
+    with tempfile.TemporaryDirectory() as work:
+        body_path, signature_path = os.path.join(work, "body"), os.path.join(work, "sig")
+        with open(body_path, "wb") as handle:
+            handle.write(body)
+        with open(signature_path, "wb") as handle:
+            handle.write(signature)
+        for key in key_files():
+            done = subprocess.run(
+                ["openssl", "pkeyutl", "-verify", "-pubin", "-inkey", key, "-rawin", "-in", body_path, "-sigfile", signature_path],
+                capture_output=True,
+            )  # fmt: skip
+            if done.returncode == 0:
+                return os.path.basename(key)[: -len(".pub")]
+    return ""
+
+
+def verify(code: str, now: float | None = None, purpose: str = "support") -> tuple[bool, str]:
+    """(opens, what to tell the person at the console). A code opens once: its challenge goes with it."""
+    now = time.time() if now is None else now
+    state, what = _state(purpose), ("support access" if purpose == "support" else "console password recovery")
+    if not state:
+        again = "Choose Support access again" if purpose == "support" else "Sign in as rezrecover again"
+        return False, f"No challenge is waiting. {again} and read out the new challenge."
+    parts = decode(code)
+    problem = ""
+    if parts is None:
+        problem = "That is not a support code: it has the wrong length or a character that cannot be in one."
+    else:
+        expires, signature = parts
+        name = signed_by(message(state["challenge"], expires, purpose), signature)
+        if not name:
+            problem = "That code was not made for this challenge."
+        elif expires <= now:
+            problem = "That code is past its time. Ask Rezztor for a new one."
+        elif expires > now + LONGEST_DAYS * 86400:
+            problem = f"That code runs for more than {LONGEST_DAYS} days, which no code may."
+    if problem:
+        state["tries"] += 1
+        _save(state, purpose)
+        left = TRIES - state["tries"]
+        _log(f"{what} refused for {state['challenge']}: {problem}")
+        return False, problem + (f" {left} more tries for this challenge." if left > 0 else " This challenge is used up.")
+    try:
+        os.unlink(_state_file(purpose))
+    except OSError:
+        pass
+    _log(f"{what} opened for {state['challenge']} with key {name}")
+    return True, f"Code accepted (key {name})."
+
+
+def password_problem(first: str, second: str) -> str:
+    """Why a new console password is not taken (the rules of rezztor-setup's first boot), or ""."""
+    if first != second:
+        return "The two entries are not the same."
+    if len(first) < 15:
+        return "The console password needs at least 15 characters."
+    if "rezadmin" in first:
+        return "The console password must not contain the account name."
+    return ""
+
+
+def recover(read=input, secret=getpass.getpass, say=print) -> int:
+    """The login of the account rezrecover: a challenge, Rezztor's code for it, a new password for rezadmin,
+    and the end. The password is handed to chpasswd and to nothing else."""
+    if not closed():
+        say("This machine's console is not closed: rezadmin's password is changed in the setup menu.")
+        return 1
+    say("Console password recovery\n")
+    say("This sets a new password for the console account rezadmin, and does nothing else. It needs a code")
+    say("that Rezztor makes for the challenge below. Call Rezztor and read the challenge out.\n")
+    say(f"  Challenge    {challenge('recover')}\n")
+    code = read("Recovery code (Enter alone ends this): ").strip()
+    if not code:
+        return 1
+    opens, text = verify(code, purpose="recover")
+    say(text)
+    if not opens:
+        return 1
+    for _ in range(TRIES):
+        first = secret("New password for rezadmin (at least 15 characters, not shown): ")
+        if not first:
+            break
+        problem = password_problem(first, secret("Type it again: "))
+        if not problem:
+            done = subprocess.run(["chpasswd"], input=f"rezadmin:{first}\n", text=True, capture_output=True)
+            if done.returncode == 0:
+                _log("the console password of rezadmin was set through console password recovery")
+                say("The console password is set. Sign in as rezadmin with it.")
+                return 0
+            problem = "The password could not be set: " + (done.stderr.strip() or "chpasswd failed") + "."
+        say(problem)
+    _log("console password recovery ended without a new password")
+    say("No password was set. Sign in as rezrecover again for a new challenge.")
+    return 1
+
+
+def main(argv: list[str]) -> int:
+    command = argv[1] if len(argv) > 1 else ""
+    purpose = argv[2] if len(argv) > 2 else "support"
+    if command == "closed":
+        return 0 if closed() else 1
+    if purpose not in PURPOSES:
+        command = ""
+    if command == "challenge":
+        print(challenge(purpose))
+        return 0
+    if command == "verify":
+        opens, text = verify(sys.stdin.readline(), purpose=purpose)
+        print(text)
+        return 0 if opens else 1
+    if command == "recover" and len(argv) == 2:
+        try:
+            return recover()
+        except (EOFError, KeyboardInterrupt):
+            return 1
+    print("usage: rezztor-support closed|challenge [recover]|verify [recover]|recover", file=sys.stderr)
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

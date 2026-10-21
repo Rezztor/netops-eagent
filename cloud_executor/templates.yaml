@@ -1,0 +1,358 @@
+# The Azure change catalogue: one entry per directory under templates/. Reviewed text, like executor/playbooks/catalogue.yaml.
+# Entry keys: see templates/README.md. Loosening a pattern, a ceiling or may_change is a security change: extend
+# tests/test_templates.py first.
+#
+# Shared patterns (repeated, because YAML anchors would hide them from the loader):
+#   existing name  ^[A-Za-z0-9][A-Za-z0-9._-]{0,78}[A-Za-z0-9_]$
+#   resource group ^[A-Za-z0-9._()-]{1,89}[A-Za-z0-9_()-]$
+#   resource ID    ^/subscriptions/<guid>/resourceGroups/<rg>/providers/<namespace>/<type>/<name>
+
+- name: resource_group
+  summary: A resource group with its tags.
+  risk: low
+  types: [azurerm_resource_group]
+  workspace_variables: [resource_group]
+  variables:
+    region: {type: region}
+    tags:   {type: tags, required: [env, owner, costcentre]}
+  may_change: [tags]
+  restarts_existing: false
+  backout: |
+    Only when the group is empty: confirm in the portal (Resource group, Overview) that it holds no resources and no
+    locks, then remove the group yourself, after your own approval. The product does not remove it.
+
+- name: vnet
+  summary: A virtual network with its address space and, if you list them, its first subnets (each its own resource). The names Azure reserves (GatewaySubnet, AzureFirewallSubnet, AzureFirewallManagementSubnet, AzureBastionSubnet, RouteServerSubnet) are accepted at /27 or /26 or larger.
+  risk: low
+  types: [azurerm_virtual_network, azurerm_subnet]
+  workspace_variables: [resource_group]
+  variables:
+    name:          {type: str, pattern: '^vnet-[a-z0-9-]{1,58}$'}
+    region:        {type: region}
+    address_space: {type: list, min: 1, max: 4, item: {cidr: {type: cidr, min_prefix: 16, max_prefix: 24}}}
+    subnets:       {type: list, max: 6, optional: true, item: {name: {type: str, pattern: '^(snet-[a-z0-9-]{1,30}|AzureFirewallSubnet|AzureFirewallManagementSubnet|AzureBastionSubnet|RouteServerSubnet|GatewaySubnet)$'}, prefix: {type: cidr, min_prefix: 16, max_prefix: 29}}}
+    tags:          {type: tags, required: [env, owner, costcentre]}
+  may_change: [tags, address_space]
+  restarts_existing: false
+  backout: |
+    Remove in this order, in the portal, after your own approval: whatever is attached to the subnets (VMs, network
+    interfaces, private endpoints, web app integrations), the peerings and private DNS links of the network, the
+    subnets, then the network.
+
+- name: subnet
+  summary: One subnet in a virtual network that exists or that an earlier step makes, optionally with an NSG and route table of this group attached to this new subnet. A reserved name (GatewaySubnet, AzureFirewallSubnet, AzureFirewallManagementSubnet, AzureBastionSubnet, RouteServerSubnet) takes no NSG or route table and needs /26 (GatewaySubnet /27) or larger.
+  risk: low
+  types: [azurerm_subnet, azurerm_subnet_network_security_group_association, azurerm_subnet_route_table_association]
+  workspace_variables: [subscription_id, resource_group]
+  parents:
+    - {type: Microsoft.Network/virtualNetworks, name: vnet_name}
+    - {type: Microsoft.Network/networkSecurityGroups, name: nsg_name}
+    - {type: Microsoft.Network/routeTables, name: route_table_name}
+  variables:
+    vnet_name:        {type: str, pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,62}[A-Za-z0-9_]$'}
+    name:             {type: str, pattern: '^(snet-[a-z0-9-]{1,30}|AzureFirewallSubnet|AzureFirewallManagementSubnet|AzureBastionSubnet|RouteServerSubnet|GatewaySubnet)$'}
+    prefix:           {type: cidr, min_prefix: 16, max_prefix: 29}
+    nsg_name:         {type: str, optional: true, pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,78}[A-Za-z0-9_]$'}
+    route_table_name: {type: str, optional: true, pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,78}[A-Za-z0-9_]$'}
+  may_change: []
+  restarts_existing: false
+  backout: |
+    In the portal, after your own approval: detach what uses the subnet (network interfaces, private endpoints, the
+    web app's VNet integration), remove its NSG and route table associations, then remove the subnet.
+
+- name: nsg
+  summary: A network security group of its own with no rules and tied to nothing. Add rules with nsg_rule; a subnet made in the same change can attach it.
+  risk: low
+  types: [azurerm_network_security_group]
+  workspace_variables: [resource_group]
+  variables:
+    name:   {type: str, pattern: '^nsg-[a-z0-9-]{1,60}$'}
+    region: {type: region}
+    tags:   {type: tags, required: [env, owner, costcentre]}
+  may_change: [tags]
+  restarts_existing: false
+  backout: |
+    Take it off every subnet that uses it first, in the portal, after your own approval: the default rules then apply to
+    those subnets, so read Effective security rules of an affected network interface before you do. Then remove the NSG.
+
+- name: nsg_rule
+  summary: One Allow rule on an NSG that exists or that an earlier step makes. Sources, destinations and ports can be added to it later, never taken away.
+  risk: low
+  types: [azurerm_network_security_rule]
+  workspace_variables: [resource_group]
+  parents:
+    - {type: Microsoft.Network/networkSecurityGroups, name: nsg_name}
+  variables:
+    nsg_name:     {type: str, pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,78}[A-Za-z0-9_]$'}
+    name:         {type: str, pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,78}[A-Za-z0-9_]$'}
+    priority:     {type: int, min: 100, max: 4000}
+    direction:    {type: enum, values: [Inbound, Outbound]}
+    protocol:     {type: enum, values: [Tcp, Udp]}
+    sources:      {type: list, min: 1, max: 10, item: {cidr: {type: cidr, min_prefix: 8}}}
+    destinations: {type: list, min: 1, max: 10, item: {cidr: {type: cidr, min_prefix: 8}}}
+    ports:        {type: list, min: 1, max: 10, item: {range: {type: str, pattern: '^[0-9]{1,5}(-[0-9]{1,5})?$'}}}
+  may_change: [source_address_prefixes, destination_address_prefixes, destination_port_ranges]
+  restarts_existing: false
+  backout: |
+    Open the NSG, Inbound or Outbound security rules, and remove this rule yourself after your own approval. First
+    read Effective security rules of an affected network interface, because other rules may now depend on it.
+    Taking a source, a destination or a port out of the rule is also yours to do: the product only adds.
+
+- name: route
+  summary: One route on a route table that exists or that an earlier step makes, or on a new route table made in the same change. Never a route to None.
+  risk: high
+  types: [azurerm_route_table, azurerm_route]
+  workspace_variables: [resource_group]
+  parents:
+    - {type: Microsoft.Network/routeTables, name: route_table, unless: create_table}
+  variables:
+    route_table:   {type: str, pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,78}[A-Za-z0-9_]$'}
+    create_table:  {type: bool, optional: true}
+    region:        {type: region, optional: true}
+    name:          {type: str, pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,78}[A-Za-z0-9_]$'}
+    prefix:        {type: cidr, min_prefix: 0}
+    next_hop_type: {type: enum, values: [VirtualAppliance, VirtualNetworkGateway, VnetLocal, Internet]}
+    next_hop_ip:   {type: str, optional: true, pattern: '^((25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})\.){3}(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})$'}
+    tags:          {type: tags, optional: true}
+  may_change: [tags]
+  restarts_existing: false
+  backout: |
+    First read Effective routes on a network interface the route affects. Then remove the route yourself, in the
+    portal, after your own approval; traffic for that prefix goes back to the system route. Remove the route table
+    only when it is empty and no subnet uses it.
+
+- name: peering
+  summary: Both sides of a peering between two virtual networks of this subscription, each existing or made by an earlier step.
+  risk: high
+  types: [azurerm_virtual_network_peering]
+  workspace_variables: [subscription_id, resource_group]
+  parents:
+    - {type: Microsoft.Network/virtualNetworks, name: local_vnet}
+    - {type: Microsoft.Network/virtualNetworks, name: remote_vnet, resource_group: remote_resource_group}
+  variables:
+    local_vnet:            {type: str, pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,62}[A-Za-z0-9_]$'}
+    remote_vnet:           {type: str, pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,62}[A-Za-z0-9_]$'}
+    remote_resource_group: {type: str, pattern: '^[A-Za-z0-9._()-]{1,89}[A-Za-z0-9_()-]$'}
+    forwarded_traffic:     {type: bool, optional: true}
+    hub_gateway:           {type: bool, optional: true}
+  may_change: [allow_forwarded_traffic, allow_gateway_transit]
+  restarts_existing: false
+  backout: |
+    Announce it first: traffic between the two networks stops as soon as either link is gone. Then remove both
+    peering links yourself (Peerings on each network), in the portal, after your own approval.
+
+- name: public_ip
+  summary: One static Standard public IPv4 address, attached to nothing.
+  risk: high
+  types: [azurerm_public_ip]
+  workspace_variables: [resource_group]
+  variables:
+    name:   {type: str, pattern: '^pip-[a-z0-9-]{1,60}$'}
+    region: {type: region}
+    tags:   {type: tags, required: [env, owner, costcentre]}
+  may_change: [tags]
+  restarts_existing: false
+  backout: |
+    Confirm nothing uses the address (Associated to is empty, no DNS record or allow list names it), then remove it
+    yourself in the portal, after your own approval. A released address cannot be got back.
+
+- name: web_app_with_vnet
+  summary: A Linux web app on its own plan, a VNet with subnets, an NSG on each non-delegated subnet. Closed to the public network, HTTPS only.
+  risk: high
+  types: [azurerm_resource_group, azurerm_virtual_network, azurerm_subnet, azurerm_network_security_group, azurerm_subnet_network_security_group_association, azurerm_service_plan, azurerm_linux_web_app]
+  workspace_variables: [resource_group]
+  variables:
+    name:     {type: str, pattern: '^[a-z][a-z0-9-]{1,20}$'}
+    env:      {type: enum, values: [prod, test, dev]}
+    region:   {type: region}
+    vnet:     {type: cidr, min_prefix: 16, max_prefix: 24}
+    subnets:  {type: list, min: 1, max: 6, item: {name: {type: str, pattern: '^snet-[a-z0-9-]{1,30}$'}, prefix: {type: cidr, min_prefix: 16, max_prefix: 29}, delegation: {type: enum, values: ["", web], optional: true}}}
+    plan_sku: {type: enum, values: [B1, B2, S1, P0v3, P1v3, P2v3]}
+    runtime:  {type: enum, values: ["PYTHON|3.12", "NODE|22-lts", "DOTNETCORE|8.0"]}
+    tags:     {type: tags, required: [env, owner, costcentre]}
+  may_change: [tags]
+  restarts_existing: false
+  backout: |
+    Remove in this order, in the portal, after your own approval: private endpoints for the app, the web app, the plan,
+    the NSG associations and the NSGs, the subnets, the network, then the resource group if it is empty. Export the
+    app's configuration and content first if anything was deployed.
+
+- name: storage_account
+  summary: A StorageV2 account closed to the public network, Entra ID only (no shared key), HTTPS and TLS 1.2, no public blobs.
+  risk: high
+  types: [azurerm_storage_account]
+  workspace_variables: [resource_group]
+  variables:
+    name:        {type: str, pattern: '^[a-z0-9]{3,24}$'}
+    region:      {type: region}
+    replication: {type: enum, values: [LRS, ZRS, GRS, GZRS]}
+    tags:        {type: tags, required: [env, owner, costcentre]}
+  may_change: [tags]
+  restarts_existing: false
+  backout: |
+    Copy out what you need first. Remove private endpoints that point at the account, then the account, yourself in
+    the portal, after your own approval. Soft delete (7 days) covers blobs and containers, not a removed account.
+
+- name: linux_vm
+  summary: A Linux VM on an existing subnet. No public IP, SSH key only, no custom data, no extension, Trusted Launch.
+  risk: high
+  types: [azurerm_network_interface, azurerm_linux_virtual_machine]
+  workspace_variables: [resource_group]
+  variables:
+    name:                {type: str, pattern: '^vm-[a-z0-9-]{1,50}$'}
+    region:              {type: region}
+    vnet_name:           {type: str, pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,62}[A-Za-z0-9_]$'}
+    vnet_resource_group: {type: str, optional: true, pattern: '^[A-Za-z0-9._()-]{1,89}[A-Za-z0-9_()-]$'}
+    subnet_name:         {type: str, pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,78}[A-Za-z0-9_]$'}
+    size:                {type: enum, values: [Standard_B1s, Standard_B2s, Standard_B2ms, Standard_B4ms, Standard_D2s_v5, Standard_D4s_v5, Standard_D8s_v5]}
+    image:               {type: enum, values: [ubuntu_2404, debian_12]}
+    # Microsoft's reserved names: https://learn.microsoft.com/azure/virtual-machines/windows/faq (username requirements)
+    admin_username:      {type: str, pattern: '^(?!(administrator|admin|admin1|admin2|user|user1|user2|user3|user4|user5|test|test1|test2|test3|guest|root|owner|server|sql|support|sys|backup|console|adm|aspnet|actuser|david|john)$)[a-z][a-z0-9_-]{2,31}$'}
+    ssh_public_key:      {type: str, pattern: '^(ssh-rsa|ssh-ed25519) [A-Za-z0-9+/]{60,1400}={0,3}( [A-Za-z0-9@._-]{1,64})?$'}
+    os_disk_gb:          {type: int, optional: true, min: 30, max: 256}
+    tags:                {type: tags, required: [env, owner, costcentre]}
+  may_change: [tags]
+  restarts_existing: false
+  backout: |
+    Take a snapshot of the OS disk first if the VM held anything. Then, in the portal and after your own approval:
+    stop and deallocate the VM if you only need to pause its cost, or remove the VM, its network interface and its
+    OS disk (they are separate resources).
+
+- name: private_endpoint
+  summary: A private endpoint for one resource of this subscription, with its private DNS zone group, zone (new or existing) and link.
+  risk: high
+  types: [azurerm_private_endpoint, azurerm_private_dns_zone, azurerm_private_dns_zone_virtual_network_link]
+  workspace_variables: [resource_group]
+  variables:
+    name:                {type: str, pattern: '^pe-[a-z0-9-]{1,60}$'}
+    region:              {type: region}
+    vnet_name:           {type: str, pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,62}[A-Za-z0-9_]$'}
+    vnet_resource_group: {type: str, optional: true, pattern: '^[A-Za-z0-9._()-]{1,89}[A-Za-z0-9_()-]$'}
+    subnet_name:         {type: str, pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,78}[A-Za-z0-9_]$'}
+    target_id:           {type: str, pattern: '^/subscriptions/[0-9a-fA-F-]{36}/resourceGroups/[A-Za-z0-9._()-]{1,90}/providers/[A-Za-z0-9.]+/[A-Za-z0-9._/-]{1,300}$'}
+    group_id:            {type: enum, values: [blob, file, queue, table, dfs, vault, sites, sqlServer]}
+    zone_id:             {type: str, optional: true, pattern: '^/subscriptions/[0-9a-fA-F-]{36}/resourceGroups/[A-Za-z0-9._()-]{1,90}/providers/(?i:microsoft\.network)/privateDnsZones/privatelink\.[a-z0-9.-]{3,200}$'}
+    tags:                {type: tags, required: [env, owner, costcentre]}
+  may_change: [tags]
+  restarts_existing: false
+  backout: |
+    Before you start, make sure the target's public access is on or clients will lose access. Then, in the portal and
+    after your own approval, remove the private endpoint (its DNS zone group goes with it), the zone link, and the
+    zone only if no other endpoint uses it.
+
+- name: log_workspace
+  summary: A Log Analytics workspace with a daily cap. Retention and the cap can be raised later, never lowered.
+  risk: high
+  types: [azurerm_log_analytics_workspace]
+  workspace_variables: [resource_group]
+  variables:
+    name:           {type: str, pattern: '^log-[a-z0-9-]{1,58}$'}
+    region:         {type: region}
+    retention_days: {type: int, optional: true, min: 30, max: 730}
+    daily_quota_gb: {type: int, min: 1, max: 1000}
+    tags:           {type: tags, required: [env, owner, costcentre]}
+  may_change: [tags, retention_in_days, daily_quota_gb]
+  restarts_existing: false
+  backout: |
+    Check what writes to and reads from the workspace (Linked resources, Diagnostic settings, Alert rules) and point
+    them elsewhere first. Then remove the workspace yourself, after your own approval. Azure keeps a removed workspace
+    14 days; do not purge it.
+
+- name: diagnostic_setting
+  summary: Send one existing resource's logs and metrics to a Log Analytics workspace. Not for a web app (a suggestion instead).
+  risk: high
+  types: [azurerm_monitor_diagnostic_setting]
+  workspace_variables: []
+  variables:
+    name:         {type: str, pattern: '^diag-[a-z0-9-]{1,58}$'}
+    target_id:    {type: str, pattern: '^/subscriptions/[0-9a-fA-F-]{36}/resourceGroups/[A-Za-z0-9._()-]{1,90}/providers/(?!(?i:microsoft\.web/sites(/|$)))[A-Za-z0-9.]+/[A-Za-z0-9._/-]{1,300}$'}
+    workspace_id: {type: str, pattern: '^/subscriptions/[0-9a-fA-F-]{36}/resourceGroups/[A-Za-z0-9._()-]{1,90}/providers/(?i:microsoft\.operationalinsights)/workspaces/[A-Za-z0-9-]{4,63}$'}
+    logs:         {type: enum, values: [allLogs, audit]}
+    metrics:      {type: bool, optional: true}
+  may_change: []
+  # false, not true: with true the gate would refuse every target, since every target exists. The web-app case is
+  # closed by the target pattern above, which no web app passes, so there it becomes a suggestion.
+  restarts_existing: false
+  backout: |
+    Open the resource's Diagnostic settings and remove this setting yourself, after your own approval. Logs already in
+    the workspace stay until their retention ends.
+
+- name: vnet_flow_log
+  summary: A VNet flow log into a storage account, with optional Traffic Analytics. Never an NSG flow log (retired 30 September 2027).
+  risk: high
+  types: [azurerm_network_watcher_flow_log]
+  workspace_variables: []
+  variables:
+    name:                     {type: str, pattern: '^fl-[a-z0-9-]{1,60}$'}
+    region:                   {type: region}
+    network_watcher:          {type: str, pattern: '^NetworkWatcher_[a-z0-9]{3,30}$'}
+    network_watcher_rg:       {type: str, optional: true, pattern: '^[A-Za-z0-9._()-]{1,89}[A-Za-z0-9_()-]$'}
+    vnet_id:                  {type: str, pattern: '^/subscriptions/[0-9a-fA-F-]{36}/resourceGroups/[A-Za-z0-9._()-]{1,90}/providers/(?i:microsoft\.network)/virtualNetworks/[A-Za-z0-9][A-Za-z0-9._-]{0,62}[A-Za-z0-9_]$'}
+    storage_id:               {type: str, pattern: '^/subscriptions/[0-9a-fA-F-]{36}/resourceGroups/[A-Za-z0-9._()-]{1,90}/providers/(?i:microsoft\.storage)/storageAccounts/[a-z0-9]{3,24}$'}
+    retention_days:           {type: int, optional: true, min: 0, max: 365}
+    analytics_workspace_guid: {type: str, optional: true, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'}
+    analytics_workspace_id:   {type: str, optional: true, pattern: '^/subscriptions/[0-9a-fA-F-]{36}/resourceGroups/[A-Za-z0-9._()-]{1,90}/providers/(?i:microsoft\.operationalinsights)/workspaces/[A-Za-z0-9-]{4,63}$'}
+    tags:                     {type: tags, required: [env, owner, costcentre]}
+  may_change: [tags]
+  restarts_existing: false
+  backout: |
+    Open Network Watcher, Flow logs, and remove this flow log yourself, after your own approval. Data already in the
+    storage account and workspace stays until you remove it or its retention ends.
+
+- name: budget
+  summary: A monthly budget on the subscription or on the resource group, with e-mail alerts. It warns; it caps nothing.
+  risk: low
+  types: [azurerm_consumption_budget_subscription, azurerm_consumption_budget_resource_group]
+  workspace_variables: [subscription_id, resource_group]
+  variables:
+    name:           {type: str, pattern: '^budget-[a-z0-9-]{1,50}$'}
+    scope:          {type: enum, values: [subscription, resource_group]}
+    amount:         {type: int, min: 1, max: 100000}
+    start_month:    {type: str, pattern: '^20[2-9][0-9]-(0[1-9]|1[0-2])-01$'}
+    alert_percents: {type: list, min: 1, max: 5, item: {percent: {type: int, min: 1, max: 200}}}
+    emails:         {type: list, min: 1, max: 5, item: {address: {type: str, pattern: '^[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,200}\.[A-Za-z]{2,24}$'}}}
+  may_change: [amount, notification]
+  restarts_existing: false
+  backout: |
+    Open Cost Management, Budgets, and remove the budget yourself, after your own approval. A budget only sends
+    alerts, so removing it removes the alerts and nothing else.
+
+- name: tags
+  summary: Add or change tags on an existing resource group. Existing tags are kept; the product never removes a tag.
+  risk: low
+  types: [azapi_update_resource]
+  workspace_variables: [subscription_id, resource_group]
+  variables:
+    tags: {type: tags}
+  may_change: [body]
+  restarts_existing: false
+  backout: |
+    Open the resource group, Tags, and change or remove the tag yourself, after your own approval. The product does
+    not remove tags.
+
+- name: firewall_rule
+  summary: One Allow rule in a new firewall-policy rule collection group. Sources, destinations, ports or FQDNs can be added later, never taken away.
+  risk: high
+  types: [azurerm_firewall_policy_rule_collection_group]
+  workspace_variables: []
+  variables:
+    firewall_policy_id:  {type: str, pattern: '^/subscriptions/[0-9a-fA-F-]{36}/resourceGroups/[A-Za-z0-9._()-]{1,90}/providers/(?i:microsoft\.network)/firewallPolicies/[A-Za-z0-9][A-Za-z0-9._-]{0,78}[A-Za-z0-9_]$'}
+    name:                {type: str, pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,78}[A-Za-z0-9_]$'}
+    priority:            {type: int, min: 100, max: 65000}
+    collection_name:     {type: str, pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,78}[A-Za-z0-9_]$'}
+    collection_priority: {type: int, min: 100, max: 65000}
+    kind:                {type: enum, values: [network, application]}
+    rule_name:           {type: str, pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,78}[A-Za-z0-9_]$'}
+    protocols:           {type: list, max: 4, optional: true, item: {name: {type: enum, values: [TCP, UDP, ICMP, Any]}}}
+    app_protocol:        {type: enum, values: [Http, Https, Mssql, Mysql, Postgresql], optional: true}
+    app_port:            {type: int, optional: true, min: 1, max: 65535}
+    sources:             {type: list, min: 1, max: 10, item: {cidr: {type: cidr, min_prefix: 8}}}
+    destinations:        {type: list, max: 10, optional: true, item: {cidr: {type: cidr, min_prefix: 0}}}
+    ports:               {type: list, max: 10, optional: true, item: {range: {type: str, pattern: '^[0-9]{1,5}(-[0-9]{1,5})?$'}}}
+    fqdns:               {type: list, max: 10, optional: true, item: {name: {type: str, pattern: '^(\*\.)?[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$'}}}
+  may_change: [network_rule_collection, application_rule_collection]
+  restarts_existing: false
+  backout: |
+    Open the firewall policy, Rule collection groups, find this group and rule, and remove the rule (or take a source,
+    destination, port or FQDN out of it) yourself in the portal, after your own approval. First confirm no flow that
+    still needs that allow will be cut. The product only adds or widens; a removal is yours.

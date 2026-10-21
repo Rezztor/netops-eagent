@@ -1,0 +1,618 @@
+/*
+ * The shell is the viewport, not a page that grows with its content.
+ *
+ * This was min-height: 100vh, which meant nothing above the chat transcript ever
+ * had a bounded height -- so its `flex: 1; overflow-y: auto` had no height to
+ * overflow and simply grew, taking the page with it. Every scroll inside the
+ * application depends on this being a fixed height, and each descendant that
+ * should scroll needs `min-height: 0` so flex will let it shrink below its
+ * content.
+ *
+ * dvh rather than vh: on mobile, vh is the tallest the viewport ever gets, so
+ * the composer sits under the browser chrome until the address bar retracts.
+ */
+.shell {
+  display: grid;
+  grid-template-columns: var(--rail-w, var(--rail)) 1fr;
+  height: 100dvh;
+  overflow: hidden;
+  position: relative;
+  --rail-w: var(--rail);
+  transition: grid-template-columns 160ms ease;
+}
+.shell[data-sidebar="pinned"] {
+  --rail-w: var(--rail);
+}
+.shell[data-sidebar="rail"] {
+  --rail-w: var(--rail-collapsed);
+}
+/* Focus mode: the rail is gone, so the grid has one column. */
+.shellFocus {
+  grid-template-columns: 1fr;
+}
+
+.railSlot {
+  position: relative;
+  min-height: 0;
+  min-width: 0;
+}
+
+.rail {
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  /* Its own scroller: the shell no longer grows to fit a long nav. */
+  overflow-y: auto;
+  min-height: 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  width: 100%;
+  transition: width 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+.railPeeking {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--rail);
+  /* Above page content, below dialogs (--z-modal: 100). */
+  z-index: 40;
+  box-shadow: 8px 0 24px rgba(12, 27, 30, 0.12);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 18px 14px;
+}
+.brandMark {
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  flex: none;
+  background: var(--accent);
+  color: var(--accent-ink);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: var(--text-lg);
+}
+.brandText {
+  min-width: 0;
+  flex: 1;
+}
+.brandName {
+  font-weight: 700;
+  font-size: var(--text-md);
+  letter-spacing: -0.01em;
+}
+.brandSub {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.pinBtn {
+  margin-left: auto;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+  padding: 0;
+}
+.pinBtn:hover {
+  color: var(--ink);
+  background: var(--surface-alt);
+}
+.pinBtn[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+  color: var(--accent);
+}
+
+.nav {
+  padding: 4px 10px;
+  overflow-y: auto;
+  flex: 1;
+}
+.navGroup {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  padding: 14px 8px 6px;
+}
+.navItem {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink-2);
+  font-size: var(--text-base);
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  text-decoration: none;
+  transition: background 0.12s, color 0.12s;
+  position: relative;
+}
+.navItem:hover {
+  background: var(--surface-alt);
+  color: var(--ink);
+}
+.navItemActive {
+  background: var(--accent-wash);
+  color: var(--accent);
+  font-weight: 600;
+}
+.navLabel {
+  min-width: 0;
+}
+.navLock {
+  margin-left: auto;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-xs);
+  padding: 1px 4px;
+}
+.navBadge {
+  margin-left: auto;
+  padding: 0 7px;
+  border-radius: 9px;
+  background: var(--warn-wash);
+  color: var(--warn);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.adminDot {
+  display: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--warn);
+  flex: none;
+  margin-left: auto;
+}
+
+.railFoot {
+  padding: var(--space-3);
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: stretch;
+}
+.health {
+  background: var(--surface-alt);
+  border-radius: var(--radius-sm);
+  padding: 9px 10px;
+}
+.healthRow {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ok);
+  flex: none;
+}
+.dotWarn {
+  background: var(--warn);
+}
+.healthNote {
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+  margin-top: 3px;
+}
+.healthText {
+  min-width: 0;
+}
+
+.peekBtn {
+  display: none;
+  width: 100%;
+  height: 32px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+  padding: 0;
+}
+.peekBtn:hover {
+  color: var(--ink);
+  background: var(--surface-alt);
+}
+
+/* --- Rail (unpinned, not peeking): icon-only --- */
+.shell[data-sidebar="rail"]:not([data-peeking]) .brand {
+  justify-content: center;
+  padding: 14px 8px 10px;
+}
+.shell[data-sidebar="rail"]:not([data-peeking]) .brandText,
+.shell[data-sidebar="rail"]:not([data-peeking]) .pinBtn {
+  display: none;
+}
+.shell[data-sidebar="rail"]:not([data-peeking]) .nav {
+  padding: 4px 8px;
+}
+.shell[data-sidebar="rail"]:not([data-peeking]) .navGroup {
+  font-size: 0;
+  letter-spacing: 0;
+  padding: 10px 8px 6px;
+  color: transparent;
+}
+.shell[data-sidebar="rail"]:not([data-peeking]) .navGroup::after {
+  content: "";
+  display: block;
+  height: 1px;
+  background: var(--line);
+  margin: 0 4px;
+}
+.shell[data-sidebar="rail"]:not([data-peeking]) .navItem {
+  justify-content: center;
+  padding: 9px 0;
+  gap: 0;
+}
+.shell[data-sidebar="rail"]:not([data-peeking]) .navItemActive {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.shell[data-sidebar="rail"]:not([data-peeking]) .navLabel {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.shell[data-sidebar="rail"]:not([data-peeking]) .navLock {
+  display: none;
+}
+.shell[data-sidebar="rail"]:not([data-peeking]) .navBadge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  padding: 0 4px;
+  font-size: 9.5px;
+}
+.shell[data-sidebar="rail"]:not([data-peeking]) .adminDot {
+  display: block;
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  margin: 0;
+}
+.shell[data-sidebar="rail"]:not([data-peeking]) .railFoot {
+  align-items: center;
+  padding: var(--space-2);
+}
+.shell[data-sidebar="rail"]:not([data-peeking]) .health {
+  background: transparent;
+  padding: 6px;
+  display: grid;
+  place-items: center;
+}
+.shell[data-sidebar="rail"]:not([data-peeking]) .healthText,
+.shell[data-sidebar="rail"]:not([data-peeking]) .healthNote {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.shell[data-sidebar="rail"]:not([data-peeking]) .healthRow {
+  gap: 0;
+  justify-content: center;
+}
+.shell[data-sidebar="rail"]:not([data-peeking]) .peekBtn {
+  display: grid;
+}
+
+/* Tooltips for rail icons (hover + keyboard focus). */
+.shell[data-sidebar="rail"]:not([data-peeking]) .navItem[data-tip]:hover::after,
+.shell[data-sidebar="rail"]:not([data-peeking]) .navItem[data-tip]:focus-visible::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--ink);
+  color: var(--surface);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: var(--radius-xs);
+  white-space: nowrap;
+  z-index: 50;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shell,
+  .rail {
+    transition: none;
+  }
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  /* Bounded, so whichever child owns the scrolling actually gets a height. */
+  min-height: 0;
+  overflow: hidden;
+}
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: var(--z-topbar);
+}
+.pageTitle {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.pageSub {
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+.spacer {
+  flex: 1;
+}
+.who {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-left: var(--space-4);
+  border-left: 1px solid var(--line);
+}
+.avatar {
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  background: var(--accent-wash);
+  color: var(--accent);
+  display: grid;
+  place-items: center;
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+.whoName {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1.2;
+}
+.whoRole {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  line-height: 1.2;
+}
+
+/* The app-wide licence banner: aligned with the content's padding, with
+   just enough top margin to clear the topbar. */
+.banner {
+  padding: var(--space-3) var(--space-5) 0;
+  width: 100%;
+}
+
+.content {
+  padding: var(--space-5);
+  width: 100%;
+  flex: 1;
+  /* Ordinary screens are long documents: they scroll here, beneath a topbar
+     that no longer has to be sticky to stay put. */
+  overflow-y: auto;
+  min-height: 0;
+}
+.contentFull {
+  padding: var(--space-5);
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  /* A full screen manages its own scrolling -- chat scrolls its transcript, not
+     its whole page. */
+  overflow: hidden;
+}
+.stack {
+  display: grid;
+  gap: var(--space-4);
+}
+.pageHead {
+  margin-bottom: var(--space-4);
+}
+.pageHeadTitle {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.pageHeadDesc {
+  font-size: var(--text-base);
+  color: var(--ink-2);
+  margin-top: 5px;
+  max-width: 62ch;
+}
+
+.menuBtn,
+.closeMenu,
+.backdrop {
+  display: none;
+}
+.titles {
+  min-width: 0;
+}
+.loading {
+  margin: 0;
+  padding: var(--space-6) 0;
+  text-align: center;
+  color: var(--ink-3);
+}
+
+/*
+ * Narrow screens: the rail is a drawer behind the top bar's menu button. It
+ * used to become a horizontal strip whose groups wrapped into columns and
+ * clipped. The shell renders data-sidebar="drawer" here (useNarrow in
+ * AppShell), so none of the icon-only rail rules apply to it.
+ */
+@media (max-width: 1080px) {
+  .shell,
+  .shell[data-sidebar] {
+    grid-template-columns: 1fr;
+    --rail-w: auto;
+    transition: none;
+  }
+  .railSlot {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: min(300px, 86vw);
+    z-index: 60;
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition: transform 160ms ease, visibility 160ms;
+  }
+  .shell[data-menu="open"] .railSlot {
+    transform: none;
+    visibility: visible;
+  }
+  .rail {
+    height: 100%;
+    box-shadow: 8px 0 24px rgba(12, 27, 30, 0.18);
+  }
+  .pinBtn,
+  .peekBtn {
+    display: none !important;
+  }
+  .closeMenu {
+    display: grid;
+    place-items: center;
+    margin-left: auto;
+    width: 32px;
+    height: 32px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: none;
+    color: var(--ink-2);
+    font-size: 20px;
+    cursor: pointer;
+  }
+  .backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+    background: rgba(12, 27, 30, 0.35);
+  }
+  .menuBtn {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--ink);
+    cursor: pointer;
+  }
+}
+
+/* Phones: the top bar keeps the title, the bell and sign-out; the page keeps its width. */
+@media (max-width: 720px) {
+  .topbar {
+    padding: var(--space-2) var(--space-3);
+    gap: var(--space-2);
+  }
+  .pageSub,
+  .whoText {
+    display: none;
+  }
+  .pageTitle {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .who {
+    padding-left: var(--space-2);
+  }
+  .content,
+  .contentFull {
+    padding: var(--space-3);
+  }
+  .banner {
+    padding: var(--space-2) var(--space-3) 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .railSlot {
+    transition: none;
+  }
+}
+
+/* ---------- home ---------- */
+.plainList {
+  margin: 0;
+  padding: var(--space-2) 0 var(--space-2) 1.1em;
+  display: grid;
+  gap: var(--space-1);
+  font-size: var(--text-base);
+}
+.checklist {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-2) 0;
+  display: grid;
+  gap: var(--space-2);
+}
+.checklist li {
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+}
+.checkMark {
+  width: 14px;
+  flex: none;
+  text-align: center;
+  color: var(--ink-3);
+}
+.checkMark[data-done="true"] {
+  color: var(--ok);
+  font-weight: 700;
+}

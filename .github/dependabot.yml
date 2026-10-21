@@ -1,0 +1,21 @@
+# Dependency update pull requests, weekly. A pull request is a proposal: every
+# pin in this repository is deliberate (see the comments in requirements.txt),
+# and an update is merged only once the suite has run on it.
+version: 2
+updates:
+  - package-ecosystem: pip
+    directories: ["/", "/executor", "/cloud_executor"]
+    schedule:
+      interval: weekly
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directories: ["/", "/docker/base", "/docker/runner", "/executor", "/cloud_executor"]
+    schedule:
+      interval: weekly
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

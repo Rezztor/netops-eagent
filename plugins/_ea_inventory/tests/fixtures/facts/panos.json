@@ -1,0 +1,13 @@
+{
+  "_comment": "UNVERIFIED: constructed from the vendor module documentation, not captured from a live device. Correct on first live run. paloaltonetworks.panos.panos_facts keys ansible_net_hostname/model/serial/version/ha_enabled/ha_localmode/ha_localstate from the module docs; the peer serial key (ansible_net_ha_peer_serial) is NOT documented and is a guess. Values invented.",
+  "facts": {
+    "ansible_net_hostname": "PA-Edge1",
+    "ansible_net_model": "PA-440",
+    "ansible_net_serial": "012345678901",
+    "ansible_net_version": "10.2.4-h2",
+    "ansible_net_ha_enabled": true,
+    "ansible_net_ha_localmode": "Active-Passive",
+    "ansible_net_ha_localstate": "active",
+    "ansible_net_ha_peer_serial": "012345678902"
+  }
+}

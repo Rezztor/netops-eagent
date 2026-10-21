@@ -1,0 +1,21 @@
+[Unit]
+# The network guard (/opt/rezztor/rezztor-guard, full form), loaded before the
+# first interface comes up: 443, 80 and ping in, SSH only while it is switched
+# on, no routing between networks, and the containers fenced. rezztor-guard.service
+# loads the same table again just before Docker starts, when the DNS servers
+# are known. rezztor-setup restarts this unit after a change of network or SSH.
+Description=Rezztor network guard, loaded before the network comes up
+Before=network-pre.target
+Wants=network-pre.target
+ConditionPathExists=/opt/rezztor/rezztor-guard
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# A network change nobody kept before a restart goes back here, before the
+# network comes up: systemd forgets the timer that would have done it.
+ExecStartPre=-/usr/local/sbin/rezztor-network revert
+ExecStart=/opt/rezztor/rezztor-guard apply
+
+[Install]
+WantedBy=multi-user.target

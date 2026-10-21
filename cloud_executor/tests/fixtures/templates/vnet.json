@@ -1,0 +1,147 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.13.1",
+  "variables": {
+    "resource_group": {
+      "value": "rg-payments-prod-uaen"
+    },
+    "region": {
+      "value": "uaenorth"
+    },
+    "name": {
+      "value": "vnet-payments-prod-uaen-001"
+    },
+    "address_space": {
+      "value": [
+        {
+          "cidr": "10.30.0.0/16"
+        },
+        {
+          "cidr": "10.31.0.0/16"
+        }
+      ]
+    },
+    "subnets": {
+      "value": [
+        {
+          "name": "snet-app",
+          "prefix": "10.30.1.0/24"
+        },
+        {
+          "name": "snet-data",
+          "prefix": "10.30.2.0/24"
+        }
+      ]
+    },
+    "tags": {
+      "value": {
+        "env": "prod",
+        "owner": "netops",
+        "costcentre": "cc-1001"
+      }
+    }
+  },
+  "resource_changes": [
+    {
+      "address": "azurerm_virtual_network.this",
+      "mode": "managed",
+      "type": "azurerm_virtual_network",
+      "name": "this",
+      "provider_name": "registry.opentofu.org/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "name": "vnet-payments-prod-uaen-001",
+          "resource_group_name": "rg-payments-prod-uaen",
+          "location": "uaenorth",
+          "address_space": [
+            "10.30.0.0/16",
+            "10.31.0.0/16"
+          ],
+          "tags": {
+            "env": "prod",
+            "owner": "netops",
+            "costcentre": "cc-1001"
+          }
+        },
+        "after_unknown": {
+          "id": true,
+          "guid": true,
+          "subnet": true,
+          "dns_servers": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {}
+      }
+    },
+    {
+      "address": "azurerm_subnet.this[\"snet-app\"]",
+      "mode": "managed",
+      "type": "azurerm_subnet",
+      "name": "this",
+      "index": "snet-app",
+      "provider_name": "registry.opentofu.org/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "name": "snet-app",
+          "resource_group_name": "rg-payments-prod-uaen",
+          "virtual_network_name": "vnet-payments-prod-uaen-001",
+          "address_prefixes": [
+            "10.30.1.0/24"
+          ],
+          "default_outbound_access_enabled": false,
+          "private_endpoint_network_policies": "Enabled"
+        },
+        "after_unknown": {
+          "id": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {}
+      }
+    },
+    {
+      "address": "azurerm_subnet.this[\"snet-data\"]",
+      "mode": "managed",
+      "type": "azurerm_subnet",
+      "name": "this",
+      "index": "snet-data",
+      "provider_name": "registry.opentofu.org/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "name": "snet-data",
+          "resource_group_name": "rg-payments-prod-uaen",
+          "virtual_network_name": "vnet-payments-prod-uaen-001",
+          "address_prefixes": [
+            "10.30.2.0/24"
+          ],
+          "default_outbound_access_enabled": false,
+          "private_endpoint_network_policies": "Enabled"
+        },
+        "after_unknown": {
+          "id": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {}
+      }
+    }
+  ],
+  "configuration": {
+    "provider_config": {
+      "azurerm": {
+        "name": "azurerm",
+        "full_name": "registry.opentofu.org/hashicorp/azurerm"
+      }
+    }
+  }
+}

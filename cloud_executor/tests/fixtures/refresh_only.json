@@ -1,0 +1,131 @@
+{
+ "_comment": "Written from documented output, not recorded from a run. Shape: OpenTofu JSON plan representation, https://opentofu.org/docs/internals/json-format/ (resource_drift: 'the same structure as resource_changes', changes found while refreshing), also https://developer.hashicorp.com/terraform/internals/json-format#plan-representation. A refresh-only plan lists every resource under resource_changes with actions [no-op].",
+ "format_version": "1.2",
+ "terraform_version": "1.13.1",
+ "variables": {
+  "region": {
+   "value": "uaenorth"
+  }
+ },
+ "resource_changes": [
+  {
+   "address": "azurerm_resource_group.this",
+   "mode": "managed",
+   "type": "azurerm_resource_group",
+   "name": "this",
+   "provider_name": "registry.opentofu.org/hashicorp/azurerm",
+   "change": {
+    "actions": [
+     "no-op"
+    ],
+    "before": {
+     "name": "rg-payments-prod-uaen",
+     "location": "uaenorth",
+     "tags": {
+      "env": "prod",
+      "owner": "netops",
+      "costcentre": "cc-1001",
+      "project": "payments"
+     },
+     "timeouts": null,
+     "managed_by": null,
+     "id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen"
+    },
+    "after": {
+     "name": "rg-payments-prod-uaen",
+     "location": "uaenorth",
+     "tags": {
+      "env": "prod",
+      "owner": "netops",
+      "costcentre": "cc-1001",
+      "project": "payments"
+     },
+     "timeouts": null,
+     "managed_by": null,
+     "id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen"
+    },
+    "after_unknown": {},
+    "before_sensitive": {},
+    "after_sensitive": {}
+   }
+  }
+ ],
+ "resource_drift": [
+  {
+   "address": "azurerm_resource_group.this",
+   "mode": "managed",
+   "type": "azurerm_resource_group",
+   "name": "this",
+   "provider_name": "registry.opentofu.org/hashicorp/azurerm",
+   "change": {
+    "actions": [
+     "update"
+    ],
+    "before": {
+     "name": "rg-payments-prod-uaen",
+     "location": "uaenorth",
+     "tags": {
+      "env": "prod",
+      "owner": "netops",
+      "costcentre": "cc-1001",
+      "project": "payments"
+     },
+     "timeouts": null,
+     "managed_by": null,
+     "id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen"
+    },
+    "after": {
+     "name": "rg-payments-prod-uaen",
+     "location": "uaenorth",
+     "tags": {
+      "env": "test",
+      "owner": "netops",
+      "costcentre": "cc-1001",
+      "project": "payments"
+     },
+     "timeouts": null,
+     "managed_by": null,
+     "id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen"
+    },
+    "after_unknown": {},
+    "before_sensitive": {},
+    "after_sensitive": {}
+   }
+  },
+  {
+   "address": "azurerm_virtual_network.vnet",
+   "mode": "managed",
+   "type": "azurerm_virtual_network",
+   "name": "vnet",
+   "provider_name": "registry.opentofu.org/hashicorp/azurerm",
+   "change": {
+    "actions": [
+     "delete"
+    ],
+    "before": {
+     "name": "vnet-payments",
+     "location": "uaenorth",
+     "address_space": [
+      "10.20.0.0/16"
+     ],
+     "id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.Network/virtualNetworks/vnet-payments",
+     "shared_key": "hunter2"
+    },
+    "after": null,
+    "after_unknown": {},
+    "before_sensitive": {
+     "shared_key": true
+    },
+    "after_sensitive": {}
+   }
+  }
+ ],
+ "configuration": {
+  "provider_config": {
+   "azurerm": {
+    "name": "azurerm",
+    "full_name": "registry.opentofu.org/hashicorp/azurerm"
+   }
+  }
+ }
+}

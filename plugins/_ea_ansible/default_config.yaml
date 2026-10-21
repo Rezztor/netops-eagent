@@ -1,0 +1,34 @@
+# Network automation plugin configuration.
+#
+# Device credentials, inventory and vault files live on the Ansible executor as
+# mounted secrets -- never here, and never in the application container. This
+# file only says where the executor is and how hard to lean on it.
+
+# The executor's internal address. Empty until Phase 1 ships the executor.
+executor_url: ""
+
+# Name of the usr/.env key holding the executor token. The token value itself is
+# never stored here and never returned by any API handler.
+executor_token_key: REZZTOR_ANSIBLE_EXECUTOR_TOKEN
+
+# Name of the key holding the administration token, which edits the inventory
+# and credentials. The deployment supplies it in the environment (ADR 0036); a
+# value pasted in Settings is written to usr/.env and wins over that.
+admin_token_key: REZZTOR_ANSIBLE_ADMIN_TOKEN
+
+# How long one executor job may run before the plugin gives up.
+job_timeout_seconds: 300
+
+# How many devices one job may target.
+max_devices_per_job: 10
+
+# How many executor jobs one conversation may start in a minute.
+
+# How strictly a fixed read or bundle asks an engineer (ADR 0048):
+# every_time | once_per_chat | log_only. Free-form show commands always ask.
+read_approval: every_time
+
+# Refuse the network, inventory and SolarWinds tools unless every model the
+# result could reach (chat and utility, this agent and the root agent) has a
+# loopback or private API base (ADR 0052). Needs plugins.manage to change.
+require_local_model: false

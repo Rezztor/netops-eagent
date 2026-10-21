@@ -1,0 +1,48 @@
+/* Shared pieces of the redesigned Inventory screens. Tokens only: both themes. */
+
+.meter { display: inline-flex; align-items: center; gap: 8px; }
+.meterTrack { display: block; width: 72px; height: 6px; border-radius: 3px; background: var(--line-2); overflow: hidden; }
+.meterFill { display: block; height: 6px; }
+.meterText { font-size: var(--text-sm); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.fill-accent { background: var(--accent); }
+.fill-ok { background: var(--ok); }
+.fill-warn { background: var(--warn); }
+.fill-crit { background: var(--crit); }
+.fill-none { background: var(--ink-3); }
+
+.segmented { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--line-2); border-radius: 7px; background: var(--surface); }
+.segment { height: 28px; padding: 0 11px; border: 0; border-radius: 5px; background: transparent; color: var(--ink-2); font: inherit; font-size: var(--text-sm); font-weight: 600; cursor: pointer; white-space: nowrap; }
+.segment:hover { color: var(--ink); }
+.segment:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.segmentOn { background: var(--surface-alt); color: var(--ink); }
+
+.tile { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); color: var(--ink); text-align: left; font: inherit; }
+.tileButton { cursor: pointer; }
+.tileButton:hover { border-color: var(--line-2); background: var(--surface-alt); }
+.tileButton:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tileLabel { color: var(--ink-2); font-size: var(--text-sm); font-weight: 600; }
+.tileValue { font-size: 24px; font-weight: 700; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.tileSub { color: var(--ink-2); font-size: var(--text-sm); }
+.text-none { color: var(--ink); }
+.text-accent { color: var(--accent); }
+.text-ok { color: var(--ok); }
+.text-warn { color: var(--warn); }
+.text-crit { color: var(--crit); }
+
+.section { display: flex; flex-direction: column; gap: 12px; min-width: 0; padding: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.sectionHead { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.sectionTitle { margin: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); }
+
+.kv { display: flex; flex-direction: column; margin: 0; }
+.kvRow { display: flex; align-items: baseline; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+.kvRow:last-child { border-bottom: 0; }
+.kvLabel { width: 112px; flex-shrink: 0; color: var(--ink-2); font-size: var(--text-sm); }
+.kvValue { flex-grow: 1; min-width: 0; margin: 0; overflow-wrap: anywhere; }
+.kvSource { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-3); white-space: nowrap; }
+.unset { color: var(--warn); }
+
+.notice { display: flex; gap: 10px; padding: 10px 12px; border-radius: var(--radius); background: var(--surface-alt); color: var(--ink-2); }
+.notice-warn { background: var(--warn-wash); color: var(--ink); }
+.notice-crit { background: var(--crit-wash); color: var(--ink); }
+.notice-ok { background: var(--ok-wash); color: var(--ink); }
+.notice-accent { background: var(--accent-wash); color: var(--ink); }

@@ -1,0 +1,7 @@
+/* Backups tab. Tokens only: both themes. */
+
+.root { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.meta { color: var(--ink-2); font-size: var(--text-sm); }
+.num { font-variant-numeric: tabular-nums; }
+.text { max-height: 60vh; margin: 0; padding: 10px; overflow: auto; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-alt); color: var(--ink); font-family: var(--font-mono); font-size: var(--text-xs); white-space: pre; }

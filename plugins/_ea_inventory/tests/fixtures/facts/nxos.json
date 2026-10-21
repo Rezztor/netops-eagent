@@ -1,0 +1,10 @@
+{
+  "_comment": "UNVERIFIED: constructed from the vendor module documentation, not captured from a live device. Correct on first live run. cisco.nxos.nxos_facts keys from the public module docs only (collection not installed in the executor); values invented.",
+  "facts": {
+    "ansible_net_hostname": "nx-leaf1",
+    "ansible_net_model": "Nexus9000 C93180YC-EX",
+    "ansible_net_serialnum": "FDO21120ABC",
+    "ansible_net_version": "9.3(8)",
+    "ansible_net_image": "bootflash:///nxos.9.3.8.bin"
+  }
+}

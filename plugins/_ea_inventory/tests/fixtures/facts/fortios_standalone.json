@@ -1,0 +1,18 @@
+{
+  "_comment": "UNVERIFIED: constructed from the vendor module documentation, not captured from a live device. Correct on first live run. Same shape; HA mode standalone.",
+  "facts": {
+    "system_status": {
+      "serial": "FGT60F0000000001",
+      "version": "v7.2.4",
+      "results": {
+        "hostname": "fw-edge1",
+        "model": "FGT60F"
+      }
+    },
+    "system_ha": {
+      "results": {
+        "mode": "standalone"
+      }
+    }
+  }
+}

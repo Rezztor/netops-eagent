@@ -1,0 +1,8 @@
+# Pinned, and installed at build time only. Nothing installs at run time. The same pins as the application's
+# requirements.txt: this container adds no dependency the project does not already carry.
+flask==3.1.3
+waitress==3.0.2
+PyYAML==6.0.2
+requests==2.34.2
+psycopg[binary]==3.2.3
+cryptography>=46.0.0

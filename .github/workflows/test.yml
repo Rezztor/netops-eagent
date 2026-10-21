@@ -1,0 +1,125 @@
+name: Tests
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  pytest:
+    # GitHub's hosted runners, never a self-hosted one: on a public repository a
+    # pull request from a fork would run its code on that machine. Each job runs
+    # in a container and reaches the database by service name.
+    runs-on: ubuntu-latest
+    container: python:3.12-bookworm
+    timeout-minutes: 45
+
+    # Without this the suite still passes, and proves far less than it looks.
+    # conftest.py skips on an unreachable database and prints "no database: this
+    # run proved less than it looks" naming the ~150 tests that went with it --
+    # accounts, sign-in, password reset, RBAC, row-level security, licensing and
+    # the backup round trip. A skip is not a failure, so the job went green
+    # anyway. The isolation tests that would have caught a file browser rooted at
+    # / were among the ones not running.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: eagent
+          POSTGRES_PASSWORD: devpassword
+          POSTGRES_DB: eagent
+        # The port being open is not the same as the server being ready; without
+        # this the first tests race the container's own initdb.
+        options: >-
+          --health-cmd "pg_isready -U eagent -d eagent"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      REZZTOR_TEST_DB_URL: postgresql://eagent:devpassword@postgres:5432/eagent
+      REZZTOR_DB_APP_PASSWORD: apppassword
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Trust the checkout
+        # The job runs as root in the container and the checkout belongs to the
+        # runner's user, so git refuses it ("dubious ownership") and every test
+        # that lists tracked files fails.
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Install system dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ffmpeg
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # Install CPU-only torch FIRST. Resolving torch from PyPI pulls ~5 GB of
+          # nvidia CUDA wheels and fills the runner disk. Nothing this ships to runs
+          # on a GPU, so the CUDA build is dead weight everywhere, not just in CI.
+          # (It said "CPU-only Kubernetes" until k3s was retired on 2026-09-18; the
+          # reason changed, the instruction did not.)
+          pip install --index-url https://download.pytorch.org/whl/cpu torch torchvision
+          pip install -r requirements.txt -r requirements.dev.txt
+          df -h /
+
+      - name: Confirm the database is actually reachable
+        # Belt and braces for the health check above: a run that silently lost
+        # the database would go green again, which is the exact failure this
+        # service block exists to end. Fail here instead, where the message says
+        # why.
+        run: |
+          python - <<'PY'
+          import os, sys
+          import psycopg
+          try:
+              with psycopg.connect(os.environ["REZZTOR_TEST_DB_URL"], connect_timeout=10):
+                  print("database reachable")
+          except Exception as error:
+              sys.exit(f"the test database is not reachable, so the suite would "
+                       f"skip everything that needs it: {error}")
+          PY
+
+      - name: Run test suite
+        run: pytest -q --tb=short
+
+  frontend:
+    runs-on: ubuntu-latest
+    container: node:22-bookworm
+    timeout-minutes: 15
+    # `frontend/` had no CI at all: 164 vitest tests, an eslint run at
+    # --max-warnings 0 and a `tsc --noEmit` gate all existed in package.json and
+    # ran only when somebody remembered locally. The build matters on its own --
+    # helpers/spa.py serves frontend/dist and a missing build is a plain failure
+    # with no second interface behind it.
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Install dependencies
+        run: npm --prefix frontend ci
+
+      - name: Lint
+        run: npm --prefix frontend run lint
+
+      - name: Typecheck
+        run: npm --prefix frontend run typecheck
+
+      - name: Test
+        run: npm --prefix frontend run test
+
+      - name: Build
+        run: npm --prefix frontend run build

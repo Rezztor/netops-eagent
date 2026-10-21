@@ -1,0 +1,29 @@
+# Named sets of show commands the agent may ask for by name (ADR 0048).
+#
+# A bundle is a fixed read: the same reviewed text every time, so the read-approval
+# setting can treat it like a catalogue read. It still runs through `reads/show`,
+# and every command here is checked against that entry's pattern when the file is
+# loaded (helpers/bundles.py), so a bad line breaks the load rather than a read.
+# Platform syntax: ios was run on c3725-lab (Cisco 3725, IOS 12.4(15)T14, 2026-10-02): every ios line works
+# there except `show vlan brief`, which that old image does not have (it answers `% Ambiguous command`, and
+# one rejected command fails the whole read, so switch_info does not run on that image; the VLAN table is
+# `show vlan-switch brief` there). The nxos, eos and junos lines are written from each vendor's documented
+# commands, unverified (no device yet); sonic_community has met a device too.
+
+switch_info:
+  summary: What a switch is and how it is cabled - version, parts, VLANs, port status, neighbours.
+  commands:
+    ios: [show version, show inventory, show vlan brief, show interfaces status, show cdp neighbors]
+    nxos: [show version, show inventory, show vlan brief, show interface status, show cdp neighbors]
+    eos: [show version, show inventory, show vlan, show interfaces status, show lldp neighbors]
+    junos: [show version, show chassis hardware, show vlans, show interfaces terse, show lldp neighbors]
+    sonic_community: [show version, show platform summary, show interfaces status, show vlan brief, show lldp table]
+
+routing_info:
+  summary: How a device routes - routing table summary, routed interfaces, OSPF and BGP neighbours.
+  commands:
+    ios: [show ip route summary, show ip interface brief, show ip ospf neighbor, show ip bgp summary, show ip protocols]
+    nxos: [show ip route summary, show ip interface brief, show ip ospf neighbors, show ip bgp summary, show ip arp]
+    eos: [show ip route summary, show ip interface brief, show ip ospf neighbor, show ip bgp summary, show ip arp]
+    junos: [show route summary, show interfaces terse, show ospf neighbor, show bgp summary, show arp no-resolve]
+    sonic_community: [show ip route, show ip interfaces, show ip bgp summary, show arp]

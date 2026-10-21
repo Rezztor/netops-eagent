@@ -1,0 +1,7 @@
+name: _ea_mail
+title: Member Email
+description: Lets the agent email people who hold accounts on this instance — reminders, updates, follow-ups. It cannot reach an address that is not on an account.
+version: 1.0.0
+settings_sections: []
+per_project_config: false
+per_agent_config: false

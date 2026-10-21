@@ -1,0 +1,35 @@
+# Create a VLAN, or rename one, on Cisco IOS.
+#
+# `state: merged`, so a VLAN that already exists keeps every attribute this
+# entry does not name.
+- name: Create or rename a VLAN
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Merge the VLAN and report the commands
+      block:
+        - name: Merge the VLAN
+          cisco.ios.ios_vlans:
+            config:
+              - vlan_id: "{{ vlan_id | int }}"
+                name: "{{ vlan_name }}"
+            state: merged
+          register: change
+
+        - name: Report the commands the module would push
+          ansible.builtin.debug:
+            var: change.commands
+      rescue:
+        - name: Say plainly why a switch module cannot take this
+          # Found on a Cisco 3725 with an NM-16ESW (IOS 12.4): the VLAN resource module answers
+          # "Resource VLAN is not valid for the target device", in check mode too.
+          ansible.builtin.fail:
+            msg: >-
+              {{ inventory_hostname }} cannot take this change: the device does not support the VLAN
+              resource this entry uses (typical of EtherSwitch modules, which keep VLANs in a separate
+              database). Nothing was changed. Create the VLAN by hand on that device.
+          when: "'not valid for the target device' in (ansible_failed_result.msg | default(''))"
+
+        - name: Fail with the module's own message
+          ansible.builtin.fail:
+            msg: "{{ ansible_failed_result.msg | default('the VLAN change failed') }}"

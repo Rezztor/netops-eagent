@@ -1,0 +1,2040 @@
+#!/usr/bin/env python3
+"""rezztor-update: update a machine installed from the ISO from one signed file.
+
+    rezztor-update                  the console: find a file, show it, install it, restart
+    rezztor-update check FILE       say what a file is and whether it fits this machine
+    rezztor-update install [FILE]   prepare the update beside the running version
+    rezztor-update restart          switch to the prepared update; go back if it does not start
+    rezztor-update discard          forget the file that was checked or prepared
+    rezztor-update status           the state, as the Updates page shows it
+    rezztor-update key              this machine's update key (Rezztor needs it once)
+    rezztor-update serve            take the web application's request, if there is one (the unit runs this)
+    rezztor-update bundle [usb]     make a support bundle for Rezztor; with usb, write it to a USB stick or disk
+    rezztor-update reboot           restart the appliance (Debian updates of a package may need it)
+
+A person supplies the file, or (spool actions refresh, download, update_all) the tool asks Rezztor's update
+service for the next one; nothing else on this machine is fetched (ADR 0080 and the update-service ADR). A release
+machine asks https://update.rezztor.com and trusts the system's CAs; only a UAT machine takes another address
+and CA from the request. The file is a plain tar of three members, in this order:
+
+    manifest.json   what it is, which versions it fits, what changes, restart or not
+    manifest.sig    Ed25519 over manifest.json, base64, made with a release key
+    payload.age     everything else, encrypted to this machine's own key; the manifest holds the
+                    SHA-256 of what is inside
+
+Trust is the public keys in /opt/rezztor/keys/*.pub and nothing else: no setting, no variable. This tool
+checks the signature itself, with openssl, before it reads one field of the manifest, and it checks the
+payload against the signed checksum before it unpacks anything. The web application can put a file and a
+request into the inbox and read the state; it cannot make this tool install what Rezztor did not sign.
+
+An update of the application's own files is not a new image in the file: it is the tree under /eagent,
+and the new image is made here from the base release's image and that tree (`docker run`, `docker
+commit`, no network). Every package is built on the base release, never on another package.
+
+The switch is one line in the stack's .env, merged, never a new file. Before it the database is dumped;
+after it the product must answer /api/health with the new version, or the old version comes back.
+
+A package of format 4 (ADR 0092) may also carry the network guard, systemd units from a fixed list, and Debian's
+updates since its core: .debs and their index under os/, covered by the signed checksum like the rest. Those are
+installed only after the new version answered, with apt reading that folder and no other source, so going back
+to the old version never has an operating system to take back. A failure there leaves the new version running and
+is said; the next package carries the same updates again. Whether the appliance then needs a restart is decided
+here, from what changed (REBOOT) and from /run/reboot-required; the restart itself waits for an administrator.
+
+Everything that touches the machine is in the class Host. Tests replace it.
+"""
+
+from __future__ import annotations
+
+import argparse
+import base64
+import binascii
+import fcntl
+import hashlib
+import http.client
+import io
+import ipaddress
+import json
+import lzma
+import os
+import re
+import shutil
+import ssl
+import stat
+import subprocess
+import sys
+import tarfile
+import tempfile
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+
+ROOT = ""  # tests point this at a directory
+STACK = "/var/lib/rezztor/stack"
+KEYS = "/opt/rezztor/keys"
+IDENTITY = "/etc/rezztor/update/identity"
+HOME = "/var/lib/rezztor/updates"
+INBOX = HOME + "/inbox"  # the application writes here: one file, one request
+STATE = HOME + "/state/state.json"  # the application reads this
+WORK = HOME + "/work"  # root only
+PACKAGE = WORK + "/package.rezupd"
+LOG = "/var/log/rezztor/update.log"  # root only: what was done, step by step, for whoever has to find a cause
+REQUEST = INBOX + "/request.json"
+UPLOAD = INBOX + "/package.rezupd"
+DOWNLOADS = WORK + "/download"  # a download in progress, kept to be continued where it stopped
+UAT_SERVER_FILE = WORK + "/uat-server.json"  # the address and CA a UAT machine was last given
+
+# The update service. A release machine asks this address and nothing else, with the system's CAs.
+SERVER = "https://update.rezztor.com"
+# A UAT machine (ADR 0085) asks the address and CA its request names, else this one.
+UAT_SERVER = "https://update.uat.rezztor.test"
+SERVER_URL = re.compile(r"https://[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?(?::\d{1,5})?")
+# The plaintext of the service's challenge. Anything else is not answered: this machine's key must never
+# decrypt for whoever asks (a decryption oracle).
+CHALLENGE = re.compile(r"[0-9a-f]{64}")
+NET_TIMEOUT = 30
+MAX_ANSWER = 1 << 20
+
+PRODUCT = "rezztor-eagent"
+# Format 4 (ADR 0092) may carry Debian's updates (`os`), the network guard and systemd units. A package without
+# them is still written as format 3, which a tool from before that also takes.
+FORMAT = 4
+FORMATS = (3, 4)
+IMAGES = ("eagent", "eagent-runner", "eagent-ansible", "eagent-cloud")
+# What an update may put on the host, and where. Nothing else in a package reaches the host's own files.
+HOST_FILES = {
+    "stack/docker-compose.yml": (STACK + "/docker-compose.yml", 0o644),
+    "host/rezztor-update": ("/usr/local/sbin/rezztor-update", 0o755),
+    "host/rezztor-setup": ("/usr/local/sbin/rezztor-setup", 0o755),
+    "host/rezztor-network": ("/usr/local/sbin/rezztor-network", 0o755),
+    # Format 4 (ADR 0092): the network guard, and the units from a fixed list.
+    "host/rezztor-guard": ("/opt/rezztor/rezztor-guard", 0o755),
+    **{f"units/{name}": (f"/etc/systemd/system/{name}", 0o644) for name in (
+        "rezztor-guard.service", "rezztor-guard-runner.service", "rezztor-firewall.service", "rezztor-load-images.service",
+        "rezztor-setup.service", "rezztor-update.service", "rezztor-update.path")},
+}  # fmt: skip
+FORMAT_3_HOST = ("stack/docker-compose.yml", "host/rezztor-update", "host/rezztor-setup", "host/rezztor-network")
+# Debian's updates in a package (ADR 0092): the .debs and their Packages index under os/, applied from there with
+# apt and no other source, once the new version answers. A change of one of these needs a restart of the appliance;
+# scripts/sign_release.py holds the same rule.
+REBOOT = re.compile(r"linux-image-.+|libc6|systemd|dbus|dbus-daemon")
+DEB_NAME = re.compile(r"[a-z0-9][a-z0-9+.-]{0,99}")
+DEB_VERSION = re.compile(r"[A-Za-z0-9.+~:-]{1,100}")
+DEB_FILE = re.compile(r"os/[A-Za-z0-9][A-Za-z0-9+.~%_-]{0,250}\.deb")
+REBOOT_FLAG = "/run/reboot-required"  # Debian's packages leave it when they want a restart; /run is empty after one
+BOOT_ID = "/proc/sys/kernel/random/boot_id"
+RESTART_TO_FINISH = " Restart the appliance to finish."
+# A release key a package brings, as `keys/<name>.pub`. It is added to KEYS once the new version
+# answers, and only under a name this machine does not have: a key is never replaced or removed (ADR 0080).
+NEW_KEY = re.compile(r"keys/[a-z0-9][a-z0-9-]{0,62}\.pub")
+# Read from disk at every use, or never read by the running product: when only these differ, the files
+# are put into the running application and nobody is interrupted. scripts/sign_release.py holds the
+# same list; this tool decides again, from what really differs on this machine.
+LIVE = ("prompts/", "frontend/dist/", "frontend/src/", "docs/", "build_info.json")
+APP = "rezztor-eagent"
+TREE = "cd /eagent && find . -path ./usr -prune -o -type f -print0 | xargs -0 sha256sum"
+VERSION = re.compile(r"\d{4}\.\d{2}\.\d{2}(\.\d{1,2})?")
+# A UAT machine (ADR 0085) runs <release>-uat and takes only packages that say -uat; a release takes none of them.
+UAT = "-uat"
+MAX_MANIFEST = 1 << 20
+MAX_PACKAGE = 20 << 30
+START_MINUTES = 10
+
+STEPS_INSTALL = (
+    ("signature", "Signature checked on the host"),
+    ("space", "Enough free space"),
+    ("open", "Opened, and compared with the signed checksum"),
+    ("images", "Building the new version beside the running one"),
+    ("ready", "Ready"),
+)
+STEPS_RESTART = (
+    ("backup", "Database backed up"),
+    ("switch", "Switching to the new version"),
+    ("answer", "Waiting for the product to answer"),
+)
+# After the new version answered, when the package carries Debian's updates (ADR 0092).
+STEP_SYSTEM = (("system", "Installing Debian updates"),)
+
+
+class Refused(Exception):
+    """A file or a request this machine does not take. `text` is shown to the administrator as it is."""
+
+    def __init__(self, code, text):
+        super().__init__(text)
+        self.code, self.text = code, text
+
+
+def now():
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+
+# --- the manifest: plain functions ---------------------------------------------
+
+
+def version_key(version):
+    return tuple(int(part) for part in version.split("."))
+
+
+def read_manifest(body):
+    """The signed manifest as a dict, or Refused. Called only after the signature held."""
+    try:
+        m = json.loads(body.decode("utf-8"))
+    except (ValueError, UnicodeDecodeError):
+        raise Refused("bad_manifest", "This file was not accepted: its description cannot be read.") from None
+    bad = Refused("bad_manifest", "This file was not accepted: its description is not one this version understands.")
+    if not isinstance(m, dict) or m.get("format") not in FORMATS:
+        raise Refused(
+            "format",
+            "This update was made for a newer update tool than this machine has. Ask Rezztor for the package that comes first.",
+        )
+    if m.get("product") != PRODUCT:
+        raise Refused("product", "This file is not an update for Rezztor EAgent.")
+    for key in ("version", "base", "min_from"):
+        if not isinstance(m.get(key), str) or not VERSION.fullmatch(m[key].removesuffix(UAT)):
+            raise bad
+    if m.get("restart") not in ("none", "application") or not isinstance(m.get("database_change"), bool):
+        raise bad
+    notes = m.get("notes")
+    if not isinstance(notes, list) or len(notes) > 20 or not all(isinstance(n, str) and len(n) <= 400 for n in notes):
+        raise bad
+    payload = m.get("payload")
+    if (
+        not isinstance(payload, dict)
+        or not isinstance(payload.get("size"), int)
+        or not re.fullmatch(r"[0-9a-f]{64}", str(payload.get("sha256")))
+    ):
+        raise bad
+    images = m.get("images")
+    if not isinstance(images, dict) or not set(images) <= set(IMAGES):
+        raise bad
+    for name, spec in images.items():
+        if not isinstance(spec, dict) or spec.get("mode") not in ("files", "image"):
+            raise bad
+        if spec["mode"] == "files" and name != "eagent":
+            raise bad
+        if not re.fullmatch(r"(app|images)/[a-z0-9][a-z0-9._-]*", str(spec.get("file"))):
+            raise bad
+    host = m.get("host")
+    if not isinstance(host, list) or not all(isinstance(n, str) and (n in HOST_FILES or NEW_KEY.fullmatch(n)) for n in host):
+        raise bad
+    if m["base"] == m["version"] and any(images.get(name, {}).get("mode") != "image" for name in IMAGES):
+        raise bad  # a new base release carries every image whole
+    if m["restart"] == "none" and (host or m["database_change"] or {n: s["mode"] for n, s in images.items()} != {"eagent": "files"}):
+        raise bad  # only the application's own files can change without a restart
+    minutes = m.get("start_minutes", START_MINUTES)
+    if not isinstance(minutes, int) or not 1 <= minutes <= 60:
+        raise bad
+    system = m.get("os")
+    if system is not None:
+        if not isinstance(system, dict):
+            raise bad
+        packages = system.get("packages")
+        if (
+            not re.fullmatch(r"\d{8}T\d{6}Z", str(system.get("snapshot")))
+            or not isinstance(system.get("reboot"), bool)
+            or not isinstance(packages, list)
+            or not 0 < len(packages) <= 3000
+        ):
+            raise bad
+        for item in packages:
+            if not isinstance(item, dict) or not DEB_NAME.fullmatch(str(item.get("name"))) or not DEB_VERSION.fullmatch(str(item.get("to"))):
+                raise bad
+            if (item.get("from") is not None and not DEB_VERSION.fullmatch(str(item["from"]))) or not DEB_FILE.fullmatch(str(item.get("file"))):
+                raise bad
+        if len({item["file"] for item in packages}) != len(packages):
+            raise bad
+    if m["format"] == 3 and (system is not None or any(n in HOST_FILES and n not in FORMAT_3_HOST for n in host)):
+        raise bad  # format 3 is the shape a tool from before ADR 0092 takes
+    return m
+
+
+def release_of(have):
+    """The suffix of the running version ("" or -uat), or Refused when it is not a release version."""
+    if not have:
+        raise Refused("not_installed", "The product is not installed on this machine yet.")
+    # A UAT machine's version ends in -uat (ADR 0085).
+    suffix = UAT if str(have).endswith(UAT) else ""
+    if not VERSION.fullmatch(str(have).removesuffix(suffix)):
+        # .env says what runs, and not every stack runs a release: a lab build's version ends in -lab, a
+        # hand-installed one may say `latest`. version_key would raise on it, and the tool would stop.
+        raise Refused(
+            "not_a_release",
+            f"This machine runs {have}, which is not a release version, so no update file fits it. "
+            "An update is made for one release; install that release first.",
+        )
+    return suffix
+
+
+def fits(m, installed):
+    """Refused when this machine cannot take the update: older, or made for another release."""
+    have, base = installed.get("version"), installed.get("base")
+    # The package's three versions must carry -uat exactly when the running one does: a release takes no UAT
+    # package, and a UAT machine takes no release package.
+    suffix = release_of(have)
+    plain = {}
+    for key in ("version", "base", "min_from"):
+        value = m[key].removesuffix(suffix)
+        if not m[key].endswith(suffix) or not VERSION.fullmatch(value):
+            raise Refused(
+                "other_kind",
+                f"This update is {m['version']}, made for a {'release' if suffix else 'UAT test'} machine. "
+                f"This machine runs {have}, a {'UAT test machine' if suffix else 'release'}, and takes no such file.",
+            )
+        plain[key] = value
+    running = have.removesuffix(suffix)
+    if version_key(plain["version"]) <= version_key(running):
+        raise Refused(
+            "older",
+            f"This update is {m['version']}. You run {have}, which is "
+            f"{'the same' if plain['version'] == running else 'newer'}. There is no way back to an older version.",
+        )
+    if version_key(running) < version_key(plain["min_from"]):
+        raise Refused(
+            "too_old",
+            f"This update needs at least {m['min_from']}. You run {have}. Ask Rezztor for the package that comes first.",
+        )
+    if m["base"] != m["version"] and m["base"] != base:
+        raise Refused(
+            "other_release",
+            f"This update needs release {m['base']}. You run {have} on release {base}. "
+            "Ask Rezztor for the package for your release.",
+        )
+
+
+def live_plan(old, new):
+    """(files to copy, files to remove) to turn the running tree `old` into `new`, both {path: sha256},
+    when nothing but texts and screens differs. None when a restart is the only honest way."""
+    copy = sorted(path for path in new if old.get(path) != new[path])
+    remove = sorted(path for path in old if path not in new)
+    live = all(any(path == prefix or (prefix.endswith("/") and path.startswith(prefix)) for prefix in LIVE) for path in copy + remove)
+    return (copy, remove) if live and old and new else None
+
+
+def view(m, key, size):
+    """What the Updates page and the console show of a package."""
+    return {
+        "file": "package.rezupd",
+        "size": size,
+        "version": m["version"],
+        "base": m["base"],
+        "restart": m["restart"],
+        "database_change": m["database_change"],
+        "notes": m["notes"],
+        "key": key,
+        "created": str(m.get("created") or ""),
+        # Debian's updates the package carries since its core (ADR 0092); this machine may have some already.
+        "os": {"snapshot": m["os"]["snapshot"], "reboot": m["os"]["reboot"],
+               "packages": [{field: item[field] for field in ("name", "from", "to")} for item in m["os"]["packages"]]}
+        if m.get("os") else None,
+    }  # fmt: skip
+
+
+def env_get(text, key):
+    for line in text.splitlines():
+        if line.startswith(key + "="):
+            return line[len(key) + 1 :].strip().strip("'\"")
+    return ""
+
+
+def env_set(text, key, value):
+    """One line changed or added; every other line as it was (.env holds the secrets)."""
+    lines = text.splitlines()
+    at = [i for i, line in enumerate(lines) if line.startswith(key + "=")]
+    if at:
+        lines[at[0]] = f"{key}={value}"
+    else:
+        lines.append(f"{key}={value}")
+    return "\n".join(lines) + "\n"
+
+
+def stack_env():
+    """The stack's .env as it is, or Refused. It holds every secret of the installation, so nothing is
+    ever written back that did not start from the whole file."""
+    text = _read(STACK + "/.env")
+    if not text or "REZZTOR_VERSION=" not in text:
+        raise Refused("no_stack", "The product's settings file (.env) could not be read. Nothing was changed.")
+    return text
+
+
+def blank():
+    return {
+        "v": 1,
+        "phase": "idle",
+        "installed": {"version": None, "base": None, "updated_at": None},
+        "package": None,
+        "manifest": None,
+        "steps": [],
+        "error": None,
+        "result": None,
+        "history": [],
+        "request": None,
+        "kept": [],
+        "bundle_error": None,
+        # What the update service offers this machine (refresh), the walk of update_all, and a download.
+        "updates": None,
+        "progress": None,
+        "download": None,
+        # Debian's updates of the last package that carried them (ADR 0092), and whether the appliance needs a restart.
+        "os": None,
+    }
+
+
+def size_text(count):
+    return f"{count / (1 << 30):.1f} GB" if count >= 1 << 30 else f"{max(count / (1 << 20), 0.1):.1f} MB"
+
+
+# --- files ---------------------------------------------------------------------
+
+
+def _path(path):
+    return ROOT + path
+
+
+def _read(path):
+    try:
+        with open(_path(path), encoding="utf-8") as handle:
+            return handle.read()
+    except OSError:
+        return None
+
+
+def _write(path, text, mode=0o600):
+    path = _path(path)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path + ".new", "w", encoding="utf-8") as handle:
+        os.chmod(handle.name, mode)
+        handle.write(text)
+    os.replace(path + ".new", path)
+
+
+def _log(text):
+    try:
+        os.makedirs(os.path.dirname(_path(LOG)), mode=0o700, exist_ok=True)
+        with open(_path(LOG), "a", encoding="utf-8") as handle:
+            os.chmod(handle.name, 0o600)
+            handle.write(f"{now()} {text}\n")
+    except OSError:
+        pass
+
+
+def _forget(*paths):
+    for path in paths:
+        path = _path(path)
+        if os.path.isdir(path) and not os.path.islink(path):
+            shutil.rmtree(path, ignore_errors=True)
+        elif os.path.lexists(path):
+            os.remove(path)
+
+
+def _take(source, target, limit=MAX_PACKAGE):
+    """Copy a file somebody else wrote into a place only root writes. Never through a link, never a
+    device, never more than `limit`. `source` is a real path; `target` is under ROOT."""
+    try:
+        fd = os.open(source, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except OSError:
+        raise Refused("no_file", "The update file could not be read.") from None
+    with os.fdopen(fd, "rb") as handle:
+        info = os.fstat(handle.fileno())
+        if not stat.S_ISREG(info.st_mode) or info.st_size > limit:
+            raise Refused("no_file", "The update file is not a plain file, or it is too large.")
+        os.makedirs(os.path.dirname(_path(target)), mode=0o700, exist_ok=True)
+        with open(_path(target) + ".new", "wb") as out:
+            os.chmod(out.name, 0o600)
+            # The size that was checked, and not a byte more: whoever wrote the file may still be writing it.
+            left = info.st_size
+            while left > 0:
+                chunk = handle.read(min(left, 1 << 20))
+                if not chunk:
+                    break
+                out.write(chunk)
+                left -= len(chunk)
+    os.replace(_path(target) + ".new", _path(target))
+    return info.st_size
+
+
+def _sha256(path):
+    digest = hashlib.sha256()
+    with open(_path(path), "rb") as handle:
+        while chunk := handle.read(1 << 20):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _run(*argv, timeout=600, stdin=None, cwd=None, env=None):
+    try:
+        return subprocess.run(argv, capture_output=True, text=True, timeout=timeout, stdin=stdin, cwd=cwd, env=env)
+    except (OSError, subprocess.TimeoutExpired) as error:
+        return subprocess.CompletedProcess(argv, 127, "", str(error))
+
+
+def _apt_error(text):
+    """apt's own error lines ("E: ...", which name the file and say "Hash Sum mismatch"), not the tail of its
+    output, which starts in the middle of a checksum listing."""
+    lines = (text or "").strip().splitlines()
+    errors = [line.strip() for line in lines if line.startswith("E:")]
+    return " ".join(errors)[:300] if errors else "\n".join(lines).strip()[-300:]
+
+
+def open_package(path):
+    """(manifest bytes, signature bytes) out of the tar, and the payload copied beside it. The file is
+    not trusted yet: three members, these names, this order, sizes bounded, nothing else is read."""
+    refused = Refused("not_a_package", "This file is not a Rezztor update. Nothing was installed.")
+    try:
+        with tarfile.open(_path(path), mode="r:") as tar:
+            parts = []
+            for name, limit in (("manifest.json", MAX_MANIFEST), ("manifest.sig", 4096), ("payload.age", MAX_PACKAGE)):
+                member = tar.next()
+                # A sparse member is a few bytes in the file and as many zeros as it says on disk.
+                if member is None or member.name != name or not member.isreg() or member.issparse() or member.size > limit:
+                    raise refused
+                parts.append((member, tar.extractfile(member)))
+            body, signature = parts[0][1].read(), parts[1][1].read()
+            with open(_path(WORK + "/payload.age"), "wb") as out:
+                os.chmod(out.name, 0o600)
+                shutil.copyfileobj(parts[2][1], out, 1 << 20)
+    except (tarfile.TarError, OSError, EOFError, ValueError):
+        raise refused from None
+    return body, signature
+
+
+# --- the machine ---------------------------------------------------------------
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *args, **kwargs):
+        return None
+
+
+class Host:
+    """Everything that touches the machine. Tests replace it with a fake."""
+
+    def sleep(self, seconds):
+        time.sleep(seconds)
+
+    # keys
+
+    def key_names(self):
+        try:
+            return sorted(name[:-4] for name in os.listdir(_path(KEYS)) if name.endswith(".pub"))
+        except OSError:
+            return []
+
+    def verify(self, body, signature):
+        """The name of the release key that signed `body`, or None. openssl does the arithmetic."""
+        try:
+            raw = base64.b64decode(signature.strip(), validate=True)
+        except (binascii.Error, ValueError):
+            return None
+        if len(raw) != 64:
+            return None
+        os.makedirs(_path(WORK), mode=0o700, exist_ok=True)
+        body_path, sig_path = _path(WORK + "/verify.body"), _path(WORK + "/verify.sig")
+        try:
+            with open(body_path, "wb") as handle:
+                handle.write(body)
+            with open(sig_path, "wb") as handle:
+                handle.write(raw)
+            for name in self.key_names():
+                done = _run("openssl", "pkeyutl", "-verify", "-pubin", "-inkey", _path(f"{KEYS}/{name}.pub"),
+                            "-rawin", "-in", body_path, "-sigfile", sig_path)  # fmt: skip
+                if done.returncode == 0:
+                    return name
+            return None
+        finally:
+            _forget(WORK + "/verify.body", WORK + "/verify.sig")
+
+    def update_key(self):
+        """The public half of this machine's own key; the private half is made here and stays here."""
+        if not os.path.exists(_path(IDENTITY)):
+            os.makedirs(os.path.dirname(_path(IDENTITY)), mode=0o700, exist_ok=True)
+            _run("age-keygen", "-o", _path(IDENTITY))
+        done = _run("age-keygen", "-y", _path(IDENTITY))
+        return done.stdout.strip() if done.returncode == 0 else ""
+
+    def decrypt(self, source, target):
+        done = _run("age", "-d", "-i", _path(IDENTITY), "-o", _path(target), _path(source), timeout=3600)
+        return done.returncode == 0
+
+    def open_challenge(self, armored):
+        """The plaintext of the update service's challenge, decrypted with this machine's key, or None."""
+        try:
+            done = subprocess.run(["age", "-d", "-i", _path(IDENTITY)], input=armored.encode("ascii", "replace"),
+                                  capture_output=True, timeout=30, check=False)  # fmt: skip
+        except (OSError, subprocess.TimeoutExpired):
+            return None
+        return done.stdout.decode("ascii", "replace") if done.returncode == 0 else None
+
+    def open_url(self, request, context, proxy, timeout):
+        """The one door to the network: the update service, through the stack's proxy when .env names one.
+        No redirect is followed: a token goes to the address that was asked and nowhere else."""
+        opener = urllib.request.build_opener(
+            urllib.request.ProxyHandler({"https": proxy} if proxy else {}),
+            urllib.request.HTTPSHandler(context=context),
+            _NoRedirect,
+        )
+        return opener.open(request, timeout=timeout)
+
+    def free(self):
+        path = "/var/lib/docker" if os.path.isdir("/var/lib/docker") else _path(HOME)
+        return shutil.disk_usage(path).free
+
+    # the operating system (ADR 0092)
+
+    def systemctl(self, *args):
+        done = _run("systemctl", *args, timeout=300)
+        return None if done.returncode == 0 else ((done.stderr or done.stdout).strip()[-300:] or f"systemctl {args[0]} failed")
+
+    def dpkg_versions(self):
+        """{package: version} of what is installed; {} when dpkg cannot say."""
+        done = _run("dpkg-query", "-W", "-f", "${db:Status-Abbrev}\t${Package}\t${Version}\n")
+        found = {}
+        for line in done.stdout.splitlines() if done.returncode == 0 else []:
+            status, _, rest = line.partition("\t")
+            name, _, version = rest.partition("\t")
+            if status.startswith("ii"):
+                found[name] = version
+        return found
+
+    def apt_upgrade(self, folder):
+        """Debian's updates from `folder`, a flat repository (the .debs and their Packages index), and from nothing
+        else: the machine's own sources are not read and nothing is downloaded. Configuration files a person
+        changed stay as they are. A sentence when it failed."""
+        apt = WORK + "/apt"
+        _forget(apt)
+        for sub in ("lists/partial", "cache/archives/partial"):
+            os.makedirs(_path(f"{apt}/{sub}"), mode=0o700, exist_ok=True)
+        _write(apt + "/sources.list", f"deb [trusted=yes] file:{_path(folder)} ./\n", 0o644)
+        only = ["-o", f"Dir::Etc::sourcelist={_path(apt)}/sources.list", "-o", "Dir::Etc::sourceparts=/dev/null",
+                "-o", f"Dir::State::Lists={_path(apt)}/lists", "-o", f"Dir::Cache={_path(apt)}/cache",
+                "-o", "APT::Install-Recommends=false", "-o", "Acquire::Languages=none"]  # fmt: skip
+        keep = ["-o", "Dpkg::Options::=--force-confold", "-o", "Dpkg::Options::=--force-confdef"]
+        env = {**os.environ, "DEBIAN_FRONTEND": "noninteractive", "APT_LISTCHANGES_FRONTEND": "none"}
+        try:
+            # A run a power cut stopped half-way is finished first.
+            for argv in (("dpkg", "--configure", "-a", "--force-confold", "--force-confdef"), ("apt-get", *only, "update"),
+                         ("apt-get", *only, *keep, "-y", "--with-new-pkgs", "upgrade")):  # fmt: skip
+                done = _run(*argv, timeout=3600, env=env)
+                if done.returncode:
+                    return f"{argv[0]} {argv[-1]}: {_apt_error(done.stderr or done.stdout) or 'failed'}"
+            return None
+        finally:
+            _forget(apt)
+
+    def boot_id(self):
+        return (_read(BOOT_ID) or "").strip()
+
+    def reboot_flag(self):
+        return os.path.exists(_path(REBOOT_FLAG))
+
+    def reboot(self):
+        done = _run("systemctl", "reboot", timeout=120)
+        return None if done.returncode == 0 else ((done.stderr or done.stdout).strip()[-300:] or "systemctl reboot failed")
+
+    # images
+
+    def image(self, ref):
+        """The image's settings (docker inspect), or None when it is not on this machine."""
+        done = _run("docker", "image", "inspect", "--format", "{{json .Config}}", ref)
+        try:
+            return json.loads(done.stdout) if done.returncode == 0 else None
+        except ValueError:
+            return None
+
+    def tag(self, source, target):
+        return _run("docker", "tag", source, target).returncode == 0
+
+    def untag(self, ref):
+        _run("docker", "rmi", ref)
+
+    def load(self, path):
+        return _run("docker", "load", "-i", _path(path), timeout=3600).returncode == 0
+
+    def build(self, base, tree, target):
+        """`target` = `base` with /eagent replaced by the tree in the xz tar at `tree`. No network, no
+        builder: a container of the base image unpacks the tar, and is committed with the base's own
+        command put back. Returns a sentence when it failed."""
+        config = self.image(base)
+        if config is None:
+            return f"the image {base} is not on this machine"
+        name = "rezztor-update-build"
+        _run("docker", "rm", "-f", name)
+        # An image with an entrypoint gets `sh` in its place for this one run, and its own back at the
+        # commit. One without is given `sh` as its command: a commit cannot take an entrypoint away again.
+        entrypoint = config.get("Entrypoint") or []
+        shell, words = (["--entrypoint", "sh"], []) if entrypoint else ([], ["sh"])
+        script = "mkdir -p /eagent && find /eagent -mindepth 1 -maxdepth 1 ! -name usr -exec rm -rf {} + && tar -xf - -C / && test -f /eagent/run_ui.py"
+        try:
+            # stderr goes to a file: a talkative tar must not fill a pipe while the tree is still being written
+            with tempfile.TemporaryFile() as errors:
+                run = subprocess.Popen(
+                    ["docker", "run", "-i", "--network", "none", "--name", name, *shell, base, *words, "-c", script],
+                    stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=errors,
+                )  # fmt: skip
+                broken = False
+                try:
+                    with lzma.open(_path(tree), "rb") as plain:
+                        shutil.copyfileobj(plain, run.stdin, 1 << 20)
+                except (OSError, lzma.LZMAError, EOFError):
+                    broken = True
+                finally:
+                    # Always: a tar that is never told the stream ended waits for ever.
+                    try:
+                        run.stdin.close()
+                    except OSError:
+                        pass
+                try:
+                    code = run.wait(timeout=1800)
+                except subprocess.TimeoutExpired:
+                    _run("docker", "rm", "-f", name)
+                    run.wait()
+                    return "unpacking the files into the image took too long"
+                if broken or code:
+                    errors.seek(0)
+                    return errors.read().decode("utf-8", "replace").strip()[-300:] or "the files could not be unpacked into the image"
+            change = ["--change", f"CMD {json.dumps(config.get('Cmd') or [])}"]
+            if entrypoint:
+                change += ["--change", f"ENTRYPOINT {json.dumps(entrypoint)}"]
+            done = _run("docker", "commit", *change, name, target, timeout=1800)
+            if done.returncode:
+                return done.stderr.strip()[-300:] or "docker commit failed"
+            made = self.image(target) or {}
+            # The commit must change the files and nothing else: same command, user, variables, ports.
+            for field in ("Entrypoint", "Cmd", "Env", "User", "WorkingDir", "ExposedPorts", "Volumes", "Labels",
+                          "Healthcheck", "StopSignal"):  # fmt: skip
+                if (made.get(field) or None) != (config.get(field) or None):
+                    self.untag(target)
+                    return f"the new image differs from the base in {field}"
+            return None
+        except OSError as error:
+            return str(error)
+        finally:
+            _run("docker", "rm", "-f", name)
+
+    def tree(self, image=None, container=None):
+        """{path: sha256} of the application's files in an image or in a running container; {} on failure."""
+        where = ["exec", container] if container else ["run", "--rm", "--network", "none", "--entrypoint", "sh", image]
+        done = _run("docker", *where, *(["sh"] if container else []), "-c", TREE)
+        if done.returncode:
+            return {}
+        return {path.removeprefix("./"): digest for digest, _, path in (line.partition("  ") for line in done.stdout.splitlines())}
+
+    def copy_live(self, image, copy, remove, container=APP):
+        """Put `copy` from the image into the running container and delete `remove` there. A sentence when it failed."""
+        names = "\0".join(copy).encode()
+        if copy:
+            pack = subprocess.Popen(
+                ["docker", "run", "--rm", "-i", "--network", "none", "--entrypoint", "sh", image, "-c", "cd /eagent && tar -cf - --null -T -"],
+                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+            )  # fmt: skip
+            # As the application's own account, the owner of /eagent: root in that container holds no DAC_OVERRIDE.
+            unpack = subprocess.Popen(["docker", "exec", "-i", "-u", "1000:1000", container, "tar", "-xf", "-", "-C", "/eagent"],
+                                      stdin=pack.stdout, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)  # fmt: skip
+            pack.stdout.close()
+            pack.stdin.write(names)
+            pack.stdin.close()
+            if unpack.wait(timeout=600) or pack.wait(timeout=600):
+                return "the files could not be copied into the running application"
+        if remove:
+            done = subprocess.run(["docker", "exec", "-i", "-u", "1000:1000", container, "sh", "-c", "cd /eagent && xargs -0 rm -f --"],
+                                  input="\0".join(remove).encode(), capture_output=True, timeout=600, check=False)  # fmt: skip
+            if done.returncode:
+                return "old files could not be removed from the running application"
+        return None
+
+    # the stack
+
+    def compose(self, *args, timeout=1800):
+        done = _run("docker", "compose", *args, cwd=_path(STACK), timeout=timeout)
+        return None if done.returncode == 0 else (done.stderr.strip()[-400:] or f"docker compose {args[0]} failed")
+
+    def health(self):
+        """The product's own answer on its local port, or None."""
+        port = env_get(_read(STACK + "/.env") or "", "REZZTOR_PORT") or "50080"
+        try:
+            with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/health", timeout=5) as answer:
+                info = json.load(answer).get("gitinfo")
+                return info if isinstance(info, dict) else {}
+        except (OSError, ValueError, AttributeError):
+            return None
+
+    def schema(self):
+        """The newest database change the product has applied, as a number, or None."""
+        done = _run("docker", "compose", "exec", "-T", "postgres", "psql", "-U", "eagent", "-d", "eagent", "-tAc",
+                    "SELECT max(number) FROM schema_migrations", cwd=_path(STACK))  # fmt: skip
+        return int(done.stdout.strip()) if done.returncode == 0 and done.stdout.strip().isdigit() else None
+
+    def dump(self, path):
+        """The whole database as SQL that puts it back, its grants included (INSTALL.md, "Back up first")."""
+        os.makedirs(os.path.dirname(_path(path)), mode=0o700, exist_ok=True)
+        with open(_path(path) + ".new", "wb") as out:
+            os.chmod(out.name, 0o600)
+            done = subprocess.run(
+                ["docker", "compose", "exec", "-T", "postgres", "pg_dump", "-U", "eagent", "-d", "eagent",
+                 "--create", "--clean", "--if-exists"],
+                cwd=_path(STACK), stdout=out, stderr=subprocess.PIPE, timeout=3600, check=False,
+            )  # fmt: skip
+        if done.returncode or os.path.getsize(_path(path) + ".new") < 1024:
+            _forget(path + ".new")
+            return done.stderr.decode("utf-8", "replace").strip()[-300:] or "pg_dump wrote nothing"
+        os.replace(_path(path) + ".new", _path(path))
+        return None
+
+    def restore(self, path):
+        """Put the dump back: the database is dropped and made again, so nothing of the newer version stays."""
+        with open(_path(path), "rb") as dump:
+            done = _run("docker", "compose", "exec", "-T", "postgres", "psql", "-U", "eagent", "-d", "postgres", "-q",
+                        "-v", "ON_ERROR_STOP=1", "-f", "-", cwd=_path(STACK), stdin=dump, timeout=3600)  # fmt: skip
+        return None if done.returncode == 0 else (done.stderr.strip()[-300:] or "the database could not be restored")
+
+    # files somebody brought
+
+    def media(self):
+        """Update files on a USB stick, a virtual CD, or copied to the inbox: [(path, size)]. A medium
+        is mounted read-only for the look and left mounted until `unmount`."""
+        found = []
+        for folder in [INBOX] + self._mount_media():
+            try:
+                names = sorted(os.listdir(folder))
+            except OSError:
+                continue
+            found += [os.path.join(folder, name) for name in names if name.endswith(".rezupd")]
+        return [(path, os.path.getsize(path)) for path in found if os.path.isfile(path) and not os.path.islink(path)]
+
+    def _mount_media(self):
+        done = _run("lsblk", "-J", "-o", "PATH,FSTYPE,MOUNTPOINT,TYPE")
+        try:
+            devices = json.loads(done.stdout)["blockdevices"]
+        except (ValueError, KeyError):
+            return []
+        flat, stack = [], list(devices)
+        while stack:
+            device = stack.pop()
+            flat.append(device)
+            stack += device.get("children") or []
+        folders = []
+        for index, device in enumerate(flat):
+            if device.get("mountpoint") or device.get("fstype") not in ("vfat", "exfat", "ext4", "iso9660", "udf", "ntfs"):
+                continue
+            folder = f"/run/rezztor-update-media/{index}"
+            os.makedirs(folder, exist_ok=True)
+            if _run("mount", "-o", "ro,nosuid,nodev,noexec", device["path"], folder).returncode == 0:
+                folders.append(folder)
+        return folders
+
+    # the support bundle
+
+    def collect(self):
+        """What a support bundle holds, before it is cleaned: [(name in the bundle, text)]. A fixed list;
+        the stack's .env, keys, certificates, the database and user files are not on it."""
+
+        def run(*argv):
+            done = _run(*argv, timeout=120)
+            return f"$ {' '.join(argv)}\n{done.stdout}{done.stderr}\n"
+
+        def tail(path, lines=5000):
+            try:
+                with open(_path(path), encoding="utf-8", errors="replace") as handle:
+                    return "".join(handle.readlines()[-lines:])
+            except OSError:
+                return f"({path} is not there)\n"
+
+        names = [name for name in _run("docker", "ps", "-a", "--format", "{{.Names}}").stdout.split()
+                 if re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", name)]  # fmt: skip
+        return [
+            ("version.txt", tail("/var/lib/rezztor/payload/VERSION") + tail("/etc/rezztor/build-mark")
+             + run("uname", "-a") + tail("/etc/os-release") + run("uptime")),
+            ("status.txt", run("/usr/local/sbin/rezztor-setup", "status")),
+            ("containers.txt", run("docker", "ps", "-a") + run("docker", "images") + run("docker", "system", "df")),
+            *((f"containers/{name}.log", run("docker", "logs", "--tail", "2000", "--timestamps", name)) for name in names),
+            ("journal.txt", run("journalctl", "--no-pager", "--since", "-7d", "-n", "20000", "-u", "rezztor-*",
+                                "-u", "docker.service", "-u", "nginx.service", "-u", "ssh.service")),
+            ("network.txt", run("/usr/local/sbin/rezztor-network", "list") + run("ip", "-br", "address")
+             + run("ip", "route") + run("nft", "list", "table", "inet", "rezztor_guard") + tail("/etc/resolv.conf")),
+            ("settings.txt", tail("/etc/rezztor/answers.env")),
+            ("system.txt", run("df", "-h") + run("free", "-m") + run("lsblk", "-o", "NAME,SIZE,TYPE,FSTYPE,MOUNTPOINT")),
+            ("logs/setup.log", tail("/var/log/rezztor/setup.log")),
+            ("logs/setup.log.installer", tail("/var/log/rezztor/setup.log.installer")),
+            ("logs/update.log", tail(LOG)),
+            ("update-state.json", tail(STATE)),
+        ]  # fmt: skip
+
+    def write_to_medium(self, path):
+        """Copy `path` to the first USB stick or removable disk that is not in use and can be written; the
+        device's name with the disk's model and size, or None. Mounted only for the copy. A fixed disk is
+        never written, even an empty second one: lsblk must say removable or USB (audit 2026-10-16, L3)."""
+        done = _run("lsblk", "-J", "-o", "PATH,FSTYPE,MOUNTPOINT,LABEL,TYPE,RM,TRAN,MODEL,SIZE")
+        try:
+            disks = json.loads(done.stdout)["blockdevices"]
+        except (ValueError, KeyError):
+            return None
+        flat = []
+        for disk in disks:
+            # Older lsblk writes RM as "1", newer as true.
+            if disk.get("rm") not in (True, 1, "1") and disk.get("tran") != "usb":
+                continue
+            # A disk with anything of it in use is this machine's own (its EFI partition is FAT, too).
+            members, stack = [], [disk]
+            while stack:
+                device = stack.pop()
+                members.append(device)
+                stack += device.get("children") or []
+            if not any(device.get("mountpoint") for device in members):
+                named = " ".join(str(disk.get(key) or "").strip() for key in ("model", "size")).strip()
+                flat += [{**device, "named": f"{device['path']} ({named})" if named else device["path"]} for device in members]
+        folder = "/run/rezztor-bundle-media"
+        for device in flat:
+            if device.get("fstype") not in ("vfat", "exfat", "ext4") or device.get("label") == "REZZTOR-ANSWERS":
+                continue
+            os.makedirs(folder, exist_ok=True)
+            if _run("mount", "-o", "rw,nosuid,nodev,noexec", device["path"], folder).returncode != 0:
+                continue
+            try:
+                shutil.copyfile(path, os.path.join(folder, os.path.basename(path)))
+                os.sync()
+                return device["named"]
+            except OSError:
+                continue
+            finally:
+                _run("umount", folder)
+        return None
+
+    def unmount(self):
+        base = "/run/rezztor-update-media"
+        for name in os.listdir(base) if os.path.isdir(base) else []:
+            _run("umount", os.path.join(base, name))
+
+
+# --- the state -----------------------------------------------------------------
+
+
+def load_state():
+    try:
+        state = {**blank(), **json.loads(_read(STATE) or "")}
+    except (ValueError, TypeError):
+        state = blank()
+    running = env_get(_read(STACK + "/.env") or "", "REZZTOR_VERSION")
+    installed = state["installed"]
+    # .env is what Compose runs. A machine never updated here, or upgraded by hand since, is its own base.
+    if running and state["phase"] in ("idle", "checked") and installed.get("version") != running:
+        state["installed"] = {"version": running, "base": running, "updated_at": installed.get("updated_at")}
+    return state
+
+
+def save_state(host, state):
+    state.update(update_key=host.update_key(), keys=host.key_names(), bundles=bundles(), at=now())
+    _reboot_now(host, state)
+    for folder, mode in ((INBOX, 0o700), (WORK, 0o700), (os.path.dirname(STATE), 0o755)):
+        os.makedirs(_path(folder), mode=mode, exist_ok=True)
+    _write(STATE, json.dumps(state, indent=1, sort_keys=True) + "\n", 0o644)
+
+
+def _reboot_now(host, state):
+    """Whether the appliance needs a restart: Debian's updates said so in this boot, or a package left
+    /run/reboot-required. A restart since then answers it (another boot id)."""
+    system, boot = state.get("os"), host.boot_id()
+    if system and system.get("reboot_needed") and system.get("boot") != boot:
+        system["reboot_needed"] = False
+        _log("the appliance was restarted: no restart is needed any more")
+        result = state.get("result") or {}
+        if result.get("text", "").endswith(RESTART_TO_FINISH):  # the page would keep asking for a restart it had
+            result["text"] = result["text"].removesuffix(RESTART_TO_FINISH) + " The appliance was restarted since."
+    if host.reboot_flag() and not (system or {}).get("reboot_needed"):
+        state["os"] = {"version": None, "snapshot": None, "applied": 0, "packages": [], "error": None, "at": now(),
+                       **(system or {}), "reboot_needed": True, "boot": boot}  # fmt: skip
+
+
+def _steps(state, plan, at=None):
+    """The step list the page shows: everything before `at` done, `at` running; all done without `at`."""
+    ids = [step for step, _ in plan]
+    reached = ids.index(at) if at else len(ids)
+    state["steps"] = [
+        {"id": step, "text": text, "state": "done" if index < reached else "running" if index == reached else "waiting"}
+        for index, (step, text) in enumerate(plan)
+    ]
+
+
+def _clear(host, state, images=False):
+    """Forget the package: its files and, with `images`, the image names an install made for it."""
+    m = state.get("manifest")
+    if m and images:
+        for name in IMAGES:
+            host.untag(f"rezztor/{name}:{m['version']}")
+    _forget(PACKAGE, WORK + "/payload.age", WORK + "/payload.tar", WORK + "/unpacked")
+    state.update(phase="idle", package=None, manifest=None, steps=[])
+
+
+# --- check, install, restart ---------------------------------------------------
+
+
+def _free_to_take(state):
+    """Refused while another update is under way or waits for its restart."""
+    if state["phase"] in ("installing", "restarting", "downloading"):
+        raise Refused("busy", "An update is being installed. Wait until it has finished.")
+    if state["phase"] == "staged":
+        raise Refused(
+            "waiting",
+            f"{state['package']['version']} is installed and waits for a restart. "
+            "Restart, or remove it, before installing another.",
+        )
+
+
+def check(host, state, source, own=False):
+    """Take a file, prove who made it, see whether it fits. Changes nothing but the state. `own`: the file
+    is this tool's own download in WORK, and is moved rather than copied (a bridge is several GB)."""
+    _free_to_take(state)
+    _clear(host, state)
+    state.update(error=None, result=None)
+    if own:
+        os.replace(source, _path(PACKAGE))
+        size = os.path.getsize(_path(PACKAGE))
+    else:
+        size = _take(source, PACKAGE)
+    try:
+        body, signature = open_package(PACKAGE)
+        key = host.verify(body, signature)
+        if key is None:
+            raise Refused(
+                "bad_signature",
+                "This file was not accepted: its signature does not match. It was not made by Rezztor, "
+                "or it was changed on the way. Nothing was installed.",
+            )
+        m = read_manifest(body)
+        fits(m, state["installed"])
+    except Refused:
+        _clear(host, state)
+        raise
+    state.update(phase="checked", manifest=m, package=view(m, key, size))
+    return m
+
+
+def install(host, state, by="console"):
+    """Prepare the checked update beside the running version. The stack is not touched. When only texts
+    and screens are new for this machine, they are then put into the running application, and that is
+    the end of it."""
+    if state["phase"] != "checked":
+        raise Refused("nothing", "There is no update file to install. Upload one first.")
+    m, version, base = state["manifest"], state["manifest"]["version"], state["manifest"]["base"]
+    state.update(phase="installing", error=None, result=None)
+
+    def at(step):
+        _log(f"install {version}: {step}")
+        _steps(state, STEPS_INSTALL, step)
+        save_state(host, state)
+
+    try:
+        at("signature")
+        body, signature = open_package(PACKAGE)
+        if host.verify(body, signature) is None or read_manifest(body) != m:
+            raise Refused("bad_signature", "The update file changed after it was checked. Nothing was installed.")
+        fits(m, state["installed"])  # the update path again, right before anything is built: no update is skipped
+        at("space")
+        need, free = 3 * m["payload"]["size"] + (512 << 20), host.free()
+        if free < need:
+            raise Refused("space", f"{size_text(need)} are needed and {size_text(free)} are free.")
+        at("open")
+        if not host.decrypt(WORK + "/payload.age", WORK + "/payload.tar"):
+            raise Refused(
+                "not_for_us",
+                "This installation cannot open the file. Send Rezztor the update key shown here: "
+                + (host.update_key() or "(no key: the tool `age` is missing on this machine)"),
+            )
+        if os.path.getsize(_path(WORK + "/payload.tar")) != m["payload"]["size"] or _sha256(WORK + "/payload.tar") != m["payload"]["sha256"]:
+            raise Refused("bad_payload", "The inside of the file does not match its signed checksum. Nothing was installed.")
+        _forget(WORK + "/unpacked", WORK + "/payload.age")
+        wanted = {spec["file"] for spec in m["images"].values()} | set(m["host"])
+        if m.get("os"):
+            wanted |= {"os/Packages"} | {item["file"] for item in m["os"]["packages"]}
+        with tarfile.open(_path(WORK + "/payload.tar")) as tar:
+            names = [member.name for member in tar.getmembers() if member.isreg()]
+            if set(names) != wanted or len(names) != len(wanted):
+                raise Refused("bad_payload", "The file does not hold what its description names. Nothing was installed.")
+            tar.extractall(_path(WORK + "/unpacked"), filter="data")
+        _forget(WORK + "/payload.tar")
+        at("images")
+        for name in IMAGES:
+            target, spec = f"rezztor/{name}:{version}", m["images"].get(name)
+            if spec is None:
+                problem = None if host.tag(f"rezztor/{name}:{base}", target) else f"the image rezztor/{name}:{base} is not on this machine"
+            elif spec["mode"] == "files":
+                problem = host.build(f"rezztor/{name}:{base}", f"{WORK}/unpacked/{spec['file']}", target)
+            else:
+                problem = None if host.load(f"{WORK}/unpacked/{spec['file']}") and host.image(target) else "the image in the file could not be loaded"
+            if problem:
+                raise Refused("images", f"The new version could not be prepared: {problem}. Nothing changed.")
+        _forget(*(f"{WORK}/unpacked/{folder}" for folder in ("app", "images")))
+    except Refused:
+        for name in IMAGES:
+            host.untag(f"rezztor/{name}:{version}")
+        _forget(WORK + "/payload.tar", WORK + "/unpacked")
+        state.update(phase="checked")
+        raise
+    state["phase"] = "staged"
+    _steps(state, STEPS_INSTALL)
+    # The package's answer is for a machine on the base release. This machine may already have the code
+    # of an earlier update, so it looks for itself: when only texts and screens are new here, no restart.
+    only_app = {name: spec["mode"] for name, spec in m["images"].items()} == {"eagent": "files"}
+    same_host = all(_same(f"{WORK}/unpacked/{name}", _host_target(name)) for name in m["host"])
+    if only_app and same_host and _live(host, state, by):
+        return
+    if m["restart"] == "none":
+        state["error"] = {"code": "needs_restart", "text": "This update could not be applied while the application runs. Restart to finish."}
+
+
+def _host_target(name):
+    return HOST_FILES[name][0] if name in HOST_FILES else f"{KEYS}/{name[len('keys/'):]}"
+
+
+def _add_keys(m):
+    """The release keys the package brings that this machine does not have yet. Called once the new
+    version runs, so going back never has a key to take away."""
+    for name in m["host"]:
+        if name in HOST_FILES or not os.path.exists(_path(f"{WORK}/unpacked/{name}")):
+            continue
+        target = _host_target(name)
+        if os.path.exists(_path(target)):
+            if not _same(f"{WORK}/unpacked/{name}", target):
+                _log(f"the package brings another key under the name {name}: the one here stays")
+            continue
+        shutil.copyfile(_path(f"{WORK}/unpacked/{name}"), _path(target) + ".new")
+        os.chmod(_path(target) + ".new", 0o644)
+        os.replace(_path(target) + ".new", _path(target))
+        _log(f"release key added: {name}")
+
+
+def _same(one, other):
+    try:
+        with open(_path(one), "rb") as a, open(_path(other), "rb") as b:
+            return a.read() == b.read()
+    except OSError:
+        return False
+
+
+def _live(host, state, by):
+    """Texts and screens only: copy them into the running application. True when that was all there
+    was to do and it is done; False leaves the update waiting for a restart, which is always right.
+
+    The two versions are compared as images, not the running container with the new image: a running
+    application has files of its own beside the code (compiled Python, temporary files), and they are
+    neither a difference between versions nor ours to delete."""
+    m, old = state["manifest"], state["installed"]["version"]
+    image = f"rezztor/eagent:{m['version']}"
+    new = host.tree(image=image)
+    plan = live_plan(host.tree(image=f"rezztor/eagent:{old}"), new)
+    if plan is None or host.copy_live(image, *plan):
+        return False
+    copy, remove = plan
+    running = host.tree(container=APP)
+    if any(running.get(path) != new[path] for path in copy) or any(path in running for path in remove):
+        return False
+    # .env names the new image too, so a container made again later starts from it and not from the old one.
+    _write(STACK + "/.env", env_set(stack_env(), "REZZTOR_VERSION", m["version"]))
+    _installed(host, state, m, old)
+    if m.get("os"):
+        state["phase"] = "installing"
+        _steps(state, STEPS_INSTALL + STEP_SYSTEM, "system")
+        save_state(host, state)
+    system = _apply_os(host, state, m)
+    _finish(host, state, "installed", m["version"], by, f"Updated to {m['version']}. No restart was needed.{system}", 0)
+    return True
+
+
+def _installed(host, state, m, old):
+    """Record the new version and add the release keys it brings, and drop the image of two updates
+    ago. The base release's stays."""
+    _add_keys(m)
+    kept = [m["base"], old, m["version"]]
+    for version in state.get("kept") or []:
+        if version not in kept:
+            for name in IMAGES:
+                host.untag(f"rezztor/{name}:{version}")
+    state["kept"] = kept
+    state["installed"] = {"version": m["version"], "base": m["base"], "updated_at": now()}
+
+
+def restart(host, state, by):
+    """Switch to the prepared version; if it does not answer, put the old one back. Returns True
+    when the new version runs."""
+    if state["phase"] != "staged":
+        raise Refused("nothing", "No update waits for a restart.")
+    m, old, new = state["manifest"], state["installed"]["version"], state["manifest"]["version"]
+    fits(m, state["installed"])  # and once more before the switch: the version it needs must still be the one that runs
+    env = stack_env()
+    started = time.monotonic()
+    state.update(phase="restarting", error=None, result=None)
+    plan = STEPS_RESTART + (STEP_SYSTEM if m.get("os") else ())
+
+    def at(step):
+        _log(f"restart to {new}: {step}")
+        _steps(state, plan, step)
+        save_state(host, state)
+
+    at("backup")
+    _forget(WORK + "/before")
+    _write(WORK + "/before/.env", env)
+    for name in (n for n in m["host"] if n in HOST_FILES):
+        target = HOST_FILES[name][0]
+        if os.path.exists(_path(target)):
+            os.makedirs(os.path.dirname(_path(f"{WORK}/before/{name}")), exist_ok=True)
+            shutil.copy2(_path(target), _path(f"{WORK}/before/{name}"))
+    # The application stops first, so the dump is of a database nobody is writing to.
+    host.compose("stop", "eagent")
+    schema = host.schema()
+    _log(f"restart to {new}: the database is at change {schema}")
+    problem = host.dump(WORK + "/before/database.sql")
+    if problem:
+        host.compose("up", "-d")
+        state.update(phase="staged")
+        raise Refused("backup", f"The database could not be backed up, so nothing was changed: {problem}")
+
+    at("switch")
+    for name in (n for n in m["host"] if n in HOST_FILES):
+        target, mode = HOST_FILES[name]
+        os.makedirs(os.path.dirname(_path(target)), exist_ok=True)
+        shutil.copyfile(_path(f"{WORK}/unpacked/{name}"), _path(target) + ".new")
+        os.chmod(_path(target) + ".new", mode)
+        os.replace(_path(target) + ".new", _path(target))
+    # The guard's new rules are in force before a container is made again.
+    problem = _reload_host(host, m["host"])
+    _write(STACK + "/.env", env_set(env, "REZZTOR_VERSION", new))
+    problem = problem or host.compose("up", "-d")
+
+    at("answer")
+    minutes = m.get("start_minutes", START_MINUTES)
+    if not problem and not _answers(host, new, minutes):
+        problem = f"Version {new} did not answer within {minutes} minute{'s' if minutes != 1 else ''} after the restart"
+    if problem:
+        _log(f"restart to {new}: {problem}; going back to {old}")
+        back = _go_back(host, state, m, old, schema)
+        text = f"{problem.rstrip('.')}. The appliance returned to {old}. Nothing was lost."
+        if back:
+            text = f"{problem.rstrip('.')}. The old version {old} was put back, but: {back}. Look at the console of the appliance."
+        _finish(host, state, "rolled_back", new, by, text, None)
+        return False
+
+    _installed(host, state, m, old)
+    seconds = int(time.monotonic() - started)
+    # Debian's updates only now: the new version answers, so going back to the old one never meets them.
+    if m.get("os"):
+        at("system")
+    system = _apply_os(host, state, m)
+    _finish(host, state, "installed", new, by, f"Updated to {new}. The restart took {seconds} seconds.{system}", seconds)
+    return True
+
+
+def _reload_host(host, names):
+    """systemd reads the units a package changed again, and a changed guard loads its rules now: the host's table
+    (rezztor-guard.service) and the runner's (rezztor-guard-runner.service, which follows Docker). A sentence when
+    it failed; the guard then keeps its last good rules (ADR 0079)."""
+    names = set(names)
+    if any(name.startswith("units/") for name in names):
+        problem = host.systemctl("daemon-reload")
+        if problem:
+            return f"systemd did not read the new units: {problem}"
+    if names & {"host/rezztor-guard", "units/rezztor-guard.service"}:
+        problem = host.systemctl("reload-or-restart", "rezztor-guard.service")
+        if problem:
+            return f"the network guard did not load its rules: {problem}"
+    if names & {"host/rezztor-guard", "units/rezztor-guard-runner.service"}:
+        problem = host.systemctl("restart", "rezztor-guard-runner.service")
+        if problem:
+            return f"the network guard of the runner did not start: {problem}"
+    return None
+
+
+def _apply_os(host, state, m):
+    """Debian's updates the package carries, applied from it alone (Host.apt_upgrade). Called once the new version
+    answers. A failure leaves that version running and is said; the next package carries the same updates and
+    more, and tries again. Returns what the result says about it."""
+    system = m.get("os")
+    if not system:
+        return ""
+    _log(f"debian updates of {m['version']}: {len(system['packages'])} in the package, snapshot {system['snapshot']}")
+    earlier, boot = state.get("os") or {}, host.boot_id()
+    before = host.dpkg_versions()
+    problem = host.apt_upgrade(WORK + "/unpacked/os") if before else "dpkg did not say what is installed"
+    after = host.dpkg_versions()
+    changed = [{"name": name, "from": before.get(name), "to": after[name]} for name in sorted(after) if before and before.get(name) != after[name]]
+    reboot = (
+        any(REBOOT.fullmatch(item["name"]) for item in changed)
+        or host.reboot_flag()
+        or bool(earlier.get("reboot_needed") and earlier.get("boot") == boot)
+    )
+    error = None
+    if problem:
+        error = {"code": "os_failed", "text": f"The Debian updates could not be installed: {problem}. Version {m['version']} "
+                 "runs. The next update carries them again."}  # fmt: skip
+    state["os"] = {"version": m["version"], "snapshot": system["snapshot"], "applied": len(changed), "packages": changed,
+                   "reboot_needed": reboot, "boot": boot, "error": error, "at": now()}  # fmt: skip
+    _log(f"debian updates of {m['version']}: {len(changed)} changed{', restart of the appliance needed' if reboot else ''}"
+         + (f"; {problem}" if problem else ""))  # fmt: skip
+    if error:
+        return " " + error["text"]
+    said = f" {len(changed)} Debian package{'s were' if len(changed) != 1 else ' was'} updated." if changed else " Debian was up to date."
+    return said + (RESTART_TO_FINISH if reboot else "")
+
+
+def _answers(host, version, minutes):
+    """True when the product answers with `version` (None: with anything) before the time is over."""
+    for _ in range(minutes * 12):
+        info = host.health()
+        if info is not None and (version is None or info.get("version") == version):
+            return True
+        host.sleep(5)
+    return False
+
+
+def _go_back(host, state, m, old, schema):
+    """The old version again: files, .env, and the database when the new version changed it. Returns
+    a sentence when the old version does not answer either."""
+    host.compose("stop")
+    for name in (n for n in m["host"] if n in HOST_FILES):
+        saved, (target, mode) = _path(f"{WORK}/before/{name}"), HOST_FILES[name]
+        if os.path.exists(saved):
+            shutil.copyfile(saved, _path(target) + ".new")
+            os.chmod(_path(target) + ".new", mode)
+            os.replace(_path(target) + ".new", _path(target))
+    # The old units and the old guard's rules again.
+    reloaded = _reload_host(host, m["host"])
+    saved = _read(WORK + "/before/.env")
+    if not saved:
+        # Never an empty .env: without the copy the file stays as it is, and a person has to look.
+        return "the copy of .env made before the restart is missing, so .env was left as it is"
+    _write(STACK + "/.env", saved)
+    # Only the database runs while it is put back: a restore needs nobody else connected.
+    problem = host.compose("up", "-d", "--wait", "postgres")
+    found = None if problem else host.schema()
+    _log(f"going back: the database was at change {schema} before and is at {found} now")
+    dumped = os.path.exists(_path(WORK + "/before/database.sql"))
+    moved = schema is not None and found != schema
+    # The dump is made before the switch, and the switch is not made without it. So with no dump the
+    # new version never started and the database is as it was, whatever the package says it changes:
+    # there is nothing to put back, and the stack below must still be started. (It was not: "the
+    # package changes the database and there is no dump" counted as a problem, and the product stayed down.)
+    if not problem and (moved or (m["database_change"] and dumped)):
+        if dumped:
+            problem = host.restore(WORK + "/before/database.sql")
+            _log(f"going back: the database was put back from the dump{': ' + problem if problem else ''}; now at change {host.schema()}")
+        else:
+            problem = "the database was changed and there is no backup of it on this machine"
+    problem = problem or host.compose("up", "-d")
+    if not problem and not _answers(host, None, START_MINUTES):
+        problem = "the product does not answer yet"
+    for name in IMAGES:
+        host.untag(f"rezztor/{name}:{m['version']}")
+    return problem or reloaded
+
+
+def _finish(host, state, outcome, version, by, text, seconds):
+    _log(f"{outcome} {version} (by {by}): {text}")
+    _clear(host, state)
+    _forget(WORK + "/before/.env")  # the dump stays until the next update; the secrets do not
+    state["result"] = {"outcome": outcome, "version": version, "at": now(), "text": text, "seconds": seconds}
+    state["history"] = ([{"at": now(), "version": version, "by": by, "outcome": outcome}] + state["history"])[:30]
+    save_state(host, state)
+
+
+def recover(host, state):
+    """After a power cut in the middle. Nothing half-done is left standing."""
+    if state["phase"] == "installing":
+        state["phase"] = "checked" if os.path.exists(_path(PACKAGE)) else "idle"
+        state["steps"] = []
+    elif state["phase"] == "downloading":
+        # What arrived stays in DOWNLOADS, and the next download continues from there.
+        state.update(phase="idle", download=None)
+    elif state["phase"] == "restarting":
+        m, old = state["manifest"], state["installed"]["version"]
+        if env_get(_read(STACK + "/.env") or "", "REZZTOR_VERSION") == m["version"] and _answers(host, m["version"], START_MINUTES):
+            _installed(host, state, m, old)
+            _finish(host, state, "installed", m["version"], "console", f"Updated to {m['version']}.", None)
+        else:
+            back = _go_back(host, state, m, old, None) if os.path.exists(_path(WORK + "/before/.env")) else None
+            _finish(host, state, "rolled_back", m["version"], "console",
+                    f"The update to {m['version']} was interrupted. The appliance returned to {old}."
+                    + (f" But: {back}." if back else ""), None)  # fmt: skip
+
+
+# --- the update service --------------------------------------------------------
+# The machine asks Rezztor's update service which packages come after the running version, and downloads the
+# first one. A download ends where an uploaded file starts: check. Trust is unchanged: the signature, the
+# release keys and fits() decide, whatever the service says; the service's list only decides what to fetch.
+
+SERVICE_TEXTS = {
+    "unknown_installation": "This installation is not registered for updates. Register its update key in the "
+                            "customer portal, then check again. The update key: {key}",
+    "bad_answer": "The update service did not accept this installation's answer. Try again in a few minutes.",
+    "upgrade_required": "Your plan does not include installing updates from here. Upgrade to REZ-Pro, or ask "
+                        "Rezztor for the file and upload it.",
+    "not_yet_available": "This update is not available to this installation yet. Check again later.",
+    "not_next": "Updates are installed in order, and this one is not next. Check for updates again.",
+    "chain_gap": "An update this installation needs first is missing from the update service. Ask Rezztor.",
+}  # fmt: skip
+
+
+def server_for(state, request):
+    """(address, CA certificate or None) of the update service. A release machine asks Rezztor's, with the
+    system's CAs, whatever the request says. A UAT machine takes the request's address and CA, else the
+    ones it was last given, else the UAT service with the system's CAs."""
+    if not str(state["installed"].get("version") or "").endswith(UAT):
+        return SERVER, None
+    server = str(request.get("server") or "").rstrip("/")
+    ca = request.get("ca_pem")
+    ca = ca if isinstance(ca, str) and len(ca) <= 16384 and ca.lstrip().startswith("-----BEGIN CERTIFICATE-----") else None
+    if SERVER_URL.fullmatch(server):
+        _write(UAT_SERVER_FILE, json.dumps({"server": server, "ca_pem": ca}))
+        return server, ca
+    try:
+        saved = json.loads(_read(UAT_SERVER_FILE) or "")
+        return saved["server"], saved["ca_pem"]
+    except (ValueError, KeyError, TypeError):
+        return UAT_SERVER, None
+
+
+def _no_proxy(host, names):
+    """True when NO_PROXY (a comma list of names, domains, addresses and subnets, or *) names `host`."""
+    for entry in (part.strip().lower() for part in names.split(",")):
+        if not entry:
+            continue
+        if entry == "*":
+            return True
+        try:
+            if ipaddress.ip_address(host) in ipaddress.ip_network(entry, strict=False):
+                return True
+            continue
+        except ValueError:
+            pass
+        entry = entry.lstrip("*").lstrip(".")
+        if host == entry or host.endswith("." + entry):
+            return True
+    return False
+
+
+def proxy_for(server):
+    """The proxy of the stack's .env for `server`, or None: the same proxy the product's containers use."""
+    env = _read(STACK + "/.env") or ""
+    proxy = env_get(env, "HTTPS_PROXY") or env_get(env, "https_proxy")
+    host = (urllib.parse.urlsplit(server).hostname or "").lower()
+    if not proxy or _no_proxy(host, env_get(env, "NO_PROXY") or env_get(env, "no_proxy")):
+        return None
+    return proxy
+
+
+def _call(host, server, ca, path, body=None, token=None, headers=None):
+    """One call to the update service: the open answer, or Refused with a sentence."""
+    request = urllib.request.Request(server + path, data=None if body is None else json.dumps(body).encode(),
+                                     method="GET" if body is None else "POST")  # fmt: skip
+    request.add_header("Accept", "application/json")
+    if body is not None:
+        request.add_header("Content-Type", "application/json")
+    if token:
+        request.add_header("Authorization", f"Bearer {token}")
+    for name, value in (headers or {}).items():
+        request.add_header(name, value)
+    try:
+        context = ssl.create_default_context(cadata=ca) if ca else ssl.create_default_context()
+        return host.open_url(request, context, proxy_for(server), NET_TIMEOUT)
+    except urllib.error.HTTPError as error:
+        try:
+            word = json.loads(error.read(4096) or b"{}").get("error")
+        except (ValueError, AttributeError, OSError):
+            word = None
+        if word in SERVICE_TEXTS:
+            raise Refused(word, SERVICE_TEXTS[word].format(key=host.update_key())) from None
+        if error.code == 429:
+            raise Refused("service_busy", "The update service is busy. Try again in an hour.") from None
+        raise Refused("service", f"The update service answered with an error ({error.code}). Try again later.") from None
+    except (OSError, ValueError, http.client.HTTPException) as error:  # ssl.SSLError and URLError are OSErrors
+        reason = getattr(error, "reason", None) or error
+        raise Refused(
+            "unreachable",
+            f"The update service at {server} could not be reached ({str(reason)[:200]}). "
+            "Check this machine's internet connection and proxy.",
+        ) from None
+
+
+def _answer(response):
+    """The JSON object of an answer, read no further than MAX_ANSWER."""
+    with response:
+        try:
+            data = json.loads(response.read(MAX_ANSWER))
+        except (ValueError, OSError, http.client.HTTPException):
+            data = None
+    if not isinstance(data, dict):
+        raise Refused("bad_service_answer", "The update service sent an answer this version cannot read. Try again later.")
+    return data
+
+
+def _session(host, server, ca):
+    """A token of the update service: hello with this machine's update key, answer its challenge."""
+    key = host.update_key()
+    if not key:
+        raise Refused("no_key", "This machine has no update key: the tool age is missing.")
+    hello = _answer(_call(host, server, ca, "/v1/hello", {"update_key": key}))
+    ident, challenge = hello.get("id"), hello.get("challenge")
+    if not isinstance(ident, str) or not isinstance(challenge, str) or len(ident) > 200 or len(challenge) > 16384:
+        raise Refused("bad_service_answer", "The update service sent an answer this version cannot read. Try again later.")
+    plain = host.open_challenge(challenge)
+    if plain is None or not CHALLENGE.fullmatch(plain):
+        # Never send back what the key decrypted unless it is the one thing a challenge can be.
+        _log("the update service sent a challenge that is not 64 hex characters: it was not answered")
+        raise Refused("bad_challenge", "The update service asked a question this installation does not answer. Nothing was done.")
+    token = _answer(_call(host, server, ca, "/v1/session", {"id": ident, "answer": plain})).get("token")
+    if not isinstance(token, str) or not 0 < len(token) <= 4096:
+        raise Refused("bad_service_answer", "The update service sent an answer this version cannot read. Try again later.")
+    return token
+
+
+def _word(value):
+    return value if isinstance(value, str) and re.fullmatch(r"[a-z0-9._-]{1,40}", value) else None
+
+
+def read_listing(answer):
+    """The service's list, field by field, or Refused. Nothing in it is trusted: it only says what to fetch."""
+    bad = Refused("bad_service_answer", "The update service sent a list this version cannot read. Try again later.")
+    entries = answer.get("updates")
+    if not isinstance(entries, list) or len(entries) > 500:
+        raise bad
+    available = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            raise bad
+        item = {}
+        for key in ("version", "base", "min_from"):
+            if not isinstance(entry.get(key), str) or not VERSION.fullmatch(entry[key].removesuffix(UAT)):
+                raise bad
+            item[key] = entry[key]
+        for key in ("bridge", "security", "downloadable"):
+            if not isinstance(entry.get(key), bool):
+                raise bad
+            item[key] = entry[key]
+        # The service makes an installation's own copy of a package only when it can download it, so only then
+        # does it know that copy's SHA-256; a later entry carries none.
+        sha = entry.get("sha256")
+        if type(entry.get("size")) is not int or not 0 < entry["size"] or not (
+            re.fullmatch(r"[0-9a-f]{64}", str(sha)) or (sha is None and not entry["downloadable"])
+        ):
+            raise bad
+        notes = entry.get("notes") or []
+        if not isinstance(notes, list) or len(notes) > 20 or not all(isinstance(n, str) and len(n) <= 400 for n in notes):
+            raise bad
+        for key in ("released_at", "available_at"):
+            if entry.get(key) is not None and (not isinstance(entry[key], str) or len(entry[key]) > 40):
+                raise bad
+            item[key] = entry.get(key)
+        # The Debian updates a package carries (ADR 0092), when the service says: shown, never acted on.
+        system = entry.get("os")
+        if system is not None and not (isinstance(system, dict) and type(system.get("packages")) is int
+                                       and system["packages"] >= 0 and isinstance(system.get("reboot"), bool)):  # fmt: skip
+            raise bad
+        item.update(size=entry["size"], sha256=entry["sha256"], notes=notes,
+                    os={"packages": system["packages"], "reboot": system["reboot"]} if system else None)  # fmt: skip
+        available.append(item)
+    error = answer.get("error")
+    if error is not None and _word(error) is None:
+        raise bad
+    return {
+        "plan": _word(answer.get("plan")),
+        "licence": _word(answer.get("licence")),
+        "core": answer.get("core") if isinstance(answer.get("core"), str) and VERSION.fullmatch(answer["core"].removesuffix(UAT)) else None,
+        "available": available,
+        "error": None if error is None else {"code": error, "text": SERVICE_TEXTS.get(error, f"The update service said: {error}.")},
+    }
+
+
+def refresh(host, state, server, ca):
+    """Ask the service what comes after the running version, into state.updates. Returns the token for a
+    download that follows. A refusal is written to state.updates.error and raised."""
+    try:
+        release_of(state["installed"].get("version"))
+        token = _session(host, server, ca)
+        query = urllib.parse.urlencode({"from": state["installed"]["version"],
+                                        "base": state["installed"].get("base") or state["installed"]["version"]})  # fmt: skip
+        listing = read_listing(_answer(_call(host, server, ca, "/v1/updates?" + query, token=token)))
+    except Refused as refused:
+        _log(f"refresh from {server} refused ({refused.code}): {refused.text}")
+        state["updates"] = {"checked_at": now(), "server": server, "plan": None, "licence": None, "core": None,
+                            "available": [], "error": {"code": refused.code, "text": refused.text}}  # fmt: skip
+        raise
+    state["updates"] = {"checked_at": now(), "server": server, **listing}
+    _log(f"refresh from {server}: {len(listing['available'])} update(s) after {state['installed']['version']}")
+    return token
+
+
+def _first(state, version=None):
+    """The first entry of the list, when it may be downloaded now (and is `version`, when one is named)."""
+    updates = state["updates"]
+    if updates["error"]:
+        raise Refused(updates["error"]["code"], updates["error"]["text"])
+    if not updates["available"]:
+        raise Refused("up_to_date", "There is no update to download. This installation is up to date.")
+    first = updates["available"][0]
+    if version is not None and version != first["version"]:
+        raise Refused("not_next", f"Updates are installed in order, and {first['version']} comes first.")
+    if not first["downloadable"]:
+        when = f" It can be downloaded from {first['available_at'][:10]}." if first.get("available_at") else ""
+        raise Refused("not_available", f"Update {first['version']} cannot be downloaded by this installation yet.{when}")
+    return first
+
+
+def _fetch(host, state, entry, token, server, ca):
+    """Download the entry into DOWNLOADS, continuing what an earlier try left, and check its size and
+    SHA-256 against the list. Returns its path."""
+    version, size, sha = entry["version"], entry["size"], entry["sha256"]
+    if size > MAX_PACKAGE:
+        raise Refused("too_large", f"Update {version} is larger than this tool takes ({size_text(size)}).")
+    part, want = DOWNLOADS + "/package.part", f"{version} {size} {sha}\n"
+    os.makedirs(_path(DOWNLOADS), mode=0o700, exist_ok=True)
+    if _read(DOWNLOADS + "/package.want") != want:  # another file was being downloaded: start again
+        _forget(part)
+        _write(DOWNLOADS + "/package.want", want)
+    have = os.path.getsize(_path(part)) if os.path.isfile(_path(part)) else 0
+    if have > size:
+        _forget(part)
+        have = 0
+    if host.free() < size - have + (512 << 20):
+        raise Refused("space", f"{size_text(size - have + (512 << 20))} are needed for the download and {size_text(host.free())} are free.")
+    state.update(phase="downloading", download={"version": version, "received": have, "size": size})
+    save_state(host, state)
+    try:
+        if have < size:
+            answer = _call(host, server, ca, f"/v1/updates/{urllib.parse.quote(version)}/file", token=token,
+                           headers={"Range": f"bytes={have}-"} if have else None)  # fmt: skip
+            with answer:
+                if have and answer.status != 206:
+                    have = 0  # the service sent the whole file
+                with open(_path(part), "ab" if have else "wb") as out:
+                    os.chmod(out.name, 0o600)
+                    saved = time.monotonic()
+                    try:
+                        while have < size:
+                            chunk = answer.read(min(1 << 20, size - have))
+                            if not chunk:
+                                break
+                            out.write(chunk)
+                            have += len(chunk)
+                            if time.monotonic() - saved >= 2:
+                                state["download"]["received"], saved = have, time.monotonic()
+                                save_state(host, state)
+                    except (OSError, http.client.HTTPException) as error:
+                        _log(f"download of {version} stopped at {have} of {size}: {error}")
+        if have != size:
+            raise Refused("download_incomplete", f"The download of {version} stopped at {size_text(have)} of "
+                          f"{size_text(size)}. Download again: it continues where it stopped.")  # fmt: skip
+        if _sha256(part) != sha:
+            _forget(part, DOWNLOADS + "/package.want")
+            raise Refused("bad_download", f"The downloaded file is not the one the update service listed for {version}. "
+                          "It was deleted; download it again.")  # fmt: skip
+    finally:
+        state.update(phase="idle", download=None)
+    _forget(DOWNLOADS + "/package.want")
+    _log(f"downloaded {version} from {server}, {size_text(size)}")
+    return _path(part)
+
+
+def download(host, state, version, server, ca, token=None):
+    """The first update of the list, downloaded and checked (phase checked), as an uploaded file would be."""
+    _free_to_take(state)
+    _clear(host, state)
+    state.update(error=None, result=None)
+    token = token or refresh(host, state, server, ca)
+    entry = _first(state, version)
+    check(host, state, _fetch(host, state, entry, token, server, ca), own=True)
+    if state["manifest"]["version"] != entry["version"]:
+        _clear(host, state)
+        raise Refused("bad_download", f"The update service sent {state['manifest']['version']} for {entry['version']}. Nothing was installed.")
+
+
+def update_all(host, state, server, ca, by, ident, going_on=False):
+    """Refresh, download the first, check, install, restart and wait for the product to answer, again and
+    again until nothing is left or one step fails. This tool runs on the host, so the application's restart
+    does not stop it. When an update brought a new rezztor-update, the walk goes on in a new run of the new
+    tool: the request is put back into the inbox, and the path unit starts it once this run ends (`going_on`)."""
+    done = (state.get("progress") or {}).get("done", 0) if going_on else 0
+    total = done
+    try:
+        while True:
+            token = refresh(host, state, server, ca)
+            left = state["updates"]["available"]
+            if not left or (done and not left[0]["downloadable"]):
+                break  # nothing left, or the rest is not for this installation yet
+            entry = _first(state)
+            total = done + len(left)
+            state["progress"] = {"done": done, "total": total, "current": entry["version"]}
+            save_state(host, state)
+            download(host, state, entry["version"], server, ca, token)
+            m = state["manifest"]
+            install(host, state, by)
+            if state["phase"] == "staged" and not restart(host, state, by):
+                raise Refused("rolled_back", state["result"]["text"])
+            done += 1
+            state["progress"] = {"done": done, "total": total, "current": None}
+            if "host/rezztor-update" in m["host"]:
+                _log(f"update_all: {m['version']} brought a new rezztor-update; the walk goes on in it")
+                _write(REQUEST, json.dumps({"id": ident, "action": "update_all", "by": by}))
+                return
+    except Refused as refused:
+        state["progress"] = None
+        if done or total:
+            raise Refused(refused.code, f"{done} of {total} updates installed, then: {refused.text}") from None
+        raise
+    state["progress"] = None
+
+
+# --- the web application's request ---------------------------------------------
+
+
+ACTIONS = ("check", "install", "restart", "discard", "bundle", "refresh", "download", "update_all", "reboot")
+
+
+def reboot(host, state, by, asked=False):
+    """Restart the appliance (ADR 0092): when Debian's updates need it, or when a person at the console asks
+    (`asked`). Never while an update is under way. The web application can ask only for the first."""
+    if state["phase"] in ("installing", "restarting", "downloading"):
+        raise Refused("busy", "An update is being installed. Wait until it has finished.")
+    if not asked and not (state.get("os") or {}).get("reboot_needed"):
+        raise Refused("no_reboot", "The appliance does not need a restart. Nothing was done.")
+    _log(f"restart of the appliance asked by {by}")
+    save_state(host, state)
+    problem = host.reboot()
+    if problem:
+        raise Refused("reboot", f"The appliance could not be restarted: {problem}")
+
+
+def serve(host, state):
+    """One request from the inbox, if there is one. The request is not trusted: an id, one of the ACTIONS, a
+    name for the history; for download a version, and on a UAT machine only, an address and a CA of the
+    update service. Everything else this tool decides itself."""
+    request = None
+    try:
+        size = _take(_path(REQUEST), WORK + "/request.json", limit=32768)
+        request = json.loads(_read(WORK + "/request.json") or "") if size else None
+    except (Refused, ValueError, OSError, RecursionError):
+        # OSError: a full disk. A request that cannot be read is not a request, and it must not stay:
+        # the unit starts this tool for as long as the file exists, and the application waits on it.
+        request = None
+    _forget(REQUEST, WORK + "/request.json")
+    if not isinstance(request, dict):
+        return
+    ident, action, by = str(request.get("id")), request.get("action"), str(request.get("by") or "")
+    if not re.fullmatch(r"[0-9a-f]{8,64}", ident) or action not in ACTIONS:
+        return
+    by = re.sub(r"[^A-Za-z0-9._@-]", "", by)[:64] or "administrator"
+    # The same update_all again, put back by this tool after an update replaced it: the walk goes on.
+    going_on = action == "update_all" and state["request"] == ident and bool(state.get("progress"))
+    # Not saved here: the page must see the request's id and the phase it led to at the same moment.
+    state["request"] = ident
+    try:
+        if action == "refresh":
+            try:
+                refresh(host, state, *server_for(state, request))
+            except Refused:
+                pass  # in state.updates.error; the phase and its error belong to the update, not to the list
+        elif action == "download":
+            download(host, state, str(request.get("version") or "")[:40], *server_for(state, request))
+        elif action == "update_all":
+            update_all(host, state, *server_for(state, request), by, ident, going_on)
+        elif action == "check":
+            try:
+                check(host, state, _path(UPLOAD))
+            finally:
+                _forget(UPLOAD)
+        elif action == "install":
+            install(host, state, by)
+        elif action == "restart":
+            restart(host, state, by)
+        elif action == "reboot":
+            reboot(host, state, by)
+        elif action == "bundle":
+            # Beside an update, never in its way: neither its phase nor its error is touched.
+            try:
+                make_bundle(host, by)
+                state["bundle_error"] = None
+            except OSError as error:
+                _log(f"support bundle by {by} failed: {error}")
+                state["bundle_error"] = f"The support bundle could not be made: {error.strerror or error}."
+        elif state["phase"] in ("checked", "staged"):
+            _clear(host, state, images=state["phase"] == "staged")
+            state.update(error=None)
+    except Refused as refused:
+        _log(f"request {action} by {by} refused ({refused.code}): {refused.text}")
+        state["error"] = {"code": refused.code, "text": refused.text}
+
+
+# --- the support bundle --------------------------------------------------------
+# What Rezztor's support needs to find a fault, made here as root and taken out by the customer: downloaded in
+# the browser (the state folder is the application's to read), or written to a USB stick from the console menu.
+# A fixed list goes in (Host.collect), and what looks like a secret is blanked on the way in.
+
+BUNDLES = HOME + "/state/bundles"
+BUNDLE_DAYS = 7
+BUNDLE_KEEP = 5
+BUNDLE_NAME = re.compile(r"rezztor-support-[a-z0-9-]{1,40}-\d{8}-\d{6}\.tar\.gz")
+# The stack's .env names its secrets: their values are blanked wherever they turn up.
+SECRET_NAME = re.compile(r"PASS|SECRET|TOKEN|KEY|SALT|CREDENTIAL", re.I)
+RULES = (
+    ("private key", re.compile(r"-----BEGIN [A-Z ]*PRIVATE[ ]KEY-----.*?-----END [A-Z ]*PRIVATE[ ]KEY-----", re.S), "[removed: private key]"),
+    ("age secret key", re.compile(r"AGE-SECRET-KEY-1[0-9A-Z]+"), "[removed: age secret key]"),
+    ("bearer token", re.compile(r"(?i)(bearer\s+)[^\s\"',]+"), r"\1[removed]"),
+    ("password in an address", re.compile(r"(://[^/\s:@]+:)[^@\s/]+@"), r"\1[removed]@"),
+    ("named secret", re.compile(r"(?i)((?:pass(?:word|wd)?|secret|token|api[_-]?key|authorization|cookie|private[_-]?key"
+                                r"|credentials?)[\"']?\s*[:=]\s*[\"']?)[^\s\"',;&}]+"), r"\1[removed]"),
+)  # fmt: skip
+README = """A support bundle of a Rezztor EAgent appliance, made on the machine by rezztor-update.
+
+What is in it: the version, the status screen, the containers and the last 2,000 lines of each one's log, the
+journal of the Rezztor services, Docker, nginx and SSH for the last 7 days, the network as the machine sees it,
+the setup answers without the passwords, disk and memory, and the logs of setup and of the update tool.
+
+What is never in it: the stack's .env, keys, certificates, the database, users' files, conversations.
+What looked like a secret was blanked before it was written: REDACTED.txt says how often, file by file.
+It reaches Rezztor only when you send it.
+"""
+
+
+def stack_secrets():
+    """{value: name} of the secrets in the stack's .env, the ones long enough to find."""
+    found = {}
+    for line in (_read(STACK + "/.env") or "").splitlines():
+        name, _, value = line.partition("=")
+        value = value.strip().strip("'\"")
+        if SECRET_NAME.search(name) and len(value) >= 8:
+            found[value] = name.strip()
+    return found
+
+
+def redact(text, secrets):
+    """(text with every secret blanked, {rule: how many})."""
+    counts = {}
+    for value, name in sorted(secrets.items(), key=lambda item: -len(item[0])):
+        if value in text:
+            counts[f"the value of {name}"] = text.count(value)
+            text = text.replace(value, f"[removed: {name}]")
+    for rule, pattern, replacement in RULES:
+        text, count = pattern.subn(replacement, text)
+        if count:
+            counts[rule] = count
+    return text, counts
+
+
+def bundles():
+    """The bundles there are, newest first: [{file, size, at}]."""
+    try:
+        names = [name for name in os.listdir(_path(BUNDLES)) if BUNDLE_NAME.fullmatch(name)]
+    except OSError:
+        return []
+    found = []
+    for name in names:
+        info = os.stat(_path(f"{BUNDLES}/{name}"))
+        found.append({"file": name, "size": info.st_size, "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(info.st_mtime))})
+    return sorted(found, key=lambda bundle: bundle["file"][-22:], reverse=True)
+
+
+def prune_bundles(now_seconds=None):
+    """Bundles older than BUNDLE_DAYS go, and all but the newest BUNDLE_KEEP; so does a half-written one."""
+    clock = time.time() if now_seconds is None else now_seconds
+    for index, bundle in enumerate(bundles()):
+        path = _path(f"{BUNDLES}/{bundle['file']}")
+        if index >= BUNDLE_KEEP or os.stat(path).st_mtime < clock - BUNDLE_DAYS * 86400:
+            os.remove(path)
+    for name in os.listdir(_path(BUNDLES)) if os.path.isdir(_path(BUNDLES)) else []:
+        if name.endswith(".part"):
+            os.remove(_path(f"{BUNDLES}/{name}"))
+
+
+def make_bundle(host, by):
+    """Collect, clean, write one bundle; its path. Raises OSError when it cannot be written."""
+    label = re.sub(r"[^a-z0-9-]+", "-", os.uname().nodename.lower()).strip("-")[:40] or "machine"
+    name = f"rezztor-support-{label}-{time.strftime('%Y%m%d-%H%M%S', time.gmtime())}.tar.gz"
+    os.makedirs(_path(BUNDLES), mode=0o755, exist_ok=True)
+    secrets, report, stamp = stack_secrets(), [], time.time()
+    path = _path(f"{BUNDLES}/{name}")
+    with tarfile.open(path + ".part", "w:gz") as tar:
+
+        def add(member, text):
+            data = text.encode("utf-8", errors="replace")
+            info = tarfile.TarInfo(f"{name[:-7]}/{member}")
+            info.size, info.mtime, info.mode = len(data), stamp, 0o644
+            tar.addfile(info, io.BytesIO(data))
+
+        for member, text in host.collect():
+            text, counts = redact(text, secrets)
+            report += [f"{member}: {rule}, {count}" for rule, count in counts.items()]
+            add(member, text)
+        add("README.txt", README)
+        add("REDACTED.txt", "What was blanked, file by file (never the values):\n" + ("\n".join(report) or "nothing") + "\n")
+    os.chmod(path + ".part", 0o644)
+    os.replace(path + ".part", path)
+    _log(f"support bundle {name} made (by {by}), {size_text(os.path.getsize(path))}")
+    prune_bundles()
+    return path
+
+
+# --- the console ---------------------------------------------------------------
+
+
+class Console:
+    def say(self, text=""):
+        print(text, flush=True)
+
+    def ask(self, text):
+        try:
+            return input(text + " ").strip()
+        except EOFError:
+            return ""
+
+
+def describe(io, state):
+    package = state["package"]
+    io.say(f"  Update {package['version']} for release {package['base']}, {size_text(package['size'])}")
+    io.say(f"  Signed by Rezztor ({package['key']})")
+    for note in package["notes"]:
+        io.say(f"  - {note}")
+    io.say("  The database changes: it is backed up first, and going back restores it."
+           if package["database_change"] else "  The database does not change.")  # fmt: skip
+    io.say("  A restart of the application is needed, unless only texts and screens are new for this machine."
+           if package["restart"] == "application" else "  No restart is needed.")  # fmt: skip
+    system = package.get("os")
+    if system:
+        io.say(f"  Debian updates: {len(system['packages'])} packages since the release, installed after the new version answers."
+               + (" A restart of the appliance is needed afterwards." if system["reboot"] else ""))  # fmt: skip
+
+
+def show(io, state):
+    installed = state["installed"]
+    io.say(f"Version      {installed.get('version') or 'not installed yet'}"
+           + (f" on release {installed['base']}" if installed.get("base") not in (None, installed.get("version")) else ""))  # fmt: skip
+    io.say(f"Release keys {', '.join(state.get('keys') or []) or 'none: this machine accepts no update'}")
+    io.say(f"Update key   {state.get('update_key') or 'none: the tool age is missing'}")
+    if state["phase"] != "idle":
+        io.say(f"Update       {(state['package'] or state['download'] or {}).get('version')}: {state['phase']}")
+    if state["error"]:
+        io.say(f"Refused      {state['error']['text']}")
+    if state["result"]:
+        io.say(f"Last update  {state['result']['text']}")
+    system = state.get("os")
+    if system and system.get("error"):
+        io.say(f"Debian       {system['error']['text']}")
+    if system and system.get("reboot_needed"):
+        io.say("Debian       The appliance needs a restart for its Debian updates: sudo rezztor-update reboot")
+
+
+def console(io, host, state):
+    """Find a file, show it, install it, restart. The same functions the web page's requests end in."""
+    if state["phase"] == "idle":
+        io.say("Looking for update files on USB sticks, virtual CDs and in the inbox ...")
+        try:
+            found = host.media()
+            if not found:
+                io.say("No file ending in .rezupd was found. Attach the USB stick or the virtual CD, or copy the file")
+                io.say("to this machine and run: sudo rezztor-update install FILE")
+                return 1
+            for index, (path, size) in enumerate(found, 1):
+                io.say(f"  {index}) {os.path.basename(path)}  ({size_text(size)})")
+            choice = "1" if len(found) == 1 else io.ask("Which one? Number:")
+            if not choice.isdigit() or not 1 <= int(choice) <= len(found):
+                return 1
+            check(host, state, found[int(choice) - 1][0])
+        finally:
+            host.unmount()
+    if state["phase"] == "checked":
+        describe(io, state)
+        if io.ask("Install it? [y/N]").lower() not in ("y", "yes"):
+            return 1
+        io.say("Installing. The product keeps running.")
+        install(host, state)
+        save_state(host, state)
+    if state["phase"] == "staged":
+        io.say(f"Version {state['package']['version']} is installed beside the running version.")
+        if io.ask("Restart the application now? [y/N]").lower() not in ("y", "yes"):
+            io.say("It starts at the next restart: sudo rezztor-update restart")
+            return 0
+        io.say("Restarting. This takes about a minute; if the new version does not start, the old one comes back.")
+        restart(host, state, "console")
+        if (state.get("os") or {}).get("reboot_needed"):
+            io.say("The Debian updates need a restart of the appliance. When it suits: sudo rezztor-update reboot")
+    return 0
+
+
+def main(argv=None, host=None, io=None):
+    parser = argparse.ArgumentParser(prog="rezztor-update", description=__doc__.split("\n\n")[0])
+    parser.add_argument("command", nargs="?", default="console",
+                        choices=("console", "check", "install", "restart", "discard", "status", "key", "serve", "bundle",
+                                 "reboot"))  # fmt: skip
+    parser.add_argument("file", nargs="?", help="the update file, for check and install; for bundle, usb")
+    args = parser.parse_args(argv)
+    host, io = host or Host(), io or Console()
+    if not ROOT and os.geteuid() != 0:
+        os.execvp("sudo", ["sudo", sys.argv[0], *sys.argv[1:]])
+    os.makedirs(_path(WORK), mode=0o700, exist_ok=True)
+    with open(_path(WORK + "/lock"), "w", encoding="ascii") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | (0 if args.command == "serve" else fcntl.LOCK_NB))
+        except OSError:
+            io.say("An update is being worked on. Try again when it has finished.")
+            return 1
+        state, code = load_state(), 0
+        earlier = state["result"]
+        try:
+            # This process holds the lock, so a phase that says "working" is left over from a power cut.
+            recover(host, state)
+            if args.command == "serve":
+                serve(host, state)
+            elif args.command == "bundle":
+                if args.file not in (None, "usb"):
+                    parser.error("bundle takes nothing, or usb")
+                path = make_bundle(host, "console")
+                io.say(f"Support bundle made: {os.path.basename(path)} ({size_text(os.path.getsize(path))}).")
+                if args.file == "usb":
+                    device = host.write_to_medium(path)
+                    if device:
+                        io.say(f"Written to {device}. Remove it and send the file to Rezztor.")
+                    else:
+                        io.say("No USB stick or disk to write to was found (FAT, exFAT or ext4, not in use, removable).")
+                        io.say("Attach one and choose this entry again, or download the bundle in the browser:")
+                        io.say("Settings, Support bundle. It is kept here for 7 days.")
+                        code = 1
+            elif args.command == "key":
+                io.say(host.update_key() or "none: the tool age is missing")
+            elif args.command == "status":
+                save_state(host, state)
+                show(io, state)
+            elif args.command == "console":
+                code = console(io, host, state)
+            elif args.command == "check" or (args.command == "install" and args.file):
+                if not args.file:
+                    parser.error("check needs a file")
+                check(host, state, args.file)
+                describe(io, state)
+                if args.command == "install":
+                    install(host, state)
+            elif args.command == "install":
+                install(host, state)
+            elif args.command == "restart":
+                code = 0 if restart(host, state, "console") else 1
+            elif args.command == "reboot":
+                if io.ask("Restart the appliance now? It is away for a few minutes, and agent runs stop. [y/N]").lower() not in ("y", "yes"):
+                    return 1
+                reboot(host, state, "console", asked=True)
+            elif state["phase"] in ("checked", "staged"):
+                _clear(host, state, images=state["phase"] == "staged")
+        except Refused as refused:
+            _log(f"{args.command} refused ({refused.code}): {refused.text}")
+            state["error"] = {"code": refused.code, "text": refused.text}
+            io.say(refused.text)
+            code = 1
+        except Exception as error:  # noqa: BLE001 - whatever broke, the machine must not stay half-way
+            _log(f"{args.command} broke: {error!r}")
+            io.say(f"The update tool stopped with an error: {error}. See {LOG}.")
+            recover(host, state)
+            state["progress"] = None
+            code = 1
+        save_state(host, state)
+        if args.command in ("console", "install", "restart") and state["result"] and state["result"] != earlier:
+            io.say(state["result"]["text"])
+        if args.command == "install" and state["phase"] == "staged":
+            io.say("Installed beside the running version. To switch: sudo rezztor-update restart")
+        return code
+
+
+if __name__ == "__main__":
+    sys.exit(main())

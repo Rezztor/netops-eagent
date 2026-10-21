@@ -1,0 +1,95 @@
+.root {
+  position: relative;
+}
+
+.badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--crit);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+
+.panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(380px, calc(100vw - 32px));
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(12, 27, 30, 0.14);
+  z-index: var(--z-modal);
+  overflow: hidden;
+  /* The shell is bounded to the viewport now, so a panel taller than the
+     remaining space is clipped rather than pushing the page down. Cap it and
+     let the list inside scroll. */
+  max-height: calc(100dvh - 96px);
+  display: flex;
+  flex-direction: column;
+}
+
+.panelHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--line);
+}
+
+.list {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.item {
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--line);
+}
+.item:last-child {
+  border-bottom: 0;
+}
+.unread {
+  background: var(--accent-wash);
+}
+
+.itemHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.itemTitle {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.itemTime {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  flex: none;
+}
+.itemMessage {
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+}
+
+.empty {
+  padding: var(--space-4);
+  text-align: center;
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+  margin: 0;
+}

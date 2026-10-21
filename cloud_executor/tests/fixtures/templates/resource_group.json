@@ -1,0 +1,60 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.13.1",
+  "variables": {
+    "resource_group": {
+      "value": "rg-payments-prod-uaen"
+    },
+    "region": {
+      "value": "uaenorth"
+    },
+    "tags": {
+      "value": {
+        "env": "prod",
+        "owner": "netops",
+        "costcentre": "cc-1001",
+        "project": "payments"
+      }
+    }
+  },
+  "resource_changes": [
+    {
+      "address": "azurerm_resource_group.this",
+      "mode": "managed",
+      "type": "azurerm_resource_group",
+      "name": "this",
+      "provider_name": "registry.opentofu.org/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "name": "rg-payments-prod-uaen",
+          "location": "uaenorth",
+          "tags": {
+            "env": "prod",
+            "owner": "netops",
+            "costcentre": "cc-1001",
+            "project": "payments"
+          },
+          "timeouts": null,
+          "managed_by": null
+        },
+        "after_unknown": {
+          "id": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {}
+      }
+    }
+  ],
+  "configuration": {
+    "provider_config": {
+      "azurerm": {
+        "name": "azurerm",
+        "full_name": "registry.opentofu.org/hashicorp/azurerm"
+      }
+    }
+  }
+}

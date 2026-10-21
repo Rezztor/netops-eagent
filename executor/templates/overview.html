@@ -1,0 +1,42 @@
+{% extends "_base.html" %}
+{% block body %}
+<table>
+  <tr><th>Catalogue</th><td><code>{{ commit }}</code> · {{ entries|length }} entries
+    {% if catalogue_error %}<span class="tag crit">{{ catalogue_error }}</span>{% endif %}</td></tr>
+  <tr><th>Ansible</th><td><code>{{ ansible_version or "—" }}</code></td></tr>
+  <tr><th>Queue</th><td>{{ depth.running }} running, {{ depth.queued }} waiting ·
+    {{ limits.max_jobs_per_minute }}/min, {{ limits.max_concurrent_jobs }} at once</td></tr>
+  <tr><th>Jobs</th><td>
+    {% for status, count in counts.items() %}{{ status }} {{ count }}{% if not loop.last %} · {% endif %}{% endfor %}
+    {% if not counts %}none yet{% endif %}</td></tr>
+</table>
+
+<h2>Collections</h2>
+<table>
+  {% for name, version in collections %}
+  <tr><td><code>{{ name }}</code></td><td><code>{{ version }}</code></td></tr>
+  {% else %}
+  <tr><td colspan="2">None found in this image.</td></tr>
+  {% endfor %}
+</table>
+
+<h2>Recent jobs</h2>
+<table>
+  <thead><tr><th>Started</th><th>Playbook</th><th>Targets</th><th>Mode</th>
+    <th>Source</th><th>Status</th></tr></thead>
+  <tbody>
+  {% for job in jobs %}
+    <tr>
+      <td><a href="/jobs/{{ job.job_id }}">{{ job.started_at|int }}</a></td>
+      <td><code>{{ job.playbook_name }}</code></td>
+      <td>{{ job.limit or "all" }}</td>
+      <td>{{ "check" if job.check_mode else "apply" }}</td>
+      <td>{{ job.source }}{% if job.actor %} · {{ job.actor }}{% endif %}</td>
+      <td><span class="tag {{ 'ok' if job.status == 'succeeded' else 'crit' if job.status == 'failed' else 'warn' }}">{{ job.status }}</span></td>
+    </tr>
+  {% else %}
+    <tr><td colspan="6">Nothing has run yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

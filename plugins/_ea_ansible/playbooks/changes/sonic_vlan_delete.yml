@@ -1,0 +1,17 @@
+# Remove a VLAN from Dell Enterprise SONiC.
+#
+# The rollback for `changes/sonic_vlan`.
+- name: Delete a VLAN
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Delete the VLAN
+      dellemc.enterprise_sonic.sonic_vlans:
+        config:
+          - vlan_id: "{{ vlan_id | int }}"
+        state: deleted
+      register: change
+
+    - name: Report what the module reported
+      ansible.builtin.debug:
+        var: change

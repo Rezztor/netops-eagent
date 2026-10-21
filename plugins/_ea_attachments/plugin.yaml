@@ -1,0 +1,7 @@
+name: _ea_attachments
+title: Attachments
+description: Lets the agent attach a file to its reply so the user can download it, instead of naming a path inside a container they cannot reach.
+version: 1.0.0
+settings_sections: []
+per_project_config: false
+per_agent_config: false

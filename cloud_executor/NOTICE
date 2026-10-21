@@ -1,0 +1,21 @@
+Rezztor EAgent cloud executor: third-party software in this image
+
+OpenTofu 1.13.1
+  Licence: MPL-2.0
+  Source:  https://github.com/opentofu/opentofu (tag v1.13.1)
+  Binary:  https://github.com/opentofu/opentofu/releases/tag/v1.13.1 (SHA-256 verified at build; see the Dockerfile)
+
+terraform-provider-azurerm 5.8.0 (the build published for registry.opentofu.org/hashicorp/azurerm)
+  Licence: MPL-2.0
+  Source:  https://github.com/hashicorp/terraform-provider-azurerm (upstream)
+  Build:   https://github.com/opentofu/terraform-provider-azurerm/releases/tag/v5.8.0 (SHA-256 verified at build)
+
+terraform-provider-azapi 2.13.0
+  Licence: MPL-2.0
+  Source:  https://github.com/Azure/terraform-provider-azapi (tag v2.13.0)
+  Build:   https://github.com/Azure/terraform-provider-azapi/releases/tag/v2.13.0 (SHA-256 verified at build)
+
+These three programs are unmodified. Their licence texts are at the Source links. Nothing in this image fetches
+code from the internet at run time: the providers are in /opt/mirror and /etc/tofu/cli.tfrc has no `direct` block.
+The hashes were read on 3 October 2026 from the registry's download answer and, independently, from each
+project's own SHA256SUMS release file; the two agreed.

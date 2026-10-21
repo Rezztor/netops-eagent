@@ -1,0 +1,18 @@
+# Takes the web application's update request, if there is one, and writes the
+# state the Updates page reads (ADR 0080). Started by rezztor-update.path when
+# a request appears, and once at every boot: a restart that a power cut
+# interrupted is finished or taken back then.
+[Unit]
+Description=Rezztor EAgent: the update service
+After=docker.service
+Wants=docker.service
+ConditionPathExists=/usr/local/sbin/rezztor-update
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/rezztor-update serve
+# A restart waits for the product to answer, and goes back when it does not.
+TimeoutStartSec=infinity
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,233 @@
+/* Health tab: lifecycle, data quality, stale. Tokens only. */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(460px, 100%), 1fr));
+  gap: 14px;
+}
+
+.hint {
+  color: var(--ink-2);
+  margin-top: -6px;
+}
+
+.strip {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.stripCol {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 4px;
+  min-width: 0;
+}
+
+.stripBars {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 3px;
+  height: 40px;
+}
+
+.bar {
+  display: block;
+  border-radius: 3px;
+}
+
+.barEmpty {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--line-2);
+}
+
+.barWarn {
+  height: 14px;
+  background: var(--warn);
+}
+
+.barCrit {
+  height: 14px;
+  background: var(--crit);
+}
+
+.stripLabel {
+  color: var(--ink-2);
+  font-size: 11.5px;
+  text-align: center;
+}
+
+.foot {
+  color: var(--ink-2);
+  font-size: 12.5px;
+}
+
+.avg {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: -4px;
+}
+
+.avgValue {
+  font-size: 26px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.avgSub {
+  color: var(--ink-2);
+}
+
+.fieldRows {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.fieldRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.fieldName {
+  width: 110px;
+  flex-shrink: 0;
+  color: var(--ink-2);
+}
+
+.fieldTrack {
+  display: block;
+  flex-grow: 1;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--line-2);
+  overflow: hidden;
+}
+
+.fieldFill {
+  display: block;
+  height: 8px;
+  background: var(--warn);
+}
+
+.fieldCount {
+  width: 70px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.deviceList {
+  display: flex;
+  flex-direction: column;
+}
+
+.deviceRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.deviceLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.deviceMeter {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.deviceMeterTrack {
+  display: block;
+  width: 56px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--line-2);
+  overflow: hidden;
+}
+
+.deviceMeterFill {
+  display: block;
+  height: 6px;
+  background: var(--warn);
+}
+
+.devicePct {
+  font-size: 12px;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.link {
+  font-family: var(--font-mono);
+  color: var(--ink);
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.link:hover {
+  color: var(--accent);
+}
+
+.link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.staleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.staleLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.staleMeta {
+  color: var(--ink-2);
+}
+
+.scroll {
+  overflow-x: auto;
+}
+
+.kindBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}

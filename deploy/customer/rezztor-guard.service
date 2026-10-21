@@ -1,0 +1,26 @@
+[Unit]
+# What each container may reach: the runner, the search engine and the cloud
+# executor public addresses only, and (with a network list) only the Ansible
+# executor the device networks. Docker cannot express that, so it is one
+# nftables table on the host, `inet rezztor_guard` (ADR 0079).
+#
+# Before docker, so no container ever runs without it: the rules name the
+# bridges and need none of them to exist yet. After the network is up, because
+# the DNS servers the fenced containers may ask are read from the host's
+# resolver file. Docker never touches another table, so a Docker restart or
+# upgrade leaves it in force and nothing has to re-run.
+Description=Rezztor network guard: what each container may reach
+After=network-online.target local-fs.target
+Wants=network-online.target
+Before=docker.service
+ConditionPathExists=/opt/rezztor/rezztor-guard
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# Replaces its own table in one transaction and nothing else: safe to run again.
+ExecStart=/opt/rezztor/rezztor-guard apply
+ExecReload=/opt/rezztor/rezztor-guard apply
+
+[Install]
+WantedBy=multi-user.target

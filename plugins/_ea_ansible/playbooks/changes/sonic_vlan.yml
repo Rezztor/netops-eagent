@@ -1,0 +1,22 @@
+# Create a VLAN on Dell Enterprise SONiC.
+#
+# `dellemc.enterprise_sonic` reaches the device over httpapi rather than
+# network_cli, and it has no `rendered` state at all -- its states are merged,
+# replaced, overridden and deleted. That is why the catalogue entry declares
+# `check_mode: partial` rather than `supported`: what the module reports under
+# --check has not been verified against hardware, and claiming `supported`
+# would make the approval view promise a completeness nobody has checked.
+- name: Create a VLAN
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Merge the VLAN
+      dellemc.enterprise_sonic.sonic_vlans:
+        config:
+          - vlan_id: "{{ vlan_id | int }}"
+        state: merged
+      register: change
+
+    - name: Report what the module reported
+      ansible.builtin.debug:
+        var: change

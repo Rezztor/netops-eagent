@@ -1,0 +1,36 @@
+{
+  "name": "rezztor-eagent-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Rezztor EAgent web frontend. Talks to the backend over /api; served same-origin behind a reverse proxy.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --max-warnings 0",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-router-dom": "^7.9.0",
+    "socket.io-client": "^4.8.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@testing-library/react": "^16.3.3",
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "eslint": "^9.37.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "jsdom": "^30.1.1",
+    "typescript": "^5.9.0",
+    "typescript-eslint": "^8.46.0",
+    "vite": "^7.1.0",
+    "vitest": "^4.1.11"
+  }
+}

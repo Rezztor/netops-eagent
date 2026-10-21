@@ -1,0 +1,10 @@
+{
+  "_comment": "UNVERIFIED: constructed from the vendor module documentation, not captured from a live device. Correct on first live run. junipernetworks.junos.junos_facts: ansible_net_hostname/model/serialnum/version/system from the docs; ansible_net_multi_ne (virtual chassis members with serialnum) is NOT verified and is a guess at the shape. Values invented.",
+  "facts": {
+    "ansible_net_hostname": "ex-core",
+    "ansible_net_model": "EX4300-48T",
+    "ansible_net_serialnum": "PE3716370001",
+    "ansible_net_version": "20.4R3-S2.6",
+    "ansible_net_system": "junos"
+  }
+}

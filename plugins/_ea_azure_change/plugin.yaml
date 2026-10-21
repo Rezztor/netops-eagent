@@ -1,0 +1,7 @@
+name: _ea_azure_change
+title: Azure changes
+description: Adds to or changes what exists in an Azure tenant, only from the chat, only through a reviewed template or action, and only after an engineer approves the exact plan with a CR or SR number. It never deletes, stops, restarts, resizes or scales in anything; such a need becomes a suggestion with a runbook.
+version: 0.1.0
+settings_sections: []
+per_project_config: false
+per_agent_config: false

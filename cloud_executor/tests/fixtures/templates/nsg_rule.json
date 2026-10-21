@@ -1,0 +1,96 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.13.1",
+  "variables": {
+    "resource_group": {
+      "value": "rg-payments-prod-uaen"
+    },
+    "nsg_name": {
+      "value": "nsg-web-prod-uaen-001"
+    },
+    "name": {
+      "value": "allow-https"
+    },
+    "priority": {
+      "value": 200
+    },
+    "direction": {
+      "value": "Inbound"
+    },
+    "protocol": {
+      "value": "Tcp"
+    },
+    "sources": {
+      "value": [
+        {
+          "cidr": "10.20.0.0/16"
+        },
+        {
+          "cidr": "10.30.0.0/16"
+        }
+      ]
+    },
+    "destinations": {
+      "value": [
+        {
+          "cidr": "10.30.1.0/24"
+        }
+      ]
+    },
+    "ports": {
+      "value": [
+        {
+          "range": "443"
+        }
+      ]
+    }
+  },
+  "resource_changes": [
+    {
+      "address": "azurerm_network_security_rule.this",
+      "mode": "managed",
+      "type": "azurerm_network_security_rule",
+      "name": "this",
+      "provider_name": "registry.opentofu.org/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "name": "allow-https",
+          "resource_group_name": "rg-payments-prod-uaen",
+          "network_security_group_name": "nsg-web-prod-uaen-001",
+          "priority": 200,
+          "direction": "Inbound",
+          "access": "Allow",
+          "protocol": "Tcp",
+          "source_port_range": "*",
+          "source_address_prefixes": [
+            "10.20.0.0/16",
+            "10.30.0.0/16"
+          ],
+          "destination_address_prefixes": [
+            "10.30.1.0/24"
+          ],
+          "destination_port_ranges": [
+            "443"
+          ]
+        },
+        "after_unknown": {
+          "id": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {}
+      }
+    }
+  ],
+  "configuration": {
+    "provider_config": {
+      "azurerm": {
+        "name": "azurerm",
+        "full_name": "registry.opentofu.org/hashicorp/azurerm"
+      }
+    }
+  }
+}

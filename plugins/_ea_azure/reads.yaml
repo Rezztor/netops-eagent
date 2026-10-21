@@ -1,0 +1,691 @@
+# The named reads: the whole of what `azure_read` can ask Azure. Loaded and checked by helpers/live.py.
+#
+# An entry is one Azure Resource Manager call on a resource that is in the stored inventory. The address is
+# `https://management.azure.com` + the stored resource ID + `suffix`; the model never supplies a URL, a path, a
+# method or a body, only a read name, a resource and the typed `args`. `{name}` in `query` and `body` is replaced
+# by a checked value (an `args` entry, `resource`, `subscription`, or from a `duration` arg: `start`, `end`,
+# `timespan`, `interval`); `{name:int}` sends a number.
+#
+#   method GET   role reader        a plain read; the Reader role is enough
+#   method POST  role diagnostics   a probe: Azure answers a question and changes nothing (Network Watcher, effective
+#                                   routes, BGP status). Needs the custom Rezztor Diagnostics role. A POST that is not
+#                                   one of these is refused by the loader.
+#   scope        resource (default) | subscription (the stored ID's subscription) | watcher (the Network Watcher
+#                of the resource's region and subscription, from the inventory; the resource goes into the body)
+#   keep         the allow-list of what comes back (helpers/shape.py's path language). `each: <list path>` with a
+#                `keep:` is a list of objects; a plain mapping is a nested object. Nothing else is returned.
+#   requires     the Azure action a 403 says is missing
+#
+# Reviewed like the catalogue: a new entry needs a reviewer, and tests/test_azure_live.py fails when a suffix
+# matches live.NEVER (run command, shared keys, secrets, publishing files, packet capture, every stop-like call).
+#
+# unverified: every api-version, path and answer shape below is from Microsoft's REST reference (research R2 section
+# 4), not yet called on a real tenant (build contract phase 4, test session 3). Left out on purpose: ExpressRoute
+# route tables and IKE SAs (answer shapes not confirmed), a single App Service detector (its name would have to be
+# part of the path), App Service deployments (author e-mail), VM extensions (settings can hold credentials).
+
+# --- plain reads (Reader) -----------------------------------------------------------------------------------------
+
+- name: vm_instance_view
+  summary: Power state, VM agent state and extension health of one virtual machine.
+  resource_type: microsoft.compute/virtualmachines
+  method: GET
+  suffix: /instanceView
+  api_version: "2025-04-01"
+  role: reader
+  requires: Microsoft.Compute/virtualMachines/instanceView/read
+  keep:
+    os: {name: osName, version: osVersion}
+    agent_version: vmAgent.vmAgentVersion
+    agent_status: {each: vmAgent.statuses, keep: {code: code, status: displayStatus, level: level}}
+    status: {each: statuses, keep: {code: code, status: displayStatus, level: level, time: time}}
+    extensions: {each: extensions, keep: {name: name, type: type, version: typeHandlerVersion,
+                                           status: {each: statuses, keep: {code: code, status: displayStatus, level: level}}}}
+
+- name: resource_health
+  summary: Whether Azure says this resource is Available, Degraded or Unavailable, and why.
+  resource_type: "*"
+  method: GET
+  suffix: /providers/Microsoft.ResourceHealth/availabilityStatuses/current
+  api_version: "2025-05-01"
+  role: reader
+  requires: Microsoft.ResourceHealth/availabilityStatuses/current/read
+  keep:
+    state: properties.availabilityState
+    summary: properties.summary
+    reason_type: properties.reasonType
+    occurred_at: properties.occuredTime|properties.occurredTime
+    reported_at: properties.reportedTime
+
+- name: service_health
+  summary: Azure incidents, maintenance and advisories that affect this resource's subscription.
+  resource_type: "*"
+  scope: subscription
+  method: GET
+  suffix: /providers/Microsoft.ResourceHealth/events
+  api_version: "2025-05-01"
+  args:
+    duration: {type: duration, default: P3D, max: P30D}
+  query:
+    queryStartTime: "{start}"
+  role: reader
+  requires: Microsoft.ResourceHealth/events/read
+  keep:
+    events: {each: value, keep: {name: name, type: properties.eventType, status: properties.status,
+                                  title: properties.title, summary: properties.summary, level: properties.level,
+                                  started_at: properties.impactStartTime, mitigated_at: properties.impactMitigationTime,
+                                  services: "properties.impact[].impactedService",
+                                  regions: "properties.impact[].impactedRegions[].impactedRegion"}}
+
+- name: activity_log
+  summary: Who changed this resource and when, from Azure's activity log (writes, deletes and actions, not reads).
+  resource_type: "*"
+  scope: subscription
+  method: GET
+  suffix: /providers/Microsoft.Insights/eventtypes/management/values
+  api_version: "2015-04-01"
+  args:
+    duration: {type: duration, default: P1D, max: P7D}
+  query:
+    $filter: "eventTimestamp ge '{start}' and eventTimestamp le '{end}' and resourceUri eq '{resource}'"
+    $select: eventTimestamp,caller,operationName,status,subStatus,level,resourceId
+  role: reader
+  requires: Microsoft.Insights/eventtypes/values/Read
+  keep:
+    events: {each: value, keep: {time: eventTimestamp, who: caller, operation: operationName.value, status: status.value,
+                                  sub_status: subStatus.value, level: level}}
+
+- name: vm_metrics
+  summary: Metric values of a virtual machine over a recent period (average and maximum).
+  resource_type: microsoft.compute/virtualmachines
+  method: GET
+  suffix: /providers/Microsoft.Insights/metrics
+  api_version: "2023-10-01"
+  args:
+    metric: {type: enum_list, max: 5, values: [Percentage CPU, Available Memory Bytes, VmAvailabilityMetric,
+                                               Network In Total, Network Out Total, OS Disk Queue Depth]}
+    duration: {type: duration, default: PT1H, max: P1D}
+  query: &metric_query
+    timespan: "{timespan}"
+    interval: "{interval}"
+    metricnames: "{metric}"
+    aggregation: Average,Maximum
+  role: reader
+  requires: Microsoft.Insights/Metrics/Read
+  keep: &metric_keep
+    metrics: {each: value, keep: {name: name.value, unit: unit,
+                                   points: {each: "timeseries[].data[]", keep: {time: timeStamp, average: average, maximum: maximum}}}}
+
+- name: site_metrics
+  summary: Metric values of a web app over a recent period (average and maximum).
+  resource_type: microsoft.web/sites
+  method: GET
+  suffix: /providers/Microsoft.Insights/metrics
+  api_version: "2023-10-01"
+  args:
+    metric: {type: enum_list, max: 5, values: [Http5xx, HttpResponseTime, Requests, CpuTime, MemoryWorkingSet, HealthCheckStatus]}
+    duration: {type: duration, default: PT1H, max: P1D}
+  query: *metric_query
+  role: reader
+  requires: Microsoft.Insights/Metrics/Read
+  keep: *metric_keep
+
+- name: plan_metrics
+  summary: Metric values of an App Service plan over a recent period (average and maximum).
+  resource_type: microsoft.web/serverfarms
+  method: GET
+  suffix: /providers/Microsoft.Insights/metrics
+  api_version: "2023-10-01"
+  args:
+    metric: {type: enum_list, max: 2, values: [CpuPercentage, MemoryPercentage]}
+    duration: {type: duration, default: PT1H, max: P1D}
+  query: *metric_query
+  role: reader
+  requires: Microsoft.Insights/Metrics/Read
+  keep: *metric_keep
+
+- name: firewall_metrics
+  summary: Metric values of an Azure Firewall over a recent period (average and maximum).
+  resource_type: microsoft.network/azurefirewalls
+  method: GET
+  suffix: /providers/Microsoft.Insights/metrics
+  api_version: "2023-10-01"
+  args:
+    metric: {type: enum_list, max: 4, values: [NetworkRuleHit, ApplicationRuleHit, FirewallHealth, SNATPortUtilization]}
+    duration: {type: duration, default: PT1H, max: P1D}
+  query: *metric_query
+  role: reader
+  requires: Microsoft.Insights/Metrics/Read
+  keep: *metric_keep
+
+- name: vpn_gateway_metrics
+  summary: Metric values of a VPN gateway over a recent period (BGP peer status, learned and advertised routes, tunnel bytes).
+  resource_type: microsoft.network/virtualnetworkgateways
+  method: GET
+  suffix: /providers/Microsoft.Insights/metrics
+  api_version: "2023-10-01"
+  args:
+    metric: {type: enum_list, max: 5, values: [BgpPeerStatus, BgpRoutesLearned, BgpRoutesAdvertised, TunnelIngressBytes, TunnelEgressBytes]}
+    duration: {type: duration, default: PT1H, max: P1D}
+  query: *metric_query
+  role: reader
+  requires: Microsoft.Insights/Metrics/Read
+  keep: *metric_keep
+
+- name: appgw_metrics
+  summary: Metric values of an Application Gateway over a recent period (requests, failures, healthy and unhealthy backends).
+  resource_type: microsoft.network/applicationgateways
+  method: GET
+  suffix: /providers/Microsoft.Insights/metrics
+  api_version: "2023-10-01"
+  args:
+    metric: {type: enum_list, max: 5, values: [TotalRequests, FailedRequests, HealthyHostCount, UnhealthyHostCount, CurrentConnections, BackendLastByteResponseTime]}
+    duration: {type: duration, default: PT1H, max: P1D}
+  query: *metric_query
+  role: reader
+  requires: Microsoft.Insights/Metrics/Read
+  keep: *metric_keep
+
+- name: lb_metrics
+  summary: Metric values of a load balancer over a recent period (frontend and backend availability, SNAT ports).
+  resource_type: microsoft.network/loadbalancers
+  method: GET
+  suffix: /providers/Microsoft.Insights/metrics
+  api_version: "2023-10-01"
+  args:
+    metric: {type: enum_list, max: 5, values: [VipAvailability, DipAvailability, SnatConnectionCount, AllocatedSnatPorts, UsedSnatPorts, ByteCount]}
+    duration: {type: duration, default: PT1H, max: P1D}
+  query: *metric_query
+  role: reader
+  requires: Microsoft.Insights/Metrics/Read
+  keep: *metric_keep
+
+- name: nat_gateway_metrics
+  summary: Metric values of a NAT gateway over a recent period (dropped packets, SNAT connections, availability).
+  resource_type: microsoft.network/natgateways
+  method: GET
+  suffix: /providers/Microsoft.Insights/metrics
+  api_version: "2023-10-01"
+  args:
+    metric: {type: enum_list, max: 4, values: [PacketDropCount, SNATConnectionCount, TotalConnectionCount, DatapathAvailability]}
+    duration: {type: duration, default: PT1H, max: P1D}
+  query: *metric_query
+  role: reader
+  requires: Microsoft.Insights/Metrics/Read
+  keep: *metric_keep
+
+- name: public_ip_metrics
+  summary: Metric values of a public IP address over a recent period (availability, bytes, packets, DDoS attack state).
+  resource_type: microsoft.network/publicipaddresses
+  method: GET
+  suffix: /providers/Microsoft.Insights/metrics
+  api_version: "2023-10-01"
+  args:
+    metric: {type: enum_list, max: 5, values: [VipAvailability, ByteCount, PacketCount, SynCount, IfUnderDDoSAttack]}
+    duration: {type: duration, default: PT1H, max: P1D}
+  query: *metric_query
+  role: reader
+  requires: Microsoft.Insights/Metrics/Read
+  keep: *metric_keep
+
+- name: diagnostic_settings
+  summary: Whether this resource sends logs and metrics anywhere, which categories, and to which workspace.
+  resource_type: "*"
+  method: GET
+  suffix: /providers/Microsoft.Insights/diagnosticSettings
+  api_version: 2021-05-01-preview
+  role: reader
+  requires: Microsoft.Insights/DiagnosticSettings/Read
+  keep:
+    settings: {each: value, keep: {name: name, workspace: properties.workspaceId,
+                                    logs: {each: properties.logs, keep: {category: category, group: categoryGroup, enabled: enabled}},
+                                    metrics: {each: properties.metrics, keep: {category: category, enabled: enabled}}}}
+
+- name: flow_logs
+  summary: The flow logs a Network Watcher has, what each one watches and whether it is on.
+  resource_type: microsoft.network/networkwatchers
+  method: GET
+  suffix: /flowLogs
+  api_version: "2025-09-01"
+  role: reader
+  requires: Microsoft.Network/networkWatchers/flowLogs/read
+  keep:
+    flow_logs: {each: value, keep: {name: name, target: properties.targetResourceId, enabled: properties.enabled,
+                                     storage: properties.storageId, retention_days: properties.retentionPolicy.days,
+                                     traffic_analytics: properties.flowAnalyticsConfiguration.networkWatcherFlowAnalyticsConfiguration.enabled}}
+
+- name: firewall_get
+  summary: An Azure Firewall's SKU, policy, private address and provisioning state.
+  resource_type: microsoft.network/azurefirewalls
+  method: GET
+  suffix: ""
+  api_version: "2025-09-01"
+  role: reader
+  requires: Microsoft.Network/azureFirewalls/read
+  keep:
+    sku: sku.name
+    tier: sku.tier
+    state: properties.provisioningState
+    threat_intel: properties.threatIntelMode
+    policy: properties.firewallPolicy.id
+    private_ip: "properties.ipConfigurations[].properties.privateIPAddress"
+
+- name: firewall_policy
+  summary: A firewall policy's tier, threat intelligence mode, DNS proxy and parent policy.
+  resource_type: microsoft.network/firewallpolicies
+  method: GET
+  suffix: ""
+  api_version: "2025-09-01"
+  role: reader
+  requires: Microsoft.Network/firewallPolicies/read
+  keep:
+    tier: properties.sku.tier
+    state: properties.provisioningState
+    threat_intel: properties.threatIntelMode
+    base_policy: properties.basePolicy.id
+    dns_proxy: properties.dnsSettings.enableProxy
+    dns_servers: properties.dnsSettings.servers
+
+- name: firewall_rule_groups
+  summary: Every rule collection group of a firewall policy with its collections and rules (addresses, ports, FQDNs, action).
+  resource_type: microsoft.network/firewallpolicies
+  method: GET
+  suffix: /ruleCollectionGroups
+  api_version: "2025-09-01"
+  role: reader
+  requires: Microsoft.Network/firewallPolicies/ruleCollectionGroups/read
+  keep:
+    groups: {each: value, keep: {name: name, priority: properties.priority,
+      collections: {each: properties.ruleCollections, keep: {name: name, priority: priority, type: ruleCollectionType,
+        action: action.type,
+        rules: {each: rules, keep: {name: name, type: ruleType, protocols: "ipProtocols|protocols[].protocolType",
+                                    sources: sourceAddresses, source_groups: sourceIpGroups,
+                                    destinations: destinationAddresses, destination_groups: destinationIpGroups,
+                                    destination_fqdns: destinationFqdns, destination_ports: destinationPorts,
+                                    target_fqdns: targetFqdns, translated_address: translatedAddress,
+                                    translated_port: translatedPort}}}}}}
+
+- name: vpn_connection
+  summary: A VPN or VNet-to-VNet connection's status, tunnels and traffic counters. Never its shared key.
+  resource_type: microsoft.network/connections
+  method: GET
+  suffix: ""
+  api_version: "2025-09-01"
+  role: reader
+  requires: Microsoft.Network/connections/read
+  keep:
+    status: properties.connectionStatus
+    type: properties.connectionType
+    protocol: properties.connectionProtocol
+    bgp: properties.enableBgp
+    ingress_bytes: properties.ingressBytesTransferred
+    egress_bytes: properties.egressBytesTransferred
+    tunnels: {each: properties.tunnelConnectionStatus, keep: {tunnel: tunnel, status: connectionStatus,
+                                                                established: lastConnectionEstablishedUtcTime}}
+
+- name: vpn_gateway
+  summary: A virtual network gateway's type, SKU, BGP settings and provisioning state.
+  resource_type: microsoft.network/virtualnetworkgateways
+  method: GET
+  suffix: ""
+  api_version: "2025-09-01"
+  role: reader
+  requires: Microsoft.Network/virtualNetworkGateways/read
+  keep:
+    gateway_type: properties.gatewayType
+    vpn_type: properties.vpnType
+    sku: properties.sku.name
+    active_active: properties.activeActive
+    state: properties.provisioningState
+    bgp_asn: properties.bgpSettings.asn
+    bgp_peering_address: properties.bgpSettings.bgpPeeringAddress
+
+- name: vnet_peerings
+  summary: The live state and flags of every peering of a virtual network.
+  resource_type: microsoft.network/virtualnetworks
+  method: GET
+  suffix: /virtualNetworkPeerings
+  api_version: "2025-09-01"
+  role: reader
+  requires: Microsoft.Network/virtualNetworks/virtualNetworkPeerings/read
+  keep:
+    peerings: {each: value, keep: {name: name, state: properties.peeringState, sync: properties.peeringSyncLevel,
+                                    remote: properties.remoteVirtualNetwork.id,
+                                    remote_address_space: properties.remoteAddressSpace.addressPrefixes,
+                                    allow_forwarded: properties.allowForwardedTraffic,
+                                    allow_gateway_transit: properties.allowGatewayTransit,
+                                    use_remote_gateways: properties.useRemoteGateways}}
+
+- name: private_dns_links
+  summary: The virtual networks a private DNS zone is linked to and whether each link registers records.
+  resource_type: microsoft.network/privatednszones
+  method: GET
+  suffix: /virtualNetworkLinks
+  api_version: "2018-09-01"
+  role: reader
+  requires: Microsoft.Network/privateDnsZones/virtualNetworkLinks/read
+  keep:
+    links: {each: value, keep: {name: name, vnet: properties.virtualNetwork.id,
+                                 registration: properties.registrationEnabled, state: properties.virtualNetworkLinkState}}
+
+- name: private_dns_records
+  summary: The A, AAAA and CNAME records of a private DNS zone (TXT and the rest are left out).
+  resource_type: microsoft.network/privatednszones
+  method: GET
+  suffix: /ALL
+  api_version: "2018-09-01"
+  role: reader
+  requires: Microsoft.Network/privateDnsZones/ALL/read
+  keep:
+    records: {each: value, keep: {name: name, type: type, ttl: properties.ttl, fqdn: properties.fqdn,
+                                   a: "properties.aRecords[].ipv4Address", aaaa: "properties.aaaaRecords[].ipv6Address",
+                                   cname: properties.cnameRecord.cname}}
+
+- name: private_endpoint
+  summary: A private endpoint's state, subnet, target service connection and the DNS names and addresses it needs.
+  resource_type: microsoft.network/privateendpoints
+  method: GET
+  suffix: ""
+  api_version: "2025-09-01"
+  role: reader
+  requires: Microsoft.Network/privateEndpoints/read
+  keep:
+    state: properties.provisioningState
+    subnet: properties.subnet.id
+    nics: "properties.networkInterfaces[].id"
+    connections: {each: properties.privateLinkServiceConnections, keep: {name: name, target: properties.privateLinkServiceId,
+                                                                          groups: properties.groupIds,
+                                                                          status: properties.privateLinkServiceConnectionState.status}}
+    dns: {each: properties.customDnsConfigs, keep: {fqdn: fqdn, addresses: ipAddresses}}
+
+- name: site_state
+  summary: A web app's state, availability, host names, plan and network settings.
+  resource_type: microsoft.web/sites
+  method: GET
+  suffix: ""
+  api_version: "2024-11-01"
+  role: reader
+  requires: Microsoft.Web/sites/Read
+  keep:
+    kind: kind
+    state: properties.state
+    availability: properties.availabilityState
+    usage: properties.usageState
+    enabled: properties.enabled
+    host_names: properties.hostNames
+    https_only: properties.httpsOnly
+    plan: properties.serverFarmId
+    vnet_subnet: properties.virtualNetworkSubnetId
+    public_network_access: properties.publicNetworkAccess
+
+- name: site_config
+  summary: A web app's runtime, always-on, health check path, TLS minimum and access restrictions (nothing else of its configuration).
+  resource_type: microsoft.web/sites
+  method: GET
+  suffix: /config/web
+  api_version: "2024-11-01"
+  role: reader
+  requires: Microsoft.Web/sites/config/Read
+  keep:
+    runtime: properties.linuxFxVersion|properties.windowsFxVersion
+    always_on: properties.alwaysOn
+    health_check_path: properties.healthCheckPath
+    min_tls_version: properties.minTlsVersion
+    ftps_state: properties.ftpsState
+    http2: properties.http20Enabled
+    route_all_through_vnet: properties.vnetRouteAllEnabled
+    ip_restrictions: {each: properties.ipSecurityRestrictions, keep: {name: name, action: action, priority: priority,
+                                                                       ip: ip_address, tag: tag}}
+
+- name: site_detectors
+  summary: The diagnostic detectors Azure offers for a web app (names and descriptions).
+  resource_type: microsoft.web/sites
+  method: GET
+  suffix: /detectors
+  api_version: "2024-11-01"
+  role: reader
+  requires: Microsoft.Web/sites/detectors/read
+  keep:
+    detectors: {each: value, keep: {name: name, description: properties.metadata.description,
+                                     category: properties.metadata.category}}
+
+# --- probes (POST that changes nothing; the Rezztor Diagnostics role) -----------------------------------------------
+
+- name: effective_routes
+  summary: The routes that really apply to a network interface (system, user-defined and gateway-learned).
+  resource_type: microsoft.network/networkinterfaces
+  method: POST
+  suffix: /effectiveRouteTable
+  api_version: "2025-09-01"
+  role: diagnostics
+  requires: Microsoft.Network/networkInterfaces/effectiveRouteTable/action
+  cost_note: No charge is documented for this call.
+  keep:
+    routes: {each: value, keep: {name: name, source: source, state: state, prefixes: addressPrefix,
+                                  next_hop_type: nextHopType, next_hop_ips: nextHopIpAddress}}
+
+- name: effective_security_rules
+  summary: The network security group rules that really apply to a network interface, with the group each comes from.
+  resource_type: microsoft.network/networkinterfaces
+  method: POST
+  suffix: /effectiveNetworkSecurityGroups
+  api_version: "2025-09-01"
+  role: diagnostics
+  requires: Microsoft.Network/networkInterfaces/effectiveNetworkSecurityGroups/action
+  cost_note: No charge is documented for this call.
+  keep:
+    groups: {each: value, keep: {nsg: networkSecurityGroup.id, subnet: association.subnet.id,
+      nic: association.networkInterface.id,
+      rules: {each: effectiveSecurityRules, keep: {name: name, priority: priority, direction: direction, access: access,
+                                                   protocol: protocol,
+                                                   sources: sourceAddressPrefix|sourceAddressPrefixes|expandedSourceAddressPrefix,
+                                                   source_ports: sourcePortRange|sourcePortRanges,
+                                                   destinations: destinationAddressPrefix|destinationAddressPrefixes|expandedDestinationAddressPrefix,
+                                                   destination_ports: destinationPortRange|destinationPortRanges}}}}
+
+- name: ip_flow_verify
+  summary: Whether the network security groups allow or deny one flow to or from a virtual machine, and which rule decides.
+  resource_type: microsoft.compute/virtualmachines
+  scope: watcher
+  method: POST
+  suffix: /ipFlowVerify
+  api_version: "2025-09-01"
+  args:
+    direction: {type: enum, values: [Inbound, Outbound]}
+    protocol: {type: enum, values: [TCP, UDP]}
+    local_ip: {type: ip}
+    local_port: {type: port, default: "60000"}
+    remote_ip: {type: ip}
+    remote_port: {type: port}
+  body:
+    targetResourceId: "{resource}"
+    direction: "{direction}"
+    protocol: "{protocol}"
+    localIPAddress: "{local_ip}"
+    localPort: "{local_port}"
+    remoteIPAddress: "{remote_ip}"
+    remotePort: "{remote_port}"
+  role: diagnostics
+  requires: Microsoft.Network/networkWatchers/ipFlowVerify/action
+  cost_note: A Network Watcher diagnostic check. The first 1,000 a month are free, then 0.001 USD each (Microsoft's price list).
+  keep:
+    access: access
+    rule: ruleName
+
+- name: next_hop
+  summary: Where Azure sends a packet from a virtual machine to an address (hop type, address, route table).
+  resource_type: microsoft.compute/virtualmachines
+  scope: watcher
+  method: POST
+  suffix: /nextHop
+  api_version: "2025-09-01"
+  args:
+    source_ip: {type: ip}
+    destination_ip: {type: ip}
+  body:
+    targetResourceId: "{resource}"
+    sourceIPAddress: "{source_ip}"
+    destinationIPAddress: "{destination_ip}"
+  role: diagnostics
+  requires: Microsoft.Network/networkWatchers/nextHop/action
+  cost_note: A Network Watcher diagnostic check. The first 1,000 a month are free, then 0.001 USD each (Microsoft's price list).
+  keep:
+    next_hop_type: nextHopType
+    next_hop_ip: nextHopIpAddress
+    route_table: routeTableId
+
+- name: nsg_diagnostics
+  summary: Every security rule evaluated for one flow to or from a virtual machine, any protocol, and the rule that matched.
+  resource_type: microsoft.compute/virtualmachines
+  scope: watcher
+  method: POST
+  suffix: /networkConfigurationDiagnostic
+  api_version: "2025-09-01"
+  args:
+    direction: {type: enum, values: [Inbound, Outbound]}
+    protocol: {type: enum, values: [TCP, UDP, Any]}
+    source: {type: ip}
+    destination: {type: ip}
+    destination_port: {type: port}
+  body:
+    targetResourceId: "{resource}"
+    profiles:
+      - direction: "{direction}"
+        protocol: "{protocol}"
+        source: "{source}"
+        destination: "{destination}"
+        destinationPort: "{destination_port}"
+  role: diagnostics
+  requires: Microsoft.Network/networkWatchers/networkConfigurationDiagnostic/action
+  cost_note: A Network Watcher diagnostic check. The first 1,000 a month are free, then 0.001 USD each (Microsoft's price list).
+  keep:
+    results: {each: results, keep: {direction: profile.direction, protocol: profile.protocol, source: profile.source,
+                                     destination: profile.destination, destination_port: profile.destinationPort,
+                                     access: networkSecurityGroupResult.securityRuleAccessResult,
+                                     evaluated: {each: "networkSecurityGroupResult.evaluatedNetworkSecurityGroups",
+                                                 keep: {nsg: networkSecurityGroupId, applied_to: appliedTo,
+                                                        matched_rule: matchedRule.ruleName, action: matchedRule.action}}}}
+
+- name: connection_check
+  summary: Whether a virtual machine can reach an address and port (hops, latency, and the fault type when it cannot).
+  resource_type: microsoft.compute/virtualmachines
+  scope: watcher
+  method: POST
+  suffix: /connectivityCheck
+  api_version: "2025-09-01"
+  args:
+    protocol: {type: enum, values: [Tcp, Icmp]}
+    destination_ip: {type: ip}
+    destination_port: {type: port, optional: true}
+  body:
+    source: {resourceId: "{resource}"}
+    destination: {address: "{destination_ip}", port: "{destination_port:int}"}
+    protocol: "{protocol}"
+  role: diagnostics
+  requires: Microsoft.Network/networkWatchers/connectivityCheck/action
+  cost_note: A Network Watcher diagnostic check. The first 1,000 a month are free, then 0.001 USD each (Microsoft's price list). It may need the Network Watcher agent on the machine, which this product never installs.
+  keep:
+    status: connectionStatus
+    latency_avg_ms: avgLatencyInMs
+    latency_max_ms: maxLatencyInMs
+    probes_sent: probesSent
+    probes_failed: probesFailed
+    hops: {each: hops, keep: {type: type, address: address, resource: resourceId,
+                               issues: {each: issues, keep: {origin: origin, severity: severity, type: type}}}}
+
+- name: vpn_bgp_peers
+  summary: The BGP peers of a VPN gateway and the state of each session.
+  resource_type: microsoft.network/virtualnetworkgateways
+  method: POST
+  suffix: /getBgpPeerStatus
+  api_version: "2025-09-01"
+  role: diagnostics
+  requires: Microsoft.Network/virtualNetworkGateways/getBgpPeerStatus/action
+  cost_note: No charge is documented for this call.
+  keep:
+    peers: {each: value, keep: {neighbor: neighbor, asn: asn, state: state, connected_for: connectedDuration,
+                                 routes_received: routesReceived, messages_sent: messagesSent,
+                                 messages_received: messagesReceived, local_address: localAddress}}
+
+- name: vpn_learned_routes
+  summary: The routes a VPN gateway has learned (from BGP peers and its own networks).
+  resource_type: microsoft.network/virtualnetworkgateways
+  method: POST
+  suffix: /getLearnedRoutes
+  api_version: "2025-09-01"
+  role: diagnostics
+  requires: Microsoft.Network/virtualNetworkGateways/getLearnedRoutes/action
+  cost_note: No charge is documented for this call.
+  keep:
+    routes: {each: value, keep: {network: network, next_hop: nextHop, origin: origin, source_peer: sourcePeer,
+                                  as_path: asPath, weight: weight}}
+
+- name: vpn_advertised_routes
+  summary: The routes a VPN gateway advertises to one BGP peer.
+  resource_type: microsoft.network/virtualnetworkgateways
+  method: POST
+  suffix: /getAdvertisedRoutes
+  api_version: "2025-09-01"
+  args:
+    peer: {type: ip}
+  query:
+    peer: "{peer}"
+  role: diagnostics
+  requires: Microsoft.Network/virtualNetworkGateways/getAdvertisedRoutes/action
+  cost_note: No charge is documented for this call.
+  keep:
+    routes: {each: value, keep: {network: network, next_hop: nextHop, origin: origin, source_peer: sourcePeer,
+                                  as_path: asPath, weight: weight}}
+
+
+# --- log queries (kind: kql; helpers/logs.py runs them, as the log app) ----------------------------------------------
+#
+# Fixed query text; the only variable parts are the typed args, put in as KQL string literals by code (never pasted
+# into the text), so the text a card shows is exactly what is sent. `tables` are the tables the text reads; every one
+# must also be in the settings' `logs.tables` or the read is refused. A `duration` arg is the time range, sent with the
+# call, not part of the text. The loader runs every text through the same guard as a free-form query, so an entry
+# that could not be typed in as one does not load. The workspace is chosen at request time from the settings.
+#
+# unverified: the columns are from Microsoft's table reference (learn.microsoft.com/azure/azure-monitor/reference/
+# tables/azfwnetworkrule, azfwapplicationrule, heartbeat); not run against a workspace (test sessions 3 and 4).
+
+- name: fw_network_denied
+  kind: kql
+  summary: What Azure Firewall network rules denied, by source, destination, port and rule (structured firewall logs).
+  tables: [AZFWNetworkRule]
+  args:
+    ip: {type: ip, optional: true}
+    port: {type: port, optional: true}
+    duration: {type: duration, default: PT1H, max: P7D}
+  text: |
+    AZFWNetworkRule
+    | where Action == "Deny"
+    | where isempty({ip}) or SourceIp == {ip} or DestinationIp == {ip}
+    | where isempty({port}) or tostring(DestinationPort) == {port}
+    | summarize hits = count(), last_seen = max(TimeGenerated) by SourceIp, DestinationIp, DestinationPort, Protocol, Policy, RuleCollectionGroup, RuleCollection, Rule, ActionReason
+    | order by hits desc
+
+- name: fw_application_denied
+  kind: kql
+  summary: What Azure Firewall application rules denied, by source, target name and rule (structured firewall logs).
+  tables: [AZFWApplicationRule]
+  args:
+    ip: {type: ip, optional: true}
+    duration: {type: duration, default: PT1H, max: P7D}
+  text: |
+    AZFWApplicationRule
+    | where Action == "Deny"
+    | where isempty({ip}) or SourceIp == {ip}
+    | summarize hits = count(), last_seen = max(TimeGenerated) by SourceIp, Fqdn, Protocol, DestinationPort, Policy, RuleCollectionGroup, RuleCollection, Rule, ActionReason
+    | order by hits desc
+
+- name: heartbeat_last_seen
+  kind: kql
+  summary: When each machine reporting to the workspace last sent a heartbeat, oldest first (a silent machine is a gap in monitoring).
+  tables: [Heartbeat]
+  args:
+    duration: {type: duration, default: P1D, max: P7D}
+  text: |
+    Heartbeat
+    | summarize last_seen = max(TimeGenerated), beats = count() by Computer, OSType
+    | order by last_seen asc

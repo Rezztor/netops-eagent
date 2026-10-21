@@ -1,0 +1,206 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.13.1",
+  "variables": {
+    "resource_group": {
+      "value": "rg-payments-prod-uaen"
+    },
+    "region": {
+      "value": "uaenorth"
+    },
+    "name": {
+      "value": "vm-build-01"
+    },
+    "vnet_name": {
+      "value": "vnet-payments-prod-uaen-001"
+    },
+    "subnet_name": {
+      "value": "snet-app"
+    },
+    "size": {
+      "value": "Standard_B2s"
+    },
+    "image": {
+      "value": "ubuntu_2404"
+    },
+    "admin_username": {
+      "value": "azureops"
+    },
+    "ssh_public_key": {
+      "value": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLE0000 ops@example"
+    },
+    "os_disk_gb": {
+      "value": 30
+    },
+    "tags": {
+      "value": {
+        "env": "prod",
+        "owner": "netops",
+        "costcentre": "cc-1001",
+        "project": "payments"
+      }
+    }
+  },
+  "resource_changes": [
+    {
+      "address": "azurerm_network_interface.this",
+      "mode": "managed",
+      "type": "azurerm_network_interface",
+      "name": "this",
+      "provider_name": "registry.opentofu.org/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "update"
+        ],
+        "before": {
+          "name": "nic-vm-build-01",
+          "resource_group_name": "rg-payments-prod-uaen",
+          "location": "uaenorth",
+          "tags": {
+            "env": "prod",
+            "owner": "netops",
+            "costcentre": "cc-1001"
+          },
+          "ip_configuration": [
+            {
+              "name": "internal",
+              "private_ip_address_allocation": "Dynamic",
+              "public_ip_address_id": null
+            }
+          ],
+          "id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.Fixture/azurerm_network_interface/nic-vm-build-01"
+        },
+        "after": {
+          "name": "nic-vm-build-01",
+          "resource_group_name": "rg-payments-prod-uaen",
+          "location": "uaenorth",
+          "tags": {
+            "env": "prod",
+            "owner": "netops",
+            "costcentre": "cc-1001",
+            "project": "payments"
+          },
+          "ip_configuration": [
+            {
+              "name": "internal",
+              "private_ip_address_allocation": "Dynamic",
+              "public_ip_address_id": null
+            }
+          ],
+          "id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.Fixture/azurerm_network_interface/nic-vm-build-01"
+        },
+        "after_unknown": {},
+        "before_sensitive": {},
+        "after_sensitive": {}
+      }
+    },
+    {
+      "address": "azurerm_linux_virtual_machine.this",
+      "mode": "managed",
+      "type": "azurerm_linux_virtual_machine",
+      "name": "this",
+      "provider_name": "registry.opentofu.org/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "update"
+        ],
+        "before": {
+          "name": "vm-build-01",
+          "resource_group_name": "rg-payments-prod-uaen",
+          "location": "uaenorth",
+          "size": "Standard_B2s",
+          "admin_username": "azureops",
+          "disable_password_authentication": true,
+          "secure_boot_enabled": true,
+          "vtpm_enabled": true,
+          "tags": {
+            "env": "prod",
+            "owner": "netops",
+            "costcentre": "cc-1001"
+          },
+          "custom_data": null,
+          "user_data": null,
+          "admin_ssh_key": [
+            {
+              "username": "azureops",
+              "public_key": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLE0000 ops@example"
+            }
+          ],
+          "os_disk": [
+            {
+              "caching": "ReadWrite",
+              "storage_account_type": "StandardSSD_LRS",
+              "disk_size_gb": 30
+            }
+          ],
+          "source_image_reference": [
+            {
+              "publisher": "Canonical",
+              "offer": "ubuntu-24_04-lts",
+              "sku": "server",
+              "version": "latest"
+            }
+          ],
+          "boot_diagnostics": [
+            {}
+          ],
+          "id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.Fixture/azurerm_linux_virtual_machine/vm-build-01"
+        },
+        "after": {
+          "name": "vm-build-01",
+          "resource_group_name": "rg-payments-prod-uaen",
+          "location": "uaenorth",
+          "size": "Standard_B2s",
+          "admin_username": "azureops",
+          "disable_password_authentication": true,
+          "secure_boot_enabled": true,
+          "vtpm_enabled": true,
+          "tags": {
+            "env": "prod",
+            "owner": "netops",
+            "costcentre": "cc-1001",
+            "project": "payments"
+          },
+          "custom_data": null,
+          "user_data": null,
+          "admin_ssh_key": [
+            {
+              "username": "azureops",
+              "public_key": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLE0000 ops@example"
+            }
+          ],
+          "os_disk": [
+            {
+              "caching": "ReadWrite",
+              "storage_account_type": "StandardSSD_LRS",
+              "disk_size_gb": 30
+            }
+          ],
+          "source_image_reference": [
+            {
+              "publisher": "Canonical",
+              "offer": "ubuntu-24_04-lts",
+              "sku": "server",
+              "version": "latest"
+            }
+          ],
+          "boot_diagnostics": [
+            {}
+          ],
+          "id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.Fixture/azurerm_linux_virtual_machine/vm-build-01"
+        },
+        "after_unknown": {},
+        "before_sensitive": {},
+        "after_sensitive": {}
+      }
+    }
+  ],
+  "configuration": {
+    "provider_config": {
+      "azurerm": {
+        "name": "azurerm",
+        "full_name": "registry.opentofu.org/hashicorp/azurerm"
+      }
+    }
+  }
+}

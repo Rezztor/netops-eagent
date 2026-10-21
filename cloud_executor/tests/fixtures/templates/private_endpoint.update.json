@@ -1,0 +1,194 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.13.1",
+  "variables": {
+    "resource_group": {
+      "value": "rg-payments-prod-uaen"
+    },
+    "region": {
+      "value": "uaenorth"
+    },
+    "name": {
+      "value": "pe-stpaymentsprod001-blob"
+    },
+    "vnet_name": {
+      "value": "vnet-payments-prod-uaen-001"
+    },
+    "subnet_name": {
+      "value": "snet-pe"
+    },
+    "target_id": {
+      "value": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.Storage/storageAccounts/stpaymentsprod001"
+    },
+    "group_id": {
+      "value": "blob"
+    },
+    "tags": {
+      "value": {
+        "env": "prod",
+        "owner": "netops",
+        "costcentre": "cc-1001",
+        "project": "payments"
+      }
+    }
+  },
+  "resource_changes": [
+    {
+      "address": "azurerm_private_dns_zone.this[0]",
+      "mode": "managed",
+      "type": "azurerm_private_dns_zone",
+      "name": "this",
+      "index": 0,
+      "provider_name": "registry.opentofu.org/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "update"
+        ],
+        "before": {
+          "name": "privatelink.blob.core.windows.net",
+          "resource_group_name": "rg-payments-prod-uaen",
+          "tags": {
+            "env": "prod",
+            "owner": "netops",
+            "costcentre": "cc-1001"
+          },
+          "id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.Fixture/azurerm_private_dns_zone/privatelink.blob.core.windows.net"
+        },
+        "after": {
+          "name": "privatelink.blob.core.windows.net",
+          "resource_group_name": "rg-payments-prod-uaen",
+          "tags": {
+            "env": "prod",
+            "owner": "netops",
+            "costcentre": "cc-1001",
+            "project": "payments"
+          },
+          "id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.Fixture/azurerm_private_dns_zone/privatelink.blob.core.windows.net"
+        },
+        "after_unknown": {},
+        "before_sensitive": {},
+        "after_sensitive": {}
+      }
+    },
+    {
+      "address": "azurerm_private_dns_zone_virtual_network_link.this",
+      "mode": "managed",
+      "type": "azurerm_private_dns_zone_virtual_network_link",
+      "name": "this",
+      "provider_name": "registry.opentofu.org/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "update"
+        ],
+        "before": {
+          "name": "link-vnet-payments-prod-uaen-001",
+          "resource_group_name": "rg-payments-prod-uaen",
+          "private_dns_zone_name": "privatelink.blob.core.windows.net",
+          "virtual_network_id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.Network/virtualNetworks/vnet-payments-prod-uaen-001",
+          "registration_enabled": false,
+          "tags": {
+            "env": "prod",
+            "owner": "netops",
+            "costcentre": "cc-1001"
+          },
+          "id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.Fixture/azurerm_private_dns_zone_virtual_network_link/link-vnet-payments-prod-uaen-001"
+        },
+        "after": {
+          "name": "link-vnet-payments-prod-uaen-001",
+          "resource_group_name": "rg-payments-prod-uaen",
+          "private_dns_zone_name": "privatelink.blob.core.windows.net",
+          "virtual_network_id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.Network/virtualNetworks/vnet-payments-prod-uaen-001",
+          "registration_enabled": false,
+          "tags": {
+            "env": "prod",
+            "owner": "netops",
+            "costcentre": "cc-1001",
+            "project": "payments"
+          },
+          "id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.Fixture/azurerm_private_dns_zone_virtual_network_link/link-vnet-payments-prod-uaen-001"
+        },
+        "after_unknown": {},
+        "before_sensitive": {},
+        "after_sensitive": {}
+      }
+    },
+    {
+      "address": "azurerm_private_endpoint.this",
+      "mode": "managed",
+      "type": "azurerm_private_endpoint",
+      "name": "this",
+      "provider_name": "registry.opentofu.org/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "update"
+        ],
+        "before": {
+          "name": "pe-stpaymentsprod001-blob",
+          "resource_group_name": "rg-payments-prod-uaen",
+          "location": "uaenorth",
+          "subnet_id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.Network/virtualNetworks/vnet-payments-prod-uaen-001/subnets/snet-pe",
+          "tags": {
+            "env": "prod",
+            "owner": "netops",
+            "costcentre": "cc-1001"
+          },
+          "private_service_connection": [
+            {
+              "name": "psc-pe-stpaymentsprod001-blob",
+              "private_connection_resource_id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.Storage/storageAccounts/stpaymentsprod001",
+              "subresource_names": [
+                "blob"
+              ],
+              "is_manual_connection": false
+            }
+          ],
+          "private_dns_zone_group": [
+            {
+              "name": "default"
+            }
+          ],
+          "id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.Fixture/azurerm_private_endpoint/pe-stpaymentsprod001-blob"
+        },
+        "after": {
+          "name": "pe-stpaymentsprod001-blob",
+          "resource_group_name": "rg-payments-prod-uaen",
+          "location": "uaenorth",
+          "subnet_id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.Network/virtualNetworks/vnet-payments-prod-uaen-001/subnets/snet-pe",
+          "tags": {
+            "env": "prod",
+            "owner": "netops",
+            "costcentre": "cc-1001",
+            "project": "payments"
+          },
+          "private_service_connection": [
+            {
+              "name": "psc-pe-stpaymentsprod001-blob",
+              "private_connection_resource_id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.Storage/storageAccounts/stpaymentsprod001",
+              "subresource_names": [
+                "blob"
+              ],
+              "is_manual_connection": false
+            }
+          ],
+          "private_dns_zone_group": [
+            {
+              "name": "default"
+            }
+          ],
+          "id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.Fixture/azurerm_private_endpoint/pe-stpaymentsprod001-blob"
+        },
+        "after_unknown": {},
+        "before_sensitive": {},
+        "after_sensitive": {}
+      }
+    }
+  ],
+  "configuration": {
+    "provider_config": {
+      "azurerm": {
+        "name": "azurerm",
+        "full_name": "registry.opentofu.org/hashicorp/azurerm"
+      }
+    }
+  }
+}

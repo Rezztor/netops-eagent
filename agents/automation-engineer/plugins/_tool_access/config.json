@@ -1,0 +1,17 @@
+{
+  "mode": "custom",
+  "default": "block",
+  "mcp_default": "block",
+  "allowed": [
+    "local:refused",
+    "plugin:_code_execution:code_execution_tool",
+    "plugin:_code_execution:input",
+    "plugin:_text_editor:text_editor",
+    "plugin:_document_query:document_query",
+    "local:search_engine",
+    "local:skills_tool",
+    "local:wait",
+    "plugin:_ea_interaction:ask_user"
+  ],
+  "blocked": []
+}

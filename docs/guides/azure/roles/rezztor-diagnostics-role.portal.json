@@ -1,0 +1,35 @@
+{
+  "properties": {
+    "roleName": "Rezztor Diagnostics",
+    "description": "Reader's */read plus named network probes that change nothing. No write, delete, packet capture, VPN troubleshoot, or shared key.",
+    "assignableScopes": [
+      "/subscriptions/00000000-0000-0000-0000-000000000000"
+    ],
+    "permissions": [
+      {
+        "actions": [
+          "*/read",
+          "Microsoft.Network/networkWatchers/ipFlowVerify/action",
+          "Microsoft.Network/networkWatchers/ipFlowVerify/read",
+          "Microsoft.Network/networkWatchers/nextHop/action",
+          "Microsoft.Network/networkWatchers/nextHop/read",
+          "Microsoft.Network/networkWatchers/securityGroupView/action",
+          "Microsoft.Network/networkWatchers/networkConfigurationDiagnostic/action",
+          "Microsoft.Network/networkWatchers/networkConfigurationDiagnostic/read",
+          "Microsoft.Network/networkWatchers/connectivityCheck/action",
+          "Microsoft.Network/networkWatchers/connectivityCheck/read",
+          "Microsoft.Network/networkInterfaces/effectiveRouteTable/action",
+          "Microsoft.Network/networkInterfaces/effectiveNetworkSecurityGroups/action",
+          "Microsoft.Network/virtualNetworkGateways/getBgpPeerStatus/action",
+          "Microsoft.Network/virtualNetworkGateways/getLearnedRoutes/action",
+          "Microsoft.Network/virtualNetworkGateways/getAdvertisedRoutes/action",
+          "Microsoft.Network/virtualNetworkGateways/getEffectiveRoutes/action",
+          "Microsoft.Network/connections/getIkeSas/action"
+        ],
+        "notActions": [],
+        "dataActions": [],
+        "notDataActions": []
+      }
+    ]
+  }
+}

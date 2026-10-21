@@ -1,0 +1,23 @@
+# The SolarWinds instance this plugin talks to. One instance for v1 -- see
+# AGENTS.md for why. The password is deliberately not here: it lives in
+# usr/.env, never in this file. See helpers/client.py.
+host: ""
+port: 17778
+verify_tls: true
+username: ""
+
+# Seconds to wait for SolarWinds to answer one query before giving up. SWIS on
+# a busy instance can be slow; a hung call should fail one tool use, not the
+# turn.
+timeout_seconds: 15
+
+# How many rows a single capability call may return. Every template caps its
+# own SELECT at this value -- it is not something the agent can raise by
+# asking for more, since the point is bounding what one question can pull out
+# of production monitoring infrastructure.
+max_rows: 50
+
+# How many SolarWinds calls one conversation may make in a minute. Guards
+# against a loop hammering the instance, not against ordinary use -- a real
+# troubleshooting exchange rarely needs more than a handful of lookups.
+max_calls_per_minute: 20

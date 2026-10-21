@@ -1,0 +1,7 @@
+name: _ea_interaction
+title: Interaction Cards
+description: Lets the agent ask the user a question with answers they can click, instead of describing the question in prose and guessing at the shape of the reply.
+version: 0.1.0
+settings_sections: []
+per_project_config: false
+per_agent_config: false

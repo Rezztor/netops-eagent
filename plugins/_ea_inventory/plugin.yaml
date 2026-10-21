@@ -1,0 +1,8 @@
+name: _ea_inventory
+title: Device Inventory
+description: The instance's network device inventory. Every change is a proposal an engineer approves, each field records where it came from, and active devices feed the Ansible executor's inventory.
+version: 0.1.0
+settings_sections: []
+per_project_config: false
+per_agent_config: false
+always_enabled: true

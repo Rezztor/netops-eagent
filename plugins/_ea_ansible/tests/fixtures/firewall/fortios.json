@@ -1,0 +1,246 @@
+{
+ "/api/v2/monitor/system/status": {
+  "http_method": "GET",
+  "results": {
+   "model_name": "FortiGate",
+   "model_number": "60F",
+   "model": "FGT60F",
+   "hostname": "FW-Edge1",
+   "log_disk_status": "available"
+  },
+  "vdom": "root",
+  "path": "system",
+  "name": "status",
+  "status": "success",
+  "http_status": 200,
+  "serial": "FGT60F0000000001",
+  "version": "v7.2.4",
+  "build": 1396
+ },
+ "/api/v2/cmdb/system/ha?format=mode%7Cgroup-name": {
+  "http_method": "GET",
+  "results": {
+   "mode": "a-p",
+   "group-name": "edge-cluster"
+  },
+  "vdom": "root",
+  "status": "success",
+  "http_status": 200
+ },
+ "/api/v2/monitor/system/ha-peer": {
+  "http_method": "GET",
+  "results": [
+   {
+    "serial_no": "FGT60F0000000002",
+    "vcluster_id": 0,
+    "priority": 128,
+    "hostname": "fw-edge2",
+    "primary": true
+   }
+  ],
+  "vdom": "root",
+  "status": "success",
+  "http_status": 200
+ },
+ "/api/v2/monitor/system/interface?include_vlan=true": {
+  "http_method": "GET",
+  "results": {
+   "port1": {
+    "id": "port1",
+    "name": "port1",
+    "alias": "wan",
+    "ip": "192.0.2.2",
+    "mask": 30,
+    "link": true,
+    "speed": 1000,
+    "duplex": 1,
+    "tx_bytes": 123456,
+    "rx_bytes": 654321,
+    "tx_errors": 0,
+    "rx_errors": 2
+   },
+   "port2": {
+    "id": "port2",
+    "name": "port2",
+    "ip": "0.0.0.0",
+    "mask": 0,
+    "link": false,
+    "speed": 0,
+    "duplex": 0,
+    "tx_bytes": 0,
+    "rx_bytes": 0,
+    "tx_errors": 0,
+    "rx_errors": 0
+   }
+  },
+  "vdom": "root",
+  "status": "success",
+  "http_status": 200
+ },
+ "/api/v2/monitor/router/ipv4": {
+  "http_method": "GET",
+  "results": [
+   {
+    "ip_version": 4,
+    "type": "static",
+    "ip_mask": "0.0.0.0/0",
+    "distance": 10,
+    "metric": 0,
+    "priority": 1,
+    "vrf": 0,
+    "gateway": "192.0.2.1",
+    "interface": "port1"
+   },
+   {
+    "ip_version": 4,
+    "type": "connect",
+    "ip_mask": "192.0.2.0/30",
+    "distance": 0,
+    "metric": 0,
+    "priority": 0,
+    "vrf": 0,
+    "gateway": "0.0.0.0",
+    "interface": "port1"
+   }
+  ],
+  "vdom": "root",
+  "status": "success",
+  "http_status": 200
+ },
+ "/api/v2/cmdb/firewall/policy?format=policyid%7Cname%7Cstatus%7Caction%7Csrcintf%7Cdstintf": {
+  "http_method": "GET",
+  "results": [
+   {
+    "policyid": 1,
+    "name": "lan-to-wan",
+    "status": "enable",
+    "action": "accept",
+    "srcintf": [
+     {
+      "name": "port2",
+      "q_origin_key": "port2"
+     }
+    ],
+    "dstintf": [
+     {
+      "name": "port1",
+      "q_origin_key": "port1"
+     }
+    ]
+   },
+   {
+    "policyid": 2,
+    "name": "block-guest",
+    "status": "disable",
+    "action": "deny",
+    "srcintf": [
+     {
+      "name": "port3"
+     }
+    ],
+    "dstintf": [
+     {
+      "name": "port1"
+     }
+    ]
+   }
+  ],
+  "vdom": "root",
+  "status": "success",
+  "http_status": 200
+ },
+ "/api/v2/monitor/vpn/ipsec": {
+  "http_method": "GET",
+  "results": [
+   {
+    "proxyid": [
+     {
+      "proxy_src": [
+       {
+        "subnet": "10.1.0.0/16"
+       }
+      ],
+      "proxy_dst": [
+       {
+        "subnet": "10.2.0.0/16"
+       }
+      ],
+      "status": "up",
+      "p2name": "to-hq",
+      "incoming_bytes": 1000,
+      "outgoing_bytes": 2000
+     }
+    ],
+    "name": "to-hq",
+    "type": "automatic",
+    "rgwy": "198.51.100.7",
+    "incoming_bytes": 1000,
+    "outgoing_bytes": 2000
+   },
+   {
+    "proxyid": [
+     {
+      "status": "down",
+      "p2name": "to-dr"
+     }
+    ],
+    "name": "to-dr",
+    "type": "automatic",
+    "rgwy": "198.51.100.8"
+   }
+  ],
+  "vdom": "root",
+  "status": "success",
+  "http_status": 200
+ },
+ "/api/v2/monitor/system/resource/usage?interval=1-min": {
+  "http_method": "GET",
+  "results": {
+   "cpu": [
+    {
+     "current": 4,
+     "historical": {
+      "1-min": {
+       "min": 2,
+       "max": 9,
+       "average": 4
+      }
+     }
+    }
+   ],
+   "mem": [
+    {
+     "current": 38
+    }
+   ],
+   "disk": [
+    {
+     "current": 12
+    }
+   ],
+   "session": [
+    {
+     "current": 1241
+    }
+   ],
+   "session6": [
+    {
+     "current": 0
+    }
+   ],
+   "setup_rate": [
+    {
+     "current": 6
+    }
+   ],
+   "setup_rate6": [
+    {
+     "current": 0
+    }
+   ]
+  },
+  "vdom": "root",
+  "status": "success",
+  "http_status": 200
+ }
+}

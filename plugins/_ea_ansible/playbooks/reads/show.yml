@@ -1,0 +1,124 @@
+# `hosts: all` scoped by the job's --limit, per tests/test_net_catalogue.py.
+#
+# The one read whose commands are not written here: the engineer approves up to
+# five `show` commands on the chat card, and those exact strings arrive as
+# `command_1` .. `command_5`. What keeps that read-only is the shape of a command,
+# checked three times: by the catalogue pattern in the application, by the same
+# pattern in the executor, and by the assert below, which stands on its own if
+# either of those is ever loosened. A command is the word `show` followed by plain
+# words: no pipe, no redirect, no quote, no `;`, no option that starts with `-`.
+# On community SONiC `show` is a program run by a shell, which is why the shape
+# matters more there than anywhere.
+#
+# Run against a device: `sonic_community` (the networkop/sonic-vs lab) and `ios` (Cisco 3725, IOS 12.4(15)T14).
+# A command the IOS device rejects fails the whole read with the device's own message in the job's error.
+# The `nxos`, `eos`, `junos` and `sonic` legs have not met a device.
+- name: Run the show commands the engineer approved
+  hosts: all
+  gather_facts: false
+  vars:
+    eagent_commands: >-
+      {{ [command_1, command_2 | default(''), command_3 | default(''),
+          command_4 | default(''), command_5 | default('')] | select | list }}
+  tasks:
+    - name: Establish which platform this host is
+      ansible.builtin.set_fact:
+        eagent_platform: >-
+          {{ (ansible_network_os | default('')) | regex_replace('^.*\.', '') }}
+
+    - name: Refuse a platform this entry does not cover
+      ansible.builtin.fail:
+        msg: >-
+          {{ inventory_hostname }} is {{ eagent_platform | default('unknown', true) }},
+          which reads/show does not cover. It is written for ios, nxos, eos, junos,
+          sonic and sonic_community.
+      when: eagent_platform not in ['ios', 'nxos', 'eos', 'junos', 'sonic', 'sonic_community']
+
+    - name: Refuse anything that is not a plain show command
+      ansible.builtin.assert:
+        that:
+          - item is match('^show( [A-Za-z0-9][A-Za-z0-9_./:,-]*){1,12}\\Z')
+          - item is not search('//')
+          - item is not search('(?i) tec')
+        fail_msg: "{{ item }} is not a plain show command, so nothing was sent."
+        quiet: true
+      loop: "{{ eagent_commands }}"
+
+    - name: Run the commands on a Cisco IOS device
+      # In check mode ios_command sends only commands that begin with `show`.
+      cisco.ios.ios_command:
+        commands: "{{ eagent_commands }}"
+      when: eagent_platform == 'ios'
+      register: ios_show
+
+    - name: Show the output from a Cisco IOS device
+      ansible.builtin.debug:
+        msg: "{{ dict(eagent_commands | zip(ios_show.stdout_lines)) }}"
+      when: eagent_platform == 'ios'
+
+    - name: Run the commands on a Cisco NX-OS device
+      # In check mode nxos_command sends only commands that begin with `show`.
+      cisco.nxos.nxos_command:
+        commands: "{{ eagent_commands }}"
+      when: eagent_platform == 'nxos'
+      register: nxos_show
+
+    - name: Show the output from a Cisco NX-OS device
+      ansible.builtin.debug:
+        msg: "{{ dict(eagent_commands | zip(nxos_show.stdout_lines)) }}"
+      when: eagent_platform == 'nxos'
+
+    - name: Run the commands on an Arista EOS device
+      # In check mode eos_command sends only commands that begin with `show`.
+      arista.eos.eos_command:
+        commands: "{{ eagent_commands }}"
+      when: eagent_platform == 'eos'
+      register: eos_show
+
+    - name: Show the output from an Arista EOS device
+      ansible.builtin.debug:
+        msg: "{{ dict(eagent_commands | zip(eos_show.stdout_lines)) }}"
+      when: eagent_platform == 'eos'
+
+    - name: Run the commands on a Junos device
+      # Over network_cli. In check mode junos_command sends only commands that begin
+      # with `show`. No `| display` is added: `display` is none by default and the
+      # command shape above has no pipe.
+      juniper.device.junos_command:
+        commands: "{{ eagent_commands }}"
+      when: eagent_platform == 'junos'
+      register: junos_show
+
+    - name: Show the output from a Junos device
+      ansible.builtin.debug:
+        msg: "{{ dict(eagent_commands | zip(junos_show.stdout_lines)) }}"
+      when: eagent_platform == 'junos'
+
+    - name: Run the commands on a SONiC device
+      dellemc.enterprise_sonic.sonic_command:
+        commands: "{{ eagent_commands }}"
+      when: eagent_platform == 'sonic'
+      register: sonic_show
+
+    - name: Show the output from a SONiC device
+      ansible.builtin.debug:
+        msg: "{{ dict(eagent_commands | zip(sonic_show.stdout_lines)) }}"
+      when: eagent_platform == 'sonic'
+
+    - name: Run the commands on a sonic_community device
+      # Plain SSH, as in reads/interfaces. `raw` is skipped in check mode and the
+      # job always runs in check mode, so this task opts out. A command the device
+      # rejects is reported with the others rather than hiding their output.
+      # `2>&1` is ours, not the engineer's: the device's own error text is part of the answer.
+      ansible.builtin.raw: "{{ item }} 2>&1"
+      loop: "{{ eagent_commands }}"
+      check_mode: false
+      changed_when: false
+      failed_when: false
+      register: sonic_community_show
+      when: eagent_platform == 'sonic_community'
+
+    - name: Show the output from a sonic_community device
+      ansible.builtin.debug:
+        msg: "{{ sonic_community_show.results | items2dict(key_name='item', value_name='stdout_lines') }}"
+      when: eagent_platform == 'sonic_community'

@@ -1,0 +1,7 @@
+name: _ea_solarwinds
+title: SolarWinds
+description: Lets the agent read inventory, status, configuration, hardware health, NetFlow and connectivity from a SolarWinds instance — read-only. It cannot write to SolarWinds, and can only reach the one instance an administrator has configured.
+version: 1.0.0
+settings_sections: []
+per_project_config: false
+per_agent_config: false

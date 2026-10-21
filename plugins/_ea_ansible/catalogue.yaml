@@ -1,0 +1,572 @@
+# The playbook catalogue.
+#
+# An entry is a reviewed playbook plus a typed schema for every variable it
+# takes. The agent names an entry; it never supplies playbook content, a task,
+# or a device command. This file and the playbooks beside it are reviewed in
+# this repository's pull requests, and that review is the trust boundary
+# (ADR 0024, adopted here by ADR 0030).
+#
+# Rules a reviewer should hold every entry to:
+#
+#   * Every variable declares a type and a constraint. There is no free-text
+#     variable, because a free-text variable is an injection point wearing a
+#     schema.
+#   * A playbook targets `hosts: all` and is scoped by the job's `limit`. It
+#     must never template its own host pattern -- an earlier attempt used
+#     `hosts: "{{ eagent_limit }}"` with nothing defining that variable, and
+#     every play failed. `tests/test_net_catalogue.py` checks for it.
+#   * An entry with `kind: change` names a `rollback` entry. A change class
+#     with no rollback story does not enter the catalogue.
+#   * `check_mode` says what the entry supports, so the renderer knows whether
+#     it can compute a live diff or must fall back to offline rendering.
+
+version: 1
+
+entries:
+  - name: reads/ping_localhost
+    playbook: playbooks/reads/ping_localhost.yml
+    kind: read
+    platforms: [any]
+    summary: >-
+      Reaches nothing at all. Proves the executor can accept a job, run a
+      playbook and return structured events -- the smallest thing that can
+      fail for a real reason.
+    check_mode: supported
+    read_commands:
+      any: [ansible.builtin.ping]
+    variables: {}
+
+  # --- reads -----------------------------------------------------------------
+  #
+  # Written from the collections' documented interfaces, which is not the same
+  # as working. "Resolve in the built image" was asserted here and not checked:
+  # device_facts named `ansible.netcommon.gather_facts`, which netcommon does
+  # not ship, so it had never succeeded on any platform, and interfaces sent IOS
+  # commands to every host in a group. Both were found by running them against a
+  # live SONiC VS lab on 2026-09-19 and are fixed.
+  #
+  # plugins/_ea_ansible/tests/test_net_playbooks_resolve.py resolves every
+  # module a playbook names against the built executor image.
+  #
+  # What has actually run against a device: `sonic_community` (the
+  # networkop/sonic-vs lab, scripts/lab/sonic-vs.sh), over plain SSH, and `ios`
+  # on c3725-lab (Cisco 3725, IOS 12.4(15)T14, NM-16ESW), 2026-10-02: device_facts,
+  # inventory_facts, interfaces, show, inventory_ports, the config backup and the
+  # interface-description change with its rollback. Not run against any device:
+  # Dell Enterprise `sonic` (httpapi REST), nxos, eos and junos; their entries were
+  # written from the collections' documentation. `ios_vlans` fails on the 3725
+  # (see changes/ios_vlan_name).
+  #
+  # Firewalls (fortios, panos): not run against any device. Written from the vendors' documented API output;
+  # fixtures in tests/fixtures/firewall cite the pages, and the first live run will correct them.
+  #
+  # `read_commands` is what the engineer approves on the chat card: per platform,
+  # the literal commands that reach the device. For a module-based read it is
+  # what the module sends (read from the pinned collection's source), or the
+  # module name when the module speaks REST and sends no CLI. A test checks that
+  # every listed command appears in the playbook it belongs to.
+
+  - name: reads/device_facts
+    playbook: playbooks/reads/device_facts.yml
+    kind: read
+    platforms: [ios, nxos, eos, junos, sonic, sonic_community, fortios, panos]
+    summary: Vendor, model, serial, OS version and uptime.
+    check_mode: supported
+    read_commands:
+      # cisco.ios.ios_facts sends these (module source; the module ran on c3725-lab, which
+      # answered `all` and `min`, the exact commands sent were not captured):
+      # `min` the first line, `hardware` the second, `config` the third, `interfaces`
+      # the rest; the default `all` sends every one.
+      ios:
+        - show version
+        - show switch virtual
+        - show inventory
+        - dir
+        - show memory statistics
+        - show processes cpu | include CPU utilization
+        - show running-config
+        - show interfaces
+        - show ip interface
+        - show ipv6 interface
+        - show lldp
+        - show cdp
+        - show lldp neighbors detail
+        - show cdp neighbors detail
+      # nxos_facts and eos_facts (network_cli) send these on the pinned collections' source,
+      # read for the `min` and `hardware` subsets; the default `all` sends more. Unverified: no device yet.
+      nxos: [cisco.nxos.nxos_facts]
+      eos: [arista.eos.eos_facts]
+      # junos_command over network_cli (junos_facts needs netconf). Unverified: no device yet.
+      junos:
+        - show version
+        - show chassis hardware
+        - show system uptime
+      # REST over httpapi: the module sends no CLI. Unverified: no Enterprise SONiC device.
+      sonic: [dellemc.enterprise_sonic.sonic_facts]
+      # networkop/sonic-vs: `show version` crashes in that image after printing its
+      # first line (KeyError: debian_version); the playbook keeps what it printed.
+      sonic_community:
+        - hostname
+        - show version
+        - show platform summary
+      # FortiGate and Palo Alto: the management API over HTTPS, GET only (playbooks/reads/fw/read.yml). Each line is a
+      # request path (FortiOS) or a <show> command or xpath (PAN-OS). Written from documented output, not run against a device.
+      fortios:
+        - "/api/v2/monitor/system/status"
+        - "/api/v2/cmdb/system/ha?format=mode%7Cgroup-name"
+        - "/api/v2/monitor/system/ha-peer"
+      panos:
+        - "<show><system><info></info></system></show>"
+        - "<show><high-availability><state></state></high-availability></show>"
+    variables:
+      gather_subset:
+        type: choice
+        required: false
+        choices: [all, min, hardware, config, interfaces]
+
+  - name: reads/inventory_facts
+    playbook: playbooks/reads/inventory_facts.yml
+    kind: read
+    # Feeds the inventory refresh (plugins/_ea_inventory). Prints one
+    # `EAGENT_FACTS <host> <json>` line per host; no variables.
+    platforms: [ios, nxos, eos, junos, sonic, sonic_community, fortios, panos]
+    summary: Facts the inventory records (vendor, model, serial, version) as one parseable line per device.
+    check_mode: supported
+    read_commands:
+      # gather_subset `min`: ios_facts sends these (module source; ran on c3725-lab, which returned model, serial and version).
+      ios:
+        - show version
+        - show switch virtual
+        - show inventory
+      # nxos and eos: gather_subset `min`, unverified: no device yet. junos: parsed from `show` output.
+      nxos: [cisco.nxos.nxos_facts]
+      eos: [arista.eos.eos_facts]
+      junos:
+        - show version
+        - show chassis hardware
+      sonic: [dellemc.enterprise_sonic.sonic_facts]
+      sonic_community:
+        - hostname
+        - show version
+        - show platform summary
+      # FortiGate and Palo Alto: the management API over HTTPS, GET only (playbooks/reads/fw/read.yml). Each line is a
+      # request path (FortiOS) or a <show> command or xpath (PAN-OS). Written from documented output, not run against a device.
+      fortios:
+        - "/api/v2/monitor/system/status"
+        - "/api/v2/cmdb/system/ha?format=mode%7Cgroup-name"
+        - "/api/v2/monitor/system/ha-peer"
+      panos:
+        - "<show><system><info></info></system></show>"
+        - "<show><high-availability><state></state></high-availability></show>"
+    variables: {}
+
+  - name: reads/inventory_ports
+    playbook: playbooks/reads/inventory_ports.yml
+    kind: read
+    # Feeds the inventory's Ports tab (plugins/_ea_inventory). Prints one
+    # `EAGENT_PORTS <host> <json>` line per host; no variables. The application
+    # parses the output, and a command the device lacks comes back as no data.
+    # Run against a device: ios and sonic_community. nxos, eos, junos, fortios and panos: written from documented
+    # output, not run against a device.
+    platforms: [ios, nxos, eos, junos, fortios, panos, sonic_community]
+    summary: Ports, VLANs, neighbours, optics, PoE and parts the inventory records, as one parseable line per device.
+    check_mode: supported
+    read_commands:
+      # ios_facts (interfaces, hardware) sends its own commands (ran on c3725-lab). The rest are
+      # fixed; on that image `show vlan brief`, `show power inline` and `show license summary` do
+      # not exist (the parser treats that as no data) and `show vlan-switch brief` is the VLAN table.
+      ios:
+        - cisco.ios.ios_facts
+        - show inventory
+        - show vlan brief
+        - show vlan-switch brief
+        - show interfaces status
+        - show interfaces switchport
+        - show power inline
+        - show license summary
+      # nxos, eos and junos: written from documented output, not run against a device. All three ask for the
+      # vendor's structured output, which the application parses (ports_parse.py). No PoE on any of them, and
+      # Junos gives no speed, mode or VLANs: no cited example shows those fields.
+      nxos:
+        - show interface status | json
+        - show interface switchport | json
+        - show ip interface vrf all | json
+        - show lldp neighbors detail | json
+        - show inventory | json
+      eos:
+        - show interfaces status | json
+        - show interfaces description | json
+        - show ip interface | json
+        - show lldp neighbors detail | json
+        - show inventory | json
+      junos:
+        - show interfaces terse | display json
+        - show interfaces descriptions | display json
+        - show lldp neighbors | display json
+        - show chassis hardware | display json
+      # fortios and panos: the management API over HTTPS, GET only, called by the executor (ADR 0058). Interfaces
+      # with link, speed, addresses, VLAN id and zone, and the model and serial; no PoE and no LLDP (both APIs
+      # list neighbours, but the fields are not documented anywhere the parser was written from).
+      fortios:
+        - "/api/v2/monitor/system/interface?include_vlan=true"
+        - "/api/v2/cmdb/system/interface?format=name%7Calias%7Cdescription%7Cstatus%7Ctype%7Cvlanid%7Cinterface%7Crole"
+        - "/api/v2/cmdb/system/zone?format=name%7Cinterface"
+        - "/api/v2/monitor/system/status"
+      panos:
+        - "<show><interface>all</interface></show>"
+        - "<show><system><info></info></system></show>"
+      # Verified on networkop/sonic-vs: several of these print only shell noise or an error there.
+      sonic_community:
+        - show interfaces status
+        - show interfaces description
+        - show vlan brief
+        - show lldp table
+        - show ip interfaces
+        - show interfaces transceiver presence
+        - show platform summary
+    variables: {}
+
+  - name: reads/interfaces
+    playbook: playbooks/reads/interfaces.yml
+    kind: read
+    # The playbook refuses any platform it does not name rather than trying a
+    # command and reporting whatever the device says about it.
+    platforms: [ios, sonic, sonic_community, fortios, panos]
+    summary: Interface state, speed, duplex, counters and errors.
+    check_mode: supported
+    read_commands:
+      # cisco.ios.ios_interfaces state=gathered sends this (module source; the module ran on
+      # c3725-lab and returned name, description, enabled, speed and duplex).
+      ios: [show running-config | section ^interface]
+      # sonic_command; not run against an Enterprise SONiC device.
+      sonic: [show interfaces status, show vlan brief]
+      # Verified on networkop/sonic-vs: returns the interface table.
+      sonic_community: [show interfaces status, show vlan brief]
+      # FortiGate and Palo Alto: the management API over HTTPS, GET only (playbooks/reads/fw/read.yml). Each line is a
+      # request path (FortiOS) or a <show> command or xpath (PAN-OS). Written from documented output, not run against a device.
+      fortios:
+        - "/api/v2/monitor/system/interface?include_vlan=true"
+      panos:
+        - "<show><interface>all</interface></show>"
+    variables:
+      interface:
+        type: string
+        required: false
+        pattern: '^[A-Za-z][A-Za-z0-9/._-]{0,62}$'
+
+  # --- firewalls: FortiGate (fortios) and Palo Alto (panos) -------------------------------
+  #
+  # Named reads only. Each is a fixed set of GET requests to the vendor's management API with an API token
+  # held in the executor's credential store (kind api_token); no free-form command exists for these two platforms.
+  # Nothing here has met a device: written from the vendors' documented output, with fixtures in tests/fixtures/firewall.
+
+  - name: reads/routing_table
+    playbook: playbooks/reads/routing_table.yml
+    kind: read
+    platforms: [fortios, panos]
+    summary: The routing table (up to 200 rows, with the total) from a FortiGate or Palo Alto firewall.
+    check_mode: supported
+    read_commands:
+      # FortiGate and Palo Alto: the management API over HTTPS, GET only (playbooks/reads/fw/read.yml). Each line is a
+      # request path (FortiOS) or a <show> command or xpath (PAN-OS). Written from documented output, not run against a device.
+      fortios:
+        - "/api/v2/monitor/router/ipv4"
+      panos:
+        - "<show><routing><route></route></routing></show>"
+    variables: {}
+
+  - name: reads/firewall_policy_summary
+    playbook: playbooks/reads/firewall_policy_summary.yml
+    kind: read
+    platforms: [fortios, panos]
+    summary: Firewall policy names, actions and enabled state with counts. No addresses, profiles or secrets.
+    check_mode: supported
+    read_commands:
+      # FortiGate and Palo Alto: the management API over HTTPS, GET only (playbooks/reads/fw/read.yml). Each line is a
+      # request path (FortiOS) or a <show> command or xpath (PAN-OS). Written from documented output, not run against a device.
+      fortios:
+        - "/api/v2/cmdb/firewall/policy?format=policyid%7Cname%7Cstatus%7Caction%7Csrcintf%7Cdstintf"
+      panos:
+        - "/config/devices/entry[@name='localhost.localdomain']/vsys/entry/rulebase/security/rules"
+    variables: {}
+
+  - name: reads/vpn_tunnels
+    playbook: playbooks/reads/vpn_tunnels.yml
+    kind: read
+    platforms: [fortios, panos]
+    summary: IPsec VPN tunnel state on a FortiGate or Palo Alto firewall.
+    check_mode: supported
+    read_commands:
+      # FortiGate and Palo Alto: the management API over HTTPS, GET only (playbooks/reads/fw/read.yml). Each line is a
+      # request path (FortiOS) or a <show> command or xpath (PAN-OS). Written from documented output, not run against a device.
+      fortios:
+        - "/api/v2/monitor/vpn/ipsec"
+      panos:
+        - "<show><vpn><flow></flow></vpn></show>"
+    variables: {}
+
+  - name: reads/system_resources
+    playbook: playbooks/reads/system_resources.yml
+    kind: read
+    platforms: [fortios, panos]
+    summary: CPU, memory and disk use of a FortiGate; the CPU and memory summary of a Palo Alto firewall.
+    check_mode: supported
+    read_commands:
+      # FortiGate and Palo Alto: the management API over HTTPS, GET only (playbooks/reads/fw/read.yml). Each line is a
+      # request path (FortiOS) or a <show> command or xpath (PAN-OS). Written from documented output, not run against a device.
+      fortios:
+        - "/api/v2/monitor/system/resource/usage?interval=1-min"
+      panos:
+        - "<show><system><resources></resources></system></show>"
+    variables: {}
+
+  - name: reads/session_summary
+    playbook: playbooks/reads/session_summary.yml
+    kind: read
+    platforms: [fortios, panos]
+    summary: Active session count and setup rate of a FortiGate or Palo Alto firewall.
+    check_mode: supported
+    read_commands:
+      # FortiGate and Palo Alto: the management API over HTTPS, GET only (playbooks/reads/fw/read.yml). Each line is a
+      # request path (FortiOS) or a <show> command or xpath (PAN-OS). Written from documented output, not run against a device.
+      fortios:
+        - "/api/v2/monitor/system/resource/usage?interval=1-min"
+      panos:
+        - "<show><session><info></info></session></show>"
+    variables: {}
+
+  - name: reads/show
+    playbook: playbooks/reads/show.yml
+    kind: read
+    # The one read whose commands are not fixed: the engineer approves the exact
+    # text on the chat card (ADR 0046). The pattern below is the whole safety
+    # argument, and it runs here, in the executor and again in the playbook:
+    # the word `show`, then one to twelve plain words. No pipe, redirect, quote,
+    # `;`, `$` or brace can appear, no word may start with `-` (so no option
+    # flags), `//` is refused (no URLs), and so is tech-support (a heavy dump that
+    # writes files on SONiC). Output is redacted like every other read.
+    platforms: [ios, nxos, eos, junos, sonic, sonic_community]
+    summary: Up to five show commands you name, for a question no other read answers.
+    check_mode: supported
+    read_commands:
+      # `<command_n>` is replaced on the card by the text the engineer approves.
+      ios: &show_lines ["<command_1>", "<command_2>", "<command_3>", "<command_4>", "<command_5>"]
+      nxos: *show_lines
+      eos: *show_lines
+      junos: *show_lines
+      sonic: *show_lines
+      sonic_community: *show_lines
+    variables:
+      command_1:
+        type: string
+        required: true
+        pattern: &show_command '(?=.{1,160}\Z)(?!.*//)(?!.* (?i:tec))show(?: [A-Za-z0-9][A-Za-z0-9_./:,-]*){1,12}'
+      command_2: &show_optional
+        type: string
+        required: false
+        pattern: *show_command
+      command_3: *show_optional
+      command_4: *show_optional
+      command_5: *show_optional
+
+  # --- changes ---------------------------------------------------------------
+  #
+  # NOT YET VERIFIED against a device, in the same sense as the reads above and
+  # with more at stake: these push configuration. Every one is `state: merged`,
+  # which leaves attributes the entry does not name alone -- a `replaced` or
+  # `overridden` state would silently revert settings nobody mentioned, and that
+  # is not a thing to discover in production.
+  #
+  # **Why every rollback declares `check_mode: unsupported`.** It is not a gap.
+  # A rollback's commands cannot be computed against the device, because the
+  # device has not had the change applied yet: asking the module what the undo
+  # would push, before the change exists, reports that nothing needs doing. So a
+  # rollback carries `reviewed_cli` -- literal CLI a person wrote and reviewed --
+  # and the approver reads it alongside the change's own commands and approves
+  # both at once.
+  #
+  # **FortiGate and FMC are deliberately absent.** Writing a change entry for a
+  # platform without a device to try it against is a different risk from writing
+  # a read: a read that is wrong returns nothing useful, and a change that is
+  # wrong pushes something. The firewall entries wait for Phase 2's sign-off.
+
+  # Verified on c3725-lab (Cisco 3725, IOS 12.4(15)T14, NM-16ESW): rendered in check mode, applied,
+  # verified and rolled back on an unused port, the running config identical afterwards.
+  - name: changes/ios_interface_description
+    playbook: playbooks/changes/ios_interface_description.yml
+    kind: change
+    risk: low
+    platforms: [ios]
+    summary: >-
+      Set the description on one interface. The undo clears the description, so it is only
+      a true undo for an interface that has none now; it does not restore an earlier text.
+    check_mode: supported
+    rollback: changes/ios_interface_description_revert
+    # `show interfaces description` exists on every IOS image seen; it names ports in the short form
+    # (Fa1/15), so the check looks for the new text closing a row (the output is JSON, a row ends in a quote), not for the port name.
+    verify:
+      commands:
+        ios: [show interfaces description]
+      expect: '\s<description>\s*"'
+    variables:
+      interface:
+        type: string
+        required: true
+        pattern: '^[A-Za-z][A-Za-z0-9/._-]{0,62}$'
+      description:
+        type: string
+        required: true
+        # Not free text. A description is the most tempting place in this
+        # catalogue to allow one, and the constraint is what stops a value the
+        # model supplied from carrying a quote, a brace or a dollar into a
+        # config line. Letters, digits and the punctuation a real description
+        # uses; nothing that means anything to a shell or to Jinja.
+        pattern: '^[A-Za-z0-9 _.:@()/+-]{1,200}$'
+
+  - name: changes/ios_interface_description_revert
+    playbook: playbooks/changes/ios_interface_description_revert.yml
+    kind: rollback
+    platforms: [ios]
+    summary: Clear an interface's description (`no description`). Does not restore an earlier text.
+    check_mode: unsupported
+    reviewed_cli:
+      - interface <interface>
+      - no description
+    # `description` is the text the change set; it is here so the undo can check it is gone.
+    verify:
+      commands:
+        ios: [show interfaces description]
+      absent: true
+      expect: '\s<description>\s*"'
+    variables:
+      interface:
+        type: string
+        required: true
+        pattern: '^[A-Za-z][A-Za-z0-9/._-]{0,62}$'
+      description:
+        type: string
+        required: true
+        pattern: '^[A-Za-z0-9 _.:@()/+-]{1,200}$'
+
+  # c3725-lab (IOS 12.4 with an NM-16ESW EtherSwitch module) refuses this: cisco.ios.ios_vlans answers
+  # "Resource VLAN is not valid for the target device", even in check mode, so the entry cannot
+  # render or apply there. It is left as written for IOS images that support the VLAN resource
+  # (not run on any); the playbook turns that refusal into a plain message.
+  - name: changes/ios_vlan_name
+    playbook: playbooks/changes/ios_vlan_name.yml
+    kind: change
+    platforms: [ios]
+    summary: >-
+      Create a VLAN, or rename an existing one. Fails on switch modules that keep VLANs in a
+      separate database (the Cisco 3725 NM-16ESW does). Deleting is the right undo only
+      for a VLAN this created; for a rename the real undo is another rename, and
+      the approver sees both sets of commands before deciding.
+    check_mode: supported
+    rollback: changes/ios_vlan_delete
+    variables:
+      vlan_id:
+        type: integer
+        required: true
+        minimum: 1
+        maximum: 4094
+      vlan_name:
+        type: string
+        required: true
+        pattern: '^[A-Za-z0-9_.-]{1,32}$'
+
+  - name: changes/ios_vlan_delete
+    playbook: playbooks/changes/ios_vlan_delete.yml
+    kind: rollback
+    platforms: [ios]
+    summary: Remove a VLAN.
+    check_mode: unsupported
+    reviewed_cli:
+      - no vlan <vlan_id>
+    variables:
+      vlan_id:
+        type: integer
+        required: true
+        minimum: 1
+        maximum: 4094
+
+  - name: changes/sonic_vlan
+    playbook: playbooks/changes/sonic_vlan.yml
+    kind: change
+    platforms: [sonic]
+    summary: Create a VLAN on Dell Enterprise SONiC.
+    # `partial`, not `supported`. dellemc.enterprise_sonic has no `rendered`
+    # state and reaches the device over httpapi; what it reports under --check
+    # has not been checked against hardware. Claiming `supported` would make the
+    # approval view promise a completeness nobody has verified.
+    check_mode: partial
+    rollback: changes/sonic_vlan_delete
+    variables:
+      vlan_id:
+        type: integer
+        required: true
+        minimum: 1
+        maximum: 4094
+
+  - name: changes/sonic_vlan_delete
+    playbook: playbooks/changes/sonic_vlan_delete.yml
+    kind: rollback
+    platforms: [sonic]
+    summary: Remove a VLAN from Dell Enterprise SONiC.
+    check_mode: unsupported
+    reviewed_cli:
+      - no interface Vlan<vlan_id>
+    variables:
+      vlan_id:
+        type: integer
+        required: true
+        minimum: 1
+        maximum: 4094
+
+  # Community SONiC (networkop/sonic-vs), the lab's platform, and the entry the
+  # change flow can be proven on end to end. Plain SSH `raw` as the sonic_community
+  # reads; the lab logs in as root and has no `sudo`, so nothing is prefixed.
+  # `raw` is skipped in check mode, so the commands come from `reviewed_cli`.
+  # `risk: low` lets a draft on up to three devices skip the typed confirmation
+  # (ADR 0050). `verify` runs `show vlan brief` through reads/show after the apply
+  # and wants a table row for the id; the rollback's verify wants it gone.
+  # Unverified: the `show vlan brief` row layout has not been checked on the lab.
+  - name: changes/sonic_community_vlan_add
+    playbook: playbooks/changes/sonic_community_vlan_add.yml
+    kind: change
+    risk: low
+    platforms: [sonic_community]
+    summary: Create a VLAN on community SONiC.
+    check_mode: unsupported
+    reviewed_cli:
+      - sudo config vlan add <vlan_id>
+    rollback: changes/sonic_community_vlan_del
+    verify:
+      commands:
+        sonic_community: [show vlan brief]
+      expect: '\|\s*<vlan_id>\s*\|'
+    variables:
+      vlan_id:
+        type: integer
+        required: true
+        minimum: 2
+        maximum: 4094
+
+  - name: changes/sonic_community_vlan_del
+    playbook: playbooks/changes/sonic_community_vlan_del.yml
+    kind: rollback
+    platforms: [sonic_community]
+    summary: Remove a VLAN from community SONiC.
+    check_mode: unsupported
+    reviewed_cli:
+      - sudo config vlan del <vlan_id>
+    verify:
+      commands:
+        sonic_community: [show vlan brief]
+      absent: true
+      expect: '\|\s*<vlan_id>\s*\|'
+    variables:
+      vlan_id:
+        type: integer
+        required: true
+        minimum: 2
+        maximum: 4094

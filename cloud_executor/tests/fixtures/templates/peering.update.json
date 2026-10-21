@@ -1,0 +1,111 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.13.1",
+  "variables": {
+    "subscription_id": {
+      "value": "11111111-2222-3333-4444-555555555555"
+    },
+    "resource_group": {
+      "value": "rg-payments-prod-uaen"
+    },
+    "local_vnet": {
+      "value": "vnet-spoke-payments-prod-uaen-001"
+    },
+    "remote_vnet": {
+      "value": "vnet-hub-prod-uaen-001"
+    },
+    "remote_resource_group": {
+      "value": "rg-hub-prod-uaen"
+    },
+    "forwarded_traffic": {
+      "value": true
+    },
+    "hub_gateway": {
+      "value": false
+    }
+  },
+  "resource_changes": [
+    {
+      "address": "azurerm_virtual_network_peering.remote_to_local",
+      "mode": "managed",
+      "type": "azurerm_virtual_network_peering",
+      "name": "remote_to_local",
+      "provider_name": "registry.opentofu.org/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "update"
+        ],
+        "before": {
+          "name": "to-vnet-spoke-payments-prod-uaen-001",
+          "resource_group_name": "rg-hub-prod-uaen",
+          "virtual_network_name": "vnet-hub-prod-uaen-001",
+          "remote_virtual_network_id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.Network/virtualNetworks/vnet-spoke-payments-prod-uaen-001",
+          "allow_virtual_network_access": true,
+          "allow_forwarded_traffic": false,
+          "allow_gateway_transit": false,
+          "use_remote_gateways": false,
+          "id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.Fixture/azurerm_virtual_network_peering/to-vnet-spoke-payments-prod-uaen-001"
+        },
+        "after": {
+          "name": "to-vnet-spoke-payments-prod-uaen-001",
+          "resource_group_name": "rg-hub-prod-uaen",
+          "virtual_network_name": "vnet-hub-prod-uaen-001",
+          "remote_virtual_network_id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.Network/virtualNetworks/vnet-spoke-payments-prod-uaen-001",
+          "allow_virtual_network_access": true,
+          "allow_forwarded_traffic": true,
+          "allow_gateway_transit": false,
+          "use_remote_gateways": false,
+          "id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.Fixture/azurerm_virtual_network_peering/to-vnet-spoke-payments-prod-uaen-001"
+        },
+        "after_unknown": {},
+        "before_sensitive": {},
+        "after_sensitive": {}
+      }
+    },
+    {
+      "address": "azurerm_virtual_network_peering.local_to_remote",
+      "mode": "managed",
+      "type": "azurerm_virtual_network_peering",
+      "name": "local_to_remote",
+      "provider_name": "registry.opentofu.org/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "update"
+        ],
+        "before": {
+          "name": "to-vnet-hub-prod-uaen-001",
+          "resource_group_name": "rg-payments-prod-uaen",
+          "virtual_network_name": "vnet-spoke-payments-prod-uaen-001",
+          "remote_virtual_network_id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-hub-prod-uaen/providers/Microsoft.Network/virtualNetworks/vnet-hub-prod-uaen-001",
+          "allow_virtual_network_access": true,
+          "allow_forwarded_traffic": false,
+          "allow_gateway_transit": false,
+          "use_remote_gateways": false,
+          "id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.Fixture/azurerm_virtual_network_peering/to-vnet-hub-prod-uaen-001"
+        },
+        "after": {
+          "name": "to-vnet-hub-prod-uaen-001",
+          "resource_group_name": "rg-payments-prod-uaen",
+          "virtual_network_name": "vnet-spoke-payments-prod-uaen-001",
+          "remote_virtual_network_id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-hub-prod-uaen/providers/Microsoft.Network/virtualNetworks/vnet-hub-prod-uaen-001",
+          "allow_virtual_network_access": true,
+          "allow_forwarded_traffic": true,
+          "allow_gateway_transit": false,
+          "use_remote_gateways": false,
+          "id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.Fixture/azurerm_virtual_network_peering/to-vnet-hub-prod-uaen-001"
+        },
+        "after_unknown": {},
+        "before_sensitive": {},
+        "after_sensitive": {}
+      }
+    }
+  ],
+  "configuration": {
+    "provider_config": {
+      "azurerm": {
+        "name": "azurerm",
+        "full_name": "registry.opentofu.org/hashicorp/azurerm"
+      }
+    }
+  }
+}

@@ -1,0 +1,60 @@
+#!/bin/sh
+# Run a catalogue playbook from a shell inside this container.
+#
+# For an engineer who has `docker exec`ed in because the
+# application is down, or because Ansible is doing something the console cannot
+# explain. It sets the collections path, renders the managed inventory, and
+# hands the rest to ansible-playbook.
+#
+# **This is a convenience, not a control.** A shell in this container can call
+# ansible-playbook directly, with any playbook, against any device in the
+# inventory, and nothing here would know. Shell access to this container is
+# equivalent to full authority over every device it can reach -- that is the
+# nature of the container, not a gap in this script -- and the admin guide says
+# so in those words.
+#
+# What it does do is leave a record. A run through this wrapper is written to the
+# job history with `source: cli`, so the console shows it beside everything else.
+# A run that bypassed the wrapper leaves nothing, which is worth knowing when
+# reading a history that seems to have a hole in it.
+set -eu
+
+CATALOGUE_DIR="${REZZTOR_ANSIBLE_CATALOGUE_DIR:-/app/plugins/_ea_ansible}"
+
+usage() {
+    cat >&2 <<'USAGE'
+usage: ea-ansible list
+       ea-ansible show <entry>
+       ea-ansible run  <entry> --limit <pattern> [--check] [-e key=value ...]
+       ea-ansible backup list [host] | export <host> <id>
+
+  list           every entry in this image's catalogue
+  show           one entry's kind, platforms, variables and check-mode support
+  run            run it. --check is strongly advised first; without it, a
+                 change entry pushes configuration.
+  backup         list stored configuration backups, or print one in the clear
+                 (the only route to the raw text; the API never returns it).
+USAGE
+    exit 2
+}
+
+[ $# -ge 1 ] || usage
+ACTION="$1"
+shift
+
+case "$ACTION" in
+    list|show)
+        exec python3 -c 'import sys; from executor import cli; cli.describe(sys.argv[1:])' \
+            "$ACTION" "$@"
+        ;;
+    run)
+        [ $# -ge 1 ] || usage
+        exec python3 -c 'import sys; from executor import cli; cli.run(sys.argv[1:])' "$@"
+        ;;
+    backup)
+        exec python3 -c 'import sys; from executor import cli; cli.backup(sys.argv[1:])' "$@"
+        ;;
+    *)
+        usage
+        ;;
+esac

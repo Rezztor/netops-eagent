@@ -1,0 +1,334 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.13.1",
+  "variables": {
+    "resource_group": {
+      "value": "rg-payments-prod-uaen"
+    },
+    "name": {
+      "value": "payments"
+    },
+    "env": {
+      "value": "prod"
+    },
+    "region": {
+      "value": "uaenorth"
+    },
+    "vnet": {
+      "value": "10.30.0.0/16"
+    },
+    "subnets": {
+      "value": [
+        {
+          "name": "snet-web",
+          "prefix": "10.30.1.0/24",
+          "delegation": "web"
+        },
+        {
+          "name": "snet-pe",
+          "prefix": "10.30.3.0/24",
+          "delegation": ""
+        }
+      ]
+    },
+    "plan_sku": {
+      "value": "P1v3"
+    },
+    "runtime": {
+      "value": "PYTHON|3.12"
+    },
+    "tags": {
+      "value": {
+        "env": "prod",
+        "owner": "netops",
+        "costcentre": "cc-1001",
+        "project": "payments"
+      }
+    }
+  },
+  "resource_changes": [
+    {
+      "address": "azurerm_resource_group.this",
+      "mode": "managed",
+      "type": "azurerm_resource_group",
+      "name": "this",
+      "provider_name": "registry.opentofu.org/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "name": "rg-payments-prod-uaen",
+          "location": "uaenorth",
+          "tags": {
+            "env": "prod",
+            "owner": "netops",
+            "costcentre": "cc-1001",
+            "project": "payments"
+          },
+          "timeouts": null,
+          "managed_by": null
+        },
+        "after_unknown": {
+          "id": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {}
+      }
+    },
+    {
+      "address": "azurerm_virtual_network.this",
+      "mode": "managed",
+      "type": "azurerm_virtual_network",
+      "name": "this",
+      "provider_name": "registry.opentofu.org/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "name": "vnet-payments-prod",
+          "resource_group_name": "rg-payments-prod-uaen",
+          "location": "uaenorth",
+          "address_space": [
+            "10.30.0.0/16"
+          ],
+          "tags": {
+            "env": "prod",
+            "owner": "netops",
+            "costcentre": "cc-1001",
+            "project": "payments"
+          }
+        },
+        "after_unknown": {
+          "id": true,
+          "guid": true,
+          "subnet": true,
+          "dns_servers": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {}
+      }
+    },
+    {
+      "address": "azurerm_subnet.this[\"snet-web\"]",
+      "mode": "managed",
+      "type": "azurerm_subnet",
+      "name": "this",
+      "index": "snet-web",
+      "provider_name": "registry.opentofu.org/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "name": "snet-web",
+          "resource_group_name": "rg-payments-prod-uaen",
+          "virtual_network_name": "vnet-payments-prod",
+          "address_prefixes": [
+            "10.30.1.0/24"
+          ],
+          "default_outbound_access_enabled": false,
+          "private_endpoint_network_policies": "Enabled",
+          "delegation": [
+            {
+              "name": "web",
+              "service_delegation": [
+                {
+                  "name": "Microsoft.Web/serverFarms",
+                  "actions": [
+                    "Microsoft.Network/virtualNetworks/subnets/action"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "after_unknown": {
+          "id": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {}
+      }
+    },
+    {
+      "address": "azurerm_subnet.this[\"snet-pe\"]",
+      "mode": "managed",
+      "type": "azurerm_subnet",
+      "name": "this",
+      "index": "snet-pe",
+      "provider_name": "registry.opentofu.org/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "name": "snet-pe",
+          "resource_group_name": "rg-payments-prod-uaen",
+          "virtual_network_name": "vnet-payments-prod",
+          "address_prefixes": [
+            "10.30.3.0/24"
+          ],
+          "default_outbound_access_enabled": false,
+          "private_endpoint_network_policies": "Enabled",
+          "delegation": []
+        },
+        "after_unknown": {
+          "id": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {}
+      }
+    },
+    {
+      "address": "azurerm_network_security_group.this[\"snet-pe\"]",
+      "mode": "managed",
+      "type": "azurerm_network_security_group",
+      "name": "this",
+      "index": "snet-pe",
+      "provider_name": "registry.opentofu.org/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "name": "nsg-snet-pe",
+          "resource_group_name": "rg-payments-prod-uaen",
+          "location": "uaenorth",
+          "tags": {
+            "env": "prod",
+            "owner": "netops",
+            "costcentre": "cc-1001",
+            "project": "payments"
+          }
+        },
+        "after_unknown": {
+          "id": true,
+          "security_rule": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {}
+      }
+    },
+    {
+      "address": "azurerm_subnet_network_security_group_association.this[\"snet-pe\"]",
+      "mode": "managed",
+      "type": "azurerm_subnet_network_security_group_association",
+      "name": "this",
+      "index": "snet-pe",
+      "provider_name": "registry.opentofu.org/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {},
+        "after_unknown": {
+          "id": true,
+          "subnet_id": true,
+          "network_security_group_id": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {}
+      }
+    },
+    {
+      "address": "azurerm_service_plan.this",
+      "mode": "managed",
+      "type": "azurerm_service_plan",
+      "name": "this",
+      "provider_name": "registry.opentofu.org/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "name": "asp-payments-prod",
+          "resource_group_name": "rg-payments-prod-uaen",
+          "location": "uaenorth",
+          "os_type": "Linux",
+          "sku_name": "P1v3",
+          "tags": {
+            "env": "prod",
+            "owner": "netops",
+            "costcentre": "cc-1001",
+            "project": "payments"
+          }
+        },
+        "after_unknown": {
+          "id": true,
+          "kind": true,
+          "reserved": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {}
+      }
+    },
+    {
+      "address": "azurerm_linux_web_app.this",
+      "mode": "managed",
+      "type": "azurerm_linux_web_app",
+      "name": "this",
+      "provider_name": "registry.opentofu.org/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "name": "app-payments-prod",
+          "resource_group_name": "rg-payments-prod-uaen",
+          "location": "uaenorth",
+          "https_only": true,
+          "public_network_access_enabled": false,
+          "client_affinity_enabled": false,
+          "ftp_publish_basic_authentication_enabled": false,
+          "webdeploy_publish_basic_authentication_enabled": false,
+          "tags": {
+            "env": "prod",
+            "owner": "netops",
+            "costcentre": "cc-1001",
+            "project": "payments"
+          },
+          "site_config": [
+            {
+              "minimum_tls_version": "1.2",
+              "ftps_state": "Disabled",
+              "http2_enabled": true,
+              "vnet_route_all_enabled": true,
+              "application_stack": [
+                {
+                  "python_version": "3.12",
+                  "node_version": null,
+                  "dotnet_version": null
+                }
+              ]
+            }
+          ]
+        },
+        "after_unknown": {
+          "id": true,
+          "service_plan_id": true,
+          "virtual_network_subnet_id": true,
+          "default_hostname": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {}
+      }
+    }
+  ],
+  "configuration": {
+    "provider_config": {
+      "azurerm": {
+        "name": "azurerm",
+        "full_name": "registry.opentofu.org/hashicorp/azurerm"
+      }
+    }
+  }
+}

@@ -1,0 +1,28 @@
+# Set an interface's description on Cisco IOS.
+#
+# `hosts: all`, scoped by the job's `--limit`. Never templates its own host
+# pattern -- see the catalogue header for why that rule exists.
+#
+# `state: merged` leaves every other attribute of the interface alone. That is
+# the whole reason this entry is safe enough to be the first change in the
+# catalogue: a `replaced` or `overridden` state would silently revert settings
+# nobody mentioned.
+- name: Set an interface description
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Merge the description into the interface
+      cisco.ios.ios_interfaces:
+        config:
+          - name: "{{ interface }}"
+            description: "{{ description }}"
+        state: merged
+      register: change
+
+    # The approval view reads `commands` out of this task's result. The debug
+    # task is not what produces it -- ansible-runner carries the whole module
+    # result in the event -- but printing it keeps the human-readable log and
+    # the structured record saying the same thing.
+    - name: Report the commands the module would push
+      ansible.builtin.debug:
+        var: change.commands

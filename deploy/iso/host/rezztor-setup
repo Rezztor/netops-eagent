@@ -1,0 +1,695 @@
+#!/bin/bash
+# rezztor-setup: the console setup of a machine installed from the ISO.
+#
+#   rezztor-setup first-boot     run once on the first console by its unit
+#   rezztor-setup                the menu (sign in as rezadmin, use sudo; on a machine whose
+#                                console is closed, signing in as rezadmin is the menu)
+#   rezztor-setup apply FILE     apply an answers file, asking nothing
+#   rezztor-setup network ...    the network: the menu (interfaces, routes), or routes,
+#                                list, test [ADDRESS], restore, apply FILE, check FILE
+#                                (see rezztor-network --help)
+#   rezztor-setup status         the address, the fingerprint, the containers
+#   rezztor-setup update ...     an update from Rezztor: find the file, show it, install, restart
+#                                (see rezztor-update --help)
+#   rezztor-setup load-images    check and load the images (run by its unit)
+#
+# The console, the answers disk and `apply FILE` all end in apply(): one path,
+# and it checks every answer again. An answers file is read as KEY=value
+# lines and never run as shell. The two passwords are used and forgotten;
+# they are not written to /etc/rezztor, to a log, or to a command line.
+#
+# The network belongs to rezztor-network, beside this file: its questions, its
+# validator, and "keep or go back in 120 seconds". The console runs it; an
+# answers file is handed to it whole. This tool only reads back the address.
+#
+# The product is installed by the bundle's own install.sh --unattended, which
+# makes every secret here, on this machine.
+
+set -euo pipefail
+
+ETC=/etc/rezztor
+SAVED=$ETC/answers.env
+PAYLOAD=/var/lib/rezztor/payload
+STACK=/var/lib/rezztor/stack
+LOG=/var/log/rezztor/setup.log
+TITLE="Rezztor EAgent setup   [TEST BUILD, not signed]"
+ANSWERS_DISK=/dev/disk/by-label/REZZTOR-ANSWERS
+# Saved for the next run of the menu. The passwords are not in this list.
+KEEP="KEYMAP HOSTNAME TIMEZONE NTP ADMIN_USER SSH"
+NETWORK=/usr/local/sbin/rezztor-network
+UPDATE=/usr/local/sbin/rezztor-update
+# A closed console (ADR 0083): the ISO carried a support key, rezadmin's shell is this
+# menu, and a root shell opens only for a code Rezztor signed (rezztor-support).
+SUPPORT=/usr/local/sbin/rezztor-support
+MARK=$ETC/build-mark
+# The answers file being applied, when there is one. The network tool reads it too.
+ANSWERS_FILE=""
+
+declare -A A=()
+
+say() { printf '%s\n' "$*"; printf '%s %s\n' "$(date -u +%FT%TZ)" "$*" >> "$LOG"; }
+
+# ---------------------------------------------------------------------------
+# answers
+# ---------------------------------------------------------------------------
+
+load_answers() {
+    local k v
+    while IFS='=' read -r k v || [[ -n "$k" ]]; do
+        v=${v%$'\r'}
+        if [[ "$k" =~ ^[A-Z][A-Z0-9_]*$ ]]; then A[$k]=$v; fi
+    done < "$1"
+}
+
+save_answers() {
+    local k
+    for k in $KEEP; do printf '%s=%s\n' "$k" "${A[$k]:-}"; done > "$SAVED"
+    chmod 600 "$SAVED"
+}
+
+defaults() {
+    : "${A[KEYMAP]:=us}" "${A[HOSTNAME]:=rezztor-eagent}"
+    : "${A[TIMEZONE]:=UTC}" "${A[ADMIN_USER]:=admin}" "${A[SSH]:=off}"
+}
+
+layouts() { sed -n '/^! layout/,/^! variant/{s/^  \([^ ]*\) .*/\1/p}' /usr/share/X11/xkb/rules/base.lst; }
+
+console_closed() { [[ -x $SUPPORT ]] && $SUPPORT closed; }
+
+# How to come back to this menu, as the screens say it.
+menu_hint() { if console_closed; then echo "sign in as rezadmin"; else echo "sign in as rezadmin, then run: sudo rezztor-setup"; fi; }
+
+console_locked() { [[ "$(passwd -S rezadmin 2>/dev/null | awk '{print $2}')" != P ]]; }
+
+# check KEY: prints why the answer is not acceptable, or nothing when it is.
+# The one validator: the console asks again on its output, apply() refuses.
+# The network answers have theirs in rezztor-network; validate() calls it.
+check() {
+    local v=${A[$1]:-} w re='^[A-Za-z0-9._,:;!?@%+=/^*~-]+$'
+    local -a words
+    case $1 in
+    KEYMAP)
+        # -F: the answer is a name, not a pattern. `[u/]s` matched "us" and then broke the sed of apply_keyboard.
+        layouts | grep -xF -- "$v" > /dev/null || echo "Keyboard layout '$v' is not known (examples: us, gb, de, fr)." ;;
+    CONSOLE_PASSWORD)
+        if [[ -z "$v" ]]; then
+            if console_locked; then echo "The console account rezadmin needs a password."; fi
+        elif (( ${#v} < 15 )); then echo "The console password needs at least 15 characters."
+        elif [[ "$v" == *rezadmin* ]]; then echo "The console password must not contain the account name."
+        fi ;;
+    HOSTNAME)
+        [[ ${#v} -le 253 && "$v" =~ ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$ && ! "$v" =~ ^[0-9.]+$ ]] \
+            || echo "The host name may hold a-z, 0-9, hyphens and dots, and not only digits." ;;
+    TIMEZONE)
+        [[ "$v" =~ ^[A-Za-z0-9_+-]+(/[A-Za-z0-9_+-]+)*$ && -f /usr/share/zoneinfo/$v ]] \
+            || echo "Time zone '$v' is not known (examples: UTC, Europe/Berlin, Asia/Colombo)." ;;
+    NTP)
+        # Split on blanks and nothing else: an unquoted $v also expanded a `*` into file names before the check.
+        read -ra words <<< "$v"
+        (( ${#words[@]} <= 3 )) || echo "At most three NTP servers."
+        for w in "${words[@]}"; do [[ "$w" =~ ^[A-Za-z0-9.-]+$ ]] || echo "NTP server '$w' is not a host name or an address."; done ;;
+    ADMIN_USER)
+        [[ -f $STACK/.env ]] || [[ "$v" =~ ^[a-z0-9._-]{3,32}$ ]] \
+            || echo "The administrator name needs 3 to 32 of: a-z 0-9 . _ -" ;;
+    ADMIN_PASSWORD)
+        [[ -f $STACK/.env ]] && return 0
+        # The bundle's installer writes it into .env, which cannot carry
+        # quotes, spaces, \$, # or a backslash unchanged.
+        if (( ${#v} < 15 )); then echo "The administrator password needs at least 15 characters."
+        elif [[ ! "$v" =~ $re ]]; then
+            echo "The administrator password may hold letters, digits and . _ , : ; ! ? @ % + = / ^ * ~ -"
+        elif [[ "$v" == "${A[ADMIN_USER]:-}" || "$v" == "${A[HOSTNAME]:-}" ]]; then
+            echo "The administrator password must not be the user name or the host name."
+        fi ;;
+    SSH)
+        [[ "$v" == on || "$v" == off ]] || echo "SSH must be on or off." ;;
+    esac
+}
+
+validate() {
+    local k out="" one
+    for k in KEYMAP CONSOLE_PASSWORD HOSTNAME TIMEZONE NTP ADMIN_USER ADMIN_PASSWORD SSH; do
+        one=$(check "$k") || true
+        if [[ -n "$one" ]]; then out+="$one"$'\n'; fi
+    done
+    if [[ -n "$ANSWERS_FILE" ]] && ! one=$($NETWORK check "$ANSWERS_FILE" 2>&1); then out+="$one"$'\n'; fi
+    printf '%s' "$out"
+    [[ -z "$out" ]]
+}
+
+# ---------------------------------------------------------------------------
+# apply
+# ---------------------------------------------------------------------------
+
+# The interface and the address users open the web interface on, from the network tool.
+netdev() { $NETWORK web 2>/dev/null | cut -d' ' -f1 || true; }
+
+current_ip() { $NETWORK web 2>/dev/null | cut -d' ' -f2 || true; }
+
+apply_keyboard() {
+    sed -i "s/^XKBLAYOUT=.*/XKBLAYOUT=\"${A[KEYMAP]}\"/" /etc/default/keyboard
+    setupcon -k --force 2>/dev/null || true
+}
+
+apply_console_password() {
+    if [[ -n "${A[CONSOLE_PASSWORD]:-}" ]]; then
+        printf 'rezadmin:%s\n' "${A[CONSOLE_PASSWORD]}" | chpasswd
+    fi
+}
+
+apply_host_and_time() {
+    local h=${A[HOSTNAME]} short=${A[HOSTNAME]%%.*}
+    hostnamectl set-hostname "$h"
+    sed -i '/^127\.0\.1\.1/d' /etc/hosts
+    if [[ "$short" == "$h" ]]; then echo "127.0.1.1 $h"; else echo "127.0.1.1 $h $short"; fi >> /etc/hosts
+    timedatectl set-timezone "${A[TIMEZONE]}"
+    # No NTP server given means no time source: nothing on this machine calls
+    # out to a server the administrator did not name.
+    mkdir -p /etc/systemd/timesyncd.conf.d
+    if [[ -n "${A[NTP]:-}" ]]; then
+        printf '[Time]\nNTP=%s\n' "${A[NTP]}" > /etc/systemd/timesyncd.conf.d/rezztor.conf
+        timedatectl set-ntp true
+        systemctl restart systemd-timesyncd
+    else
+        rm -f /etc/systemd/timesyncd.conf.d/rezztor.conf
+        timedatectl set-ntp false
+    fi
+}
+
+apply_network() {
+    # On the console the network tool has asked, applied and tested already
+    # (ask_network). An answers file is applied here, by the same tool: every
+    # network that is not for devices only first, then one device network at a
+    # time, each kept only when its checks passed.
+    [[ -n "$ANSWERS_FILE" ]] || return 0
+    $NETWORK apply "$ANSWERS_FILE" --yes \
+        || say "  warning: not every network was set up (see above). Setup carries on; see: sudo rezztor-setup network"
+}
+
+apply_tls() {
+    local ip san
+    ip=$(current_ip)
+    san="DNS:${A[HOSTNAME]}${ip:+,IP:$ip}"
+    mkdir -p $ETC/tls
+    # A new certificate only when the name or the address changed, so the
+    # fingerprint the administrator compared stays the same otherwise.
+    if [[ -f $ETC/tls/cert.pem && "$(cat $ETC/tls/san 2>/dev/null)" == "$san" ]]; then return 0; fi
+    (umask 077; openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes -days 825 \
+        -subj "/CN=${A[HOSTNAME]}" -addext "subjectAltName=$san" \
+        -keyout $ETC/tls/key.pem -out $ETC/tls/cert.pem 2>/dev/null)
+    echo "$san" > $ETC/tls/san
+}
+
+apply_access() {
+    if [[ "${A[SSH]}" == on ]]; then
+        touch $ETC/ssh-on
+        systemctl unmask ssh.service
+        systemctl enable --now ssh.service
+    else
+        rm -f $ETC/ssh-on
+        systemctl disable --now ssh.service 2>/dev/null || true
+        systemctl mask ssh.service
+    fi
+    systemctl restart rezztor-firewall.service
+    systemctl enable nginx.service 2>/dev/null
+    systemctl restart nginx.service
+}
+
+product_health() { curl -fsS --max-time 5 http://127.0.0.1:50080/api/health 2>/dev/null; }
+
+# product_build: ", version X, commit abc1234" out of the health answer on its
+# input, or nothing. The whole answer is longer than one line of the console.
+product_build() {
+    python3 -c '
+import json, re, sys
+try:
+    info = json.load(sys.stdin).get("gitinfo") or {}
+except (ValueError, AttributeError):
+    info = {}
+found = {word: re.sub("[^A-Za-z0-9._+-]", "", str(info.get(key) or ""))[:length]
+         for word, key, length in (("version", "version", 24), ("commit", "commit_hash", 7))}
+print("".join(f", {word} {value}" for word, value in found.items() if value))' 2>/dev/null || true
+}
+
+apply_stack() {
+    say "Checking and loading the container images. The first time, this takes several minutes."
+    systemctl start rezztor-load-images.service \
+        || { say "The images could not be loaded. See: journalctl -u rezztor-load-images"; return 1; }
+    if [[ ! -f $STACK/.env ]]; then
+        say "Installing the product. Secrets are made on this machine now."
+        mkdir -p "$STACK"
+        (cd $PAYLOAD/bundle && cp -a docker-compose.yml installer.sh install.sh rezztor-guard \
+            rezztor-guard.service rezztor-guard-runner.service searxng .env.example INSTALL.md "$STACK/")
+        # The block the containers use, if the network tool had to move it
+        # away from one of the customer's networks.
+        local prefix
+        prefix=$(sed -n 's/^REZZTOR_NET_PREFIX=//p' $ETC/compose.env 2>/dev/null || true)
+        # The installer prints the administrator password at the end. Its
+        # output goes to a root-only log, without that line.
+        # COMPOSE_PROFILES: both executors run from the first start. The
+        # installer makes their secrets and the application is given them, so
+        # nobody types a token; the guard already lets only the Ansible one
+        # into the networks for devices. Azure changes stay off until the
+        # customer has made the keys and passed the test in Settings.
+        (cd "$STACK" && REZZTOR_VERSION="$(cat $PAYLOAD/VERSION)" REZZTOR_PORT=50080 COMPOSE_PROFILES=ansible,cloud \
+            REZZTOR_BIND_ADDRESS=127.0.0.1 REZZTOR_NET_PREFIX="${prefix:-172.31}" \
+            FORWARDED_ALLOW_IPS="${prefix:-172.31}.249.1" REZZTOR_ADMIN_USER="${A[ADMIN_USER]}" \
+            REZZTOR_ADMIN_PASSWORD="${A[ADMIN_PASSWORD]}" \
+            sh ./install.sh --unattended 2>&1 | sed '/Password/d' >> $LOG.installer) \
+            || say "  the installer reported a problem (see $LOG.installer); waiting for the product anyway"
+        [[ -f $STACK/.env ]] || { tail -n 20 $LOG.installer; return 1; }
+        # The rest of the network's Compose variables (a proxy), merged into .env.
+        $NETWORK compose >> $LOG.installer 2>&1 || true
+    else
+        (cd "$STACK" && docker compose up -d) >> $LOG.installer 2>&1
+    fi
+    say "Waiting for the product to answer."
+    local i
+    for i in $(seq 180); do
+        if product_health > /dev/null; then
+            # The Updates page reads the installed version from the update tool's state file.
+            $UPDATE status > /dev/null 2>&1 || true
+            return 0
+        fi
+        sleep 5
+    done
+    say "The product did not answer within 15 minutes. See: cd $STACK && sudo docker compose logs eagent"
+    return 1
+}
+
+write_issue() {
+    {
+        echo "Rezztor EAgent  -  TEST BUILD, not signed"
+        echo
+        echo "  Address      https://\\4{$(netdev)}/"
+        fingerprint | sed 's/^/  /'
+        echo "  Settings     $(menu_hint)"
+        if console_closed; then echo "  Lost the console password? Sign in as rezrecover, password rezrecover, and call Rezztor."; fi
+        echo
+    } > /etc/issue
+}
+
+# try_apply: run apply() and put its result in APPLY_RC. In a subshell and not
+# as an `if` condition, because bash ignores `set -e` inside a condition and a
+# failed step would then be followed by the next one.
+try_apply() {
+    set +e
+    (set -e; apply)
+    APPLY_RC=$?
+    set -e
+}
+
+apply() {
+    local errors
+    defaults
+    if ! errors=$(validate); then
+        say "These answers are not acceptable:"
+        say "$errors"
+        return 1
+    fi
+    save_answers
+    say "Keyboard, console account, host name and time"
+    apply_keyboard
+    apply_console_password
+    apply_host_and_time
+    say "Network"
+    apply_network
+    say "Certificate, firewall and web front"
+    apply_tls
+    apply_access
+    apply_stack
+    touch $ETC/setup-done
+    write_issue
+}
+
+# ---------------------------------------------------------------------------
+# status
+# ---------------------------------------------------------------------------
+
+# The product's own verdict on its licence (helpers/license_client.state), one line. Five seconds at most:
+# a slow product does not hold up the status screen.
+licence_line() {
+    local st="" end=""
+    read -r st end < <(timeout 5 docker exec -u eagent rezztor-eagent sh -c 'cd /eagent && exec /opt/venv-eagent/bin/python -c "
+from helpers.license_client import state
+s = state()
+print(s[\"state\"], s.get(\"end\") or \"\")"' 2>/dev/null) || true
+    case $st in
+    licensed)
+        [[ $end =~ ^[0-9]+$ ]] && end=", until $(date -u -d "@$end" +%F)" || end=""
+        echo "Licence      licensed$end" ;;
+    grace1 | grace2) echo "Licence      grace: the product works; renew the licence under Settings -> Licence" ;;
+    restricted) echo "Licence      Restricted: enter the activation key under Settings -> Licence" ;;
+    *) echo "Licence      not known: the product does not answer" ;;
+    esac
+}
+
+# A guard unit as the status screen says it: "on", or what is wrong. The runner's watch
+# is retried with a growing delay after a failure, so between tries it is "activating"
+# with a failed result, which is not on.
+guard_state() {
+    local active result
+    active=$(systemctl show -P ActiveState "$1" 2>/dev/null || true)
+    result=$(systemctl show -P Result "$1" 2>/dev/null || true)
+    if [[ $active == active && $result == success ]]; then echo on; else echo "NOT LOADED (${active:-unknown}, ${result:-unknown})"; fi
+}
+
+fingerprint() {
+    local f
+    f=$(openssl x509 -in $ETC/tls/cert.pem -noout -fingerprint -sha256 2>/dev/null | cut -d= -f2) || true
+    [[ -n "$f" ]] || return 0
+    echo "Certificate  SHA-256 fingerprint:"
+    echo "             ${f:0:47}"
+    echo "             ${f:48}"
+}
+
+status() {
+    local ip health
+    if [[ -f $SAVED ]]; then load_answers "$SAVED"; fi
+    defaults
+    ip=$(current_ip)
+    echo
+    echo "Rezztor EAgent  -  TEST BUILD, not signed"
+    echo
+    echo "Address      https://${ip:-<no address yet>}/"
+    fingerprint
+    if health=$(product_health); then
+        echo "Product      answering$(product_build <<< "$health")"
+    else
+        echo "Product      not answering yet"
+    fi
+    licence_line
+    echo "Guard        host $(guard_state rezztor-guard)"
+    echo "             runner loopback $(guard_state rezztor-guard-runner)"
+    echo "SSH          ${A[SSH]}$([[ ${A[SSH]} == on ]] && echo "; product administrator reset at the console only")"
+    if console_closed; then echo "Console      closed: rezadmin gets this menu; a shell needs a support code from Rezztor"; fi
+    if [[ -f $MARK ]]; then echo "Build        $(head -c 32 "$MARK" | tr -dc 'A-Z0-9')"; fi
+    # The release keys it trusts, this machine's update key, and an update that waits or was refused.
+    $UPDATE status 2>/dev/null | sed '/^Version /d' || true
+    echo "Network"
+    $NETWORK list 2>/dev/null | sed 's/^/             /' || true
+    echo "Containers"
+    docker ps -a --format '{{.Names}}  {{.Status}}' 2>/dev/null | sed 's/^/             /' || true
+    echo
+    echo "Open the address in a browser and compare the fingerprint before you"
+    echo "accept the certificate."
+    if console_closed; then
+        echo "To change these settings later: sign in as rezadmin."
+    else
+        echo "To change these settings later: sign in as rezadmin, then run"
+        echo "    sudo rezztor-setup"
+    fi
+    echo
+}
+
+# ---------------------------------------------------------------------------
+# the console questions
+# ---------------------------------------------------------------------------
+
+wt() { whiptail --backtitle "$TITLE" "$@" 3>&1 1>&2 2>&3; }
+
+# ask KEY TEXT: an input box, shown again until check KEY is content.
+ask() {
+    local v err
+    while :; do
+        if v=$(wt --nocancel --inputbox "$2" 13 74 "${A[$1]:-}"); then A[$1]=$v; fi
+        err=$(check "$1")
+        [[ -n "$err" ]] || return 0
+        wt --msgbox "$err" 10 74 || true
+    done
+}
+
+# ask_password KEY TEXT [cancel]: twice, until both agree and check KEY is content. With `cancel` (from the
+# menu, where a password is already set) Back or Esc returns 1 and changes nothing; at first boot there is no way
+# round it.
+ask_password() {
+    local a b err
+    local -a box=(--nocancel)
+    if [[ ${3:-} == cancel ]]; then box=(--cancel-button Back); fi
+    while :; do
+        if ! a=$(wt "${box[@]}" --passwordbox "$2" 13 74); then [[ ${3:-} == cancel ]] && return 1; continue; fi
+        if ! b=$(wt "${box[@]}" --passwordbox "Type it again." 9 74); then [[ ${3:-} == cancel ]] && return 1; continue; fi
+        if [[ "$a" != "$b" ]]; then wt --msgbox "The two entries are not the same." 8 74 || true; continue; fi
+        A[$1]=$a
+        err=$(check "$1")
+        [[ -n "$err" ]] || return 0
+        wt --msgbox "$err" 10 74 || true
+    done
+}
+
+ask_keyboard() {
+    ask KEYMAP "Keyboard layout code.\n\nExamples: us (English, US), gb (English, UK), de (German), fr (French), es, it, ch, se, no, dk, pt, jp.\n\nIt is applied at once, before you type a password."
+    apply_keyboard
+}
+
+ask_console_password() {
+    ask_password CONSOLE_PASSWORD "Set a password for the console account 'rezadmin'.\n\nAt least 15 characters. It is not shown while you type. There is no default password." "${1:-}"
+}
+
+# The network step: the one interface the machine is reached on, asked, applied,
+# tested and kept by the network tool, in plain text below the title. More
+# interfaces and routes are added later, from the menu.
+ask_network() {
+    clear
+    echo "$TITLE"
+    echo
+    $NETWORK "${1:-wizard}" || true
+    read -r -p "Press Enter to go on. " _ || true
+}
+
+ask_hostname() { ask HOSTNAME "Host name (the full name if it has one), for example rezztor-eagent or eagent.example.com"; }
+
+ask_time() {
+    ask TIMEZONE "Time zone, for example UTC, Europe/Berlin or Asia/Colombo"
+    ask NTP "NTP servers, separated by spaces (at most three).\n\nLeave it empty to use no time server; the clock of the machine or the hypervisor is then used."
+}
+
+ask_admin() {
+    ask ADMIN_USER "User name of the product's first administrator"
+    ask_password ADMIN_PASSWORD "Password for the product administrator '${A[ADMIN_USER]}'.\n\nAt least 15 characters: letters, digits and . _ , : ; ! ? @ % + = / ^ * ~ -\nYou sign in with it in the browser."
+}
+
+ask_ssh() {
+    local v
+    if v=$(wt --nocancel --default-item "${A[SSH]}" --menu "SSH access to this machine (account rezadmin only, never root)" 12 74 2 \
+        off "No SSH. Port 22 is closed." on "SSH on port 22, with the console password"); then A[SSH]=$v; fi
+}
+
+summary() {
+    wt --yesno "Apply these settings?\n\n\
+Keyboard         ${A[KEYMAP]}\n\
+Console account  rezadmin (password set)\n\
+Network          set up and kept: $(netdev) $(current_ip)\n\
+Host name        ${A[HOSTNAME]}\n\
+Time             ${A[TIMEZONE]}, NTP ${A[NTP]:-none}\n\
+Administrator    ${A[ADMIN_USER]} (password set)\n\
+SSH              ${A[SSH]}\n\n\
+Then the product is installed. This takes 10 to 20 minutes." 20 74
+}
+
+first_boot() {
+    # systemd stops printing unit lines on the console the questions use.
+    kill -s RTMIN+21 1 2>/dev/null || true
+    udevadm settle 2>/dev/null || true
+    if [[ -e $ANSWERS_DISK ]]; then
+        mkdir -p /run/rezztor-answers
+        mount -o ro $ANSWERS_DISK /run/rezztor-answers
+        # The disk stays mounted while the network tool reads the same file;
+        # nothing of it is copied, because it holds the two passwords.
+        ANSWERS_FILE=/run/rezztor-answers/answers.env
+        load_answers "$ANSWERS_FILE"
+        clear
+        say "Unattended setup from the answers disk."
+        try_apply
+        umount /run/rezztor-answers
+        (( APPLY_RC == 0 )) || exit "$APPLY_RC"
+        status
+        return
+    fi
+    defaults
+    while :; do
+        wt --msgbox "Welcome.\n\nThis sets up the machine: keyboard, a console password, the network, the host name, the time, and the product's first administrator. Then it installs the product.\n\nThere is no default password anywhere. Use Tab and Enter to move." 14 74 || true
+        ask_keyboard
+        if [[ -z "${A[CONSOLE_PASSWORD]:-}" ]]; then ask_console_password; fi
+        ask_network
+        ask_hostname
+        ask_time
+        ask_admin
+        summary || continue
+        clear
+        try_apply
+        if (( APPLY_RC == 0 )); then break; fi
+        echo
+        read -r -p "Setup did not finish. Press Enter to go through the questions again. " _ || true
+    done
+    status
+    read -r -p "Press Enter to finish. The sign-in prompt of this console follows. " _ || true
+}
+
+# The product's own accounts (helpers/console_admin.py), run inside the application's container.
+product_accounts() {
+    timeout 60 docker exec -u eagent rezztor-eagent sh -c 'cd /eagent && exec /opt/venv-eagent/bin/python -c "
+from helpers.console_admin import main
+main()" "$@"' sh "$@"
+}
+
+# Whether this menu was reached over SSH. Asked of the process tree, not of the environment or the terminal: sudo
+# drops SSH_CONNECTION, and with use_pty it gives a console session a /dev/pts of its own, which `tty` and `who -m`
+# then report. A tree that cannot be read counts as SSH.
+over_ssh() {
+    local pid=$$ comm
+    [[ -n ${SSH_CONNECTION:-} ]] && return 0
+    while (( pid > 1 )); do
+        comm=$(< "/proc/$pid/comm") || return 0
+        [[ $comm == sshd* ]] && return 0
+        pid=$(awk '/^PPid:/ {print $2}' "/proc/$pid/status") || return 0
+        [[ $pid =~ ^[0-9]+$ ]] || return 0
+    done
+    return 1
+}
+
+# A new password for a product administrator who cannot sign in: the only one forgot it and there is no mail.
+# The person at the console may do this, open or closed: they could reinstall the machine anyway. Over SSH they
+# could not, and the console password would be worth every account in the product, so it is refused there
+# (audit 2026-10-16, L1). The password is shown once and kept nowhere, not in this tool's log either.
+reset_admin() {
+    local list name display last user password err
+    local -a items=()
+    if over_ssh; then
+        wt --msgbox "A product administrator gets a new password at this machine's own console only, not over SSH." 8 74 || true
+        return 0
+    fi
+    if ! list=$(product_accounts list 2> /dev/null); then
+        wt --msgbox "The product does not answer, so its accounts cannot be read.\n\nWait until the status screen says it is answering, then try again." 11 74 || true
+        return 0
+    fi
+    while IFS=$'\t' read -r name display last; do
+        if [[ -n "$name" ]]; then items+=("$name" "$display, last sign-in $last"); fi
+    done <<< "$list"
+    if (( ${#items[@]} == 0 )); then
+        wt --msgbox "There is no administrator whose password can be set here. An account that signs in through an identity provider gets its password there." 10 74 || true
+        return 0
+    fi
+    user=$(wt --cancel-button Back --menu "Give which product administrator a new password?\n\nIt is shown once, here. At the next sign-in in the browser it has to be changed. Whoever is signed in with the account is signed out." 19 74 7 "${items[@]}") || return 0
+    wt --yesno "Give '$user' a new password now?" 8 74 || return 0
+    err=$(mktemp)
+    if ! password=$(product_accounts reset "$user" 2> "$err"); then
+        wt --msgbox "The password was not changed: $(tail -n 1 "$err")" 10 74 || true
+        rm -f "$err"
+        return 0
+    fi
+    rm -f "$err"
+    say "The product administrator '$user' was given a new password at the console."
+    wt --msgbox "New password for '$user':\n\n        $password\n\nWrite it down now. It is not shown again and is not kept on this machine. Sign in with it in the browser; the product then asks for a new one." 14 74 || true
+    password=""
+}
+
+# A root shell for Rezztor's support, on a closed console. The challenge names
+# this machine and this request; the code is Rezztor's signature over it and
+# opens once. Said on the screen and written to the log, both times.
+support_access() {
+    local code
+    clear
+    echo "Support access"
+    echo
+    echo "This opens a root shell on this machine, for Rezztor's support or with"
+    echo "Rezztor's help. It opens only for a code that Rezztor makes for the"
+    echo "challenge below. A code works once and for a few hours."
+    echo
+    echo "  Challenge    $($SUPPORT challenge)"
+    echo
+    read -r -p "Support code (Enter alone goes back): " code || true
+    [[ -n "$code" ]] || return 0
+    if printf '%s\n' "$code" | $SUPPORT verify; then
+        say "Support shell opened from the menu."
+        echo "A root shell follows. Type exit to close it and come back to the menu."
+        bash --login || true
+        say "Support shell closed."
+    fi
+    read -r -p "Press Enter. " _ || true
+}
+
+menu() {
+    local choice
+    local -a more=()
+    load_answers "$SAVED"
+    defaults
+    if console_closed; then more=(support "Support access (a root shell, with a code from Rezztor)"); fi
+    while :; do
+        choice=$(wt --cancel-button Exit --menu "What do you want to change?" 21 74 11 \
+            status "Show the address, the fingerprint and the containers" \
+            update "Apply an update from Rezztor (USB stick, virtual CD or copied file)" \
+            bundle "A support bundle for Rezztor, written to a USB stick" \
+            network "Network: interfaces, routes, test, restore" \
+            hostname "Host name" \
+            time "Time zone and NTP servers" \
+            keyboard "Keyboard layout" \
+            password "Password of the console account rezadmin" \
+            admin "A new password for a product administrator who cannot sign in" \
+            ssh "SSH access (now: ${A[SSH]})" \
+            "${more[@]}") || return 0
+        case $choice in
+        status) clear; status; read -r -p "Press Enter. " _ || true; continue ;;
+        update) clear; $UPDATE || true; read -r -p "Press Enter. " _ || true; continue ;;
+        bundle) clear; echo "Making a support bundle. This takes a minute."; $UPDATE bundle usb || true
+            read -r -p "Press Enter. " _ || true; continue ;;
+        support) support_access; continue ;;
+        admin) reset_admin; continue ;;
+        network) ask_network menu ;;
+        hostname) ask_hostname ;;
+        time) ask_time ;;
+        keyboard) ask_keyboard ;;
+        password)
+            if ! ask_console_password cancel; then
+                A[CONSOLE_PASSWORD]=""
+                wt --msgbox "The console password was not changed." 8 74 || true
+                continue
+            fi ;;
+        ssh) ask_ssh ;;
+        esac
+        clear
+        try_apply
+        A[CONSOLE_PASSWORD]=""
+        read -r -p "Press Enter. " _ || true
+    done
+}
+
+load_images() {
+    cd $PAYLOAD/bundle
+    # Checked before anything is loaded: a damaged file loads nothing.
+    sha256sum -c --quiet SHA256SUMS
+    local f
+    for f in images/*.tar.gz; do docker load -i "$f"; done
+    rm -f images/*.tar.gz
+    touch /var/lib/rezztor/images-loaded
+}
+
+if (( EUID != 0 )); then exec sudo "$0" "$@"; fi
+mkdir -p $ETC "${LOG%/*}"
+chmod 700 $ETC "${LOG%/*}"
+
+case "${1:-}" in
+first-boot) first_boot ;;
+load-images) load_images ;;
+status) status ;;
+update) shift; exec $UPDATE "$@" ;;
+apply) ANSWERS_FILE=${2:?usage: rezztor-setup apply FILE}; load_answers "$ANSWERS_FILE"; apply; status ;;
+network)
+    shift
+    rc=0
+    $NETWORK "$@" || rc=$?
+    # The address may have changed: the certificate names it, and so does the sign-in screen.
+    case "${1:-menu}" in
+    menu | wizard | apply | restore)
+        if [[ -f $ETC/setup-done ]]; then
+            load_answers "$SAVED"
+            defaults
+            apply_tls
+            systemctl restart nginx.service
+            write_issue
+        fi ;;
+    esac
+    exit "$rc" ;;
+"") if [[ -f $ETC/setup-done ]]; then menu; else first_boot; fi ;;
+*) echo "usage: rezztor-setup [first-boot|apply FILE|network ...|update ...|status|load-images]" >&2; exit 2 ;;
+esac

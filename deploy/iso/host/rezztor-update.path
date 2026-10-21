@@ -1,0 +1,11 @@
+# The web application can do one thing about an update: put a request here.
+# The tool removes the request first and decides everything else itself.
+[Unit]
+Description=Rezztor EAgent: watch for an update request
+
+[Path]
+PathExists=/var/lib/rezztor/updates/inbox/request.json
+Unit=rezztor-update.service
+
+[Install]
+WantedBy=multi-user.target

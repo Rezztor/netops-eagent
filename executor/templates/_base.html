@@ -1,0 +1,45 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Ansible executor{% endblock %}</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --ink: #16292c; --ink-2: #405a5e; --line: #d7e3e5;
+    --surface: #ffffff; --surface-alt: #f6fafb; --accent: #0f6b73;
+    --ok: #1d6f42; --warn: #8a5a00; --crit: #a12d2d;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ink: #e6f0f1; --ink-2: #9cb3b6; --line: #26383b;
+      --surface: #0e1b1d; --surface-alt: #14272a; --accent: #4fb3ba;
+    }
+  }
+  body { margin: 0; padding: 1.5rem; background: var(--surface); color: var(--ink);
+         font: 14px/1.5 ui-sans-serif, system-ui, sans-serif; }
+  header { border-bottom: 1px solid var(--line); padding-bottom: .75rem; margin-bottom: 1.5rem; }
+  h1 { font-size: 1.15rem; margin: 0 0 .25rem; }
+  .note { color: var(--ink-2); font-size: .85rem; }
+  table { border-collapse: collapse; width: 100%; margin-bottom: 1.5rem; }
+  th, td { text-align: left; padding: .4rem .6rem; border-bottom: 1px solid var(--line);
+           font-variant-numeric: tabular-nums; }
+  th { font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-2); }
+  code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  pre { background: var(--surface-alt); border: 1px solid var(--line); border-radius: 4px;
+        padding: .75rem; overflow-x: auto; max-height: 28rem; }
+  a { color: var(--accent); }
+  .tag { display: inline-block; padding: 0 .4rem; border-radius: 3px; font-size: .8rem;
+         border: 1px solid currentColor; }
+  .ok { color: var(--ok); } .warn { color: var(--warn); } .crit { color: var(--crit); }
+  .wrap { max-width: 68rem; }
+</style>
+<div class="wrap">
+  <header>
+    <h1>{% block heading %}Ansible executor{% endblock %}</h1>
+    <p class="note">
+      Break-glass console. Read-only: running a job needs the API and a bearer
+      token. <a href="/">Overview</a>
+    </p>
+  </header>
+  {% block body %}{% endblock %}
+</div>

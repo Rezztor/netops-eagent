@@ -1,0 +1,1645 @@
+.screen {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  /* Deliberately not a scroller. It used to be, which put a second scrollbar
+     around the one that matters -- the transcript's -- and meant new output
+     moved whichever the browser felt like. The transcript is the only thing on
+     this page that scrolls. */
+  overflow: hidden;
+}
+
+.layout {
+  flex: 1 1 auto;
+  /* min-height was 420px, which is a floor the shell can no longer honour on a
+     short window: it forced the grid taller than the viewport and put the
+     overflow back on the page. */
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  grid-template-rows: minmax(0, 1fr);
+  gap: var(--space-4);
+}
+
+/*
+ * Placed by grid rather than by source order. The list reads second on screen
+ * and first in the document: a keyboard user reaches "which conversation" before
+ * "what is in it", and the single-column layout below stacks it on top for the
+ * same reason.
+ */
+.sidebar {
+  grid-column: 2;
+  grid-row: 1;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.sidebarHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--line);
+}
+.sidebarTitle {
+  font-size: var(--text-sm);
+  font-weight: 650;
+  flex: 1;
+}
+.chatList {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-2);
+}
+.chatItem {
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  padding: 8px 9px;
+  cursor: pointer;
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+  display: block;
+}
+.chatItem:hover {
+  background: var(--surface-alt);
+  color: var(--ink);
+}
+.chatItemActive {
+  background: var(--accent-wash);
+  color: var(--accent);
+  font-weight: 600;
+}
+.chatItemTitle {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  word-break: break-word;
+}
+.chatItemChild {
+  padding-left: calc(9px + var(--space-4));
+}
+.chatItemRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  padding: 8px 9px;
+  cursor: pointer;
+  color: inherit;
+  box-sizing: border-box;
+}
+.chatItemRow:hover {
+  background: var(--surface-alt);
+  color: var(--ink);
+}
+.chatItemBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.chatSelectBox {
+  margin: 2px 0 0;
+  flex-shrink: 0;
+}
+.chatFoldControl {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  color: var(--ink-3);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.chatFoldControl:hover {
+  color: var(--accent);
+}
+.chatChevron {
+  display: inline-block;
+  font-size: 11px;
+  line-height: 1;
+  transition: transform 0.12s ease;
+}
+.chatChevronOpen {
+  display: inline-block;
+  font-size: 11px;
+  line-height: 1;
+  transform: rotate(90deg);
+}
+.chatSubagentChip {
+  font-size: var(--text-xs);
+  font-weight: 550;
+  color: var(--accent);
+  background: var(--accent-wash);
+  border-radius: 999px;
+  padding: 1px 7px;
+  white-space: nowrap;
+}
+.chatItemMeta {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.selectBar {
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-alt);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.selectBarTop {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.selectCount {
+  flex: 1;
+  font-size: var(--text-sm);
+  font-weight: 650;
+}
+.selectBarBottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+.selectAllLink,
+.expandLink {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  color: var(--accent);
+  font-size: var(--text-xs);
+  font-weight: 650;
+}
+.selectAllLink:hover,
+.expandLink:hover {
+  text-decoration: underline;
+}
+.expandLinks {
+  padding: 0 var(--space-3) 4px;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+.deleteTitleList {
+  margin: 0 0 var(--space-3);
+  padding-left: 1.1em;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--text-sm);
+}
+.deleteCascade {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-3);
+}
+.deleteWarnings {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--warn-wash, var(--surface-alt));
+  border: 1px solid var(--warn, var(--line));
+  color: var(--warn-ink, var(--ink-2));
+  font-size: var(--text-xs);
+}
+.deleteWarnings p {
+  margin: 0;
+}
+
+.thread {
+  grid-column: 1;
+  grid-row: 1;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+/* ---------- thread toolbar ---------- */
+
+/*
+ * Who is answering and with which model, above the transcript rather than
+ * below it. Both were already settable -- the profile from Operations, the
+ * model from the panel under the thread -- but neither was visible while
+ * reading, which is the moment the answer depends on them.
+ */
+.threadHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 10px var(--space-4);
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.threadHeadLabel {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  flex: none;
+}
+.pillRow {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.pill {
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: 550;
+  cursor: pointer;
+  background: var(--surface);
+  color: var(--ink-2);
+}
+.pill:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.pill:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.pillActive {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+  color: var(--accent);
+}
+.log {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.entry {
+  border-left: 3px solid var(--line-2);
+  padding: 2px 0 2px var(--space-3);
+  /* Same reason as `.group`: a flex child that may not be compressed. */
+  flex: none;
+}
+.entryUser {
+  border-left-color: var(--accent);
+}
+.entryAgent {
+  border-left-color: var(--ok);
+}
+.entryTool {
+  border-left-color: var(--warn);
+}
+.entryError {
+  border-left-color: var(--crit);
+}
+.entryHeading {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: 3px;
+}
+.entryContent {
+  font-size: var(--text-base);
+  color: var(--ink);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+/*
+ * Tool and code entries are read as code, so they are set as code -- including
+ * their line breaks, which is the whole point of a listing. Long lines scroll
+ * inside the block rather than wrapping mid-token or widening the thread.
+ */
+.entryCode {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--ink);
+  background: var(--surface-alt);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow-x: auto;
+}
+
+/*
+ * The key/value detail the backend already attaches to an entry -- tool
+ * arguments, attachment names -- which the transcript used to drop on the
+ * floor. Masked and truncated server-side in helpers/log.py, so what arrives
+ * here is safe to show.
+ */
+.entryDetails {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+.entryDetail {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 320px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+  padding: 3px 7px;
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+}
+.entryDetailKey {
+  font-family: var(--font-mono);
+  color: var(--ink-3);
+  flex: none;
+}
+.entryDetailValue {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.composer {
+  border-top: 1px solid var(--line);
+  padding: var(--space-3);
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-end;
+}
+.composerInput {
+  flex: 1;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm);
+  padding: 9px 11px;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+  resize: vertical;
+  min-height: 44px;
+  max-height: 200px;
+  outline: none;
+}
+.composerInput:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-wash);
+}
+
+/*
+ * Attach and dictate are square icon buttons rather than labelled ones: the
+ * composer's width belongs to the message. Both keep an aria-label and a title,
+ * so nothing is only communicated by the glyph.
+ */
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm);
+  padding: 7px;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+.iconButton:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.iconButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+/* Recording is a state worth being unmistakable about. */
+.iconButtonRecording {
+  border-color: var(--crit);
+  background: var(--crit-wash);
+  color: var(--crit);
+  animation: micring 1.4s ease-out infinite;
+}
+@keyframes micring {
+  0% { box-shadow: 0 0 0 0 var(--crit-wash); }
+  100% { box-shadow: 0 0 0 8px transparent; }
+}
+
+.progress {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-top: 1px solid var(--line);
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+  background: var(--surface-alt);
+}
+.pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pulse 1.2s ease-in-out infinite;
+  flex: none;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+
+.empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  text-align: center;
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+}
+/*
+ * The starting offer: example questions a network engineer would ask, which
+ * go into the composer to be edited, then the conversation's own slash
+ * commands with what each does. An empty thread is where someone least knows
+ * what this agent can be asked.
+ */
+.suggestions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 480px;
+}
+.suggestion {
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  padding: 7px 13px;
+  background: var(--surface);
+  color: var(--ink-2);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.suggestion:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.suggestionName {
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+.suggestionHint {
+  color: var(--ink-3);
+}
+.examples {
+  display: grid;
+  gap: var(--space-2);
+  width: min(520px, 100%);
+}
+.example {
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-base);
+  text-align: left;
+  cursor: pointer;
+}
+.example:hover {
+  border-color: var(--accent);
+}
+
+.listToggle,
+.listBackdrop {
+  display: none;
+}
+
+/*
+ * Narrow screens: thread first. The list used to stack above the thread, with
+ * the toolbar, and pushed the transcript and composer below the fold. Now the
+ * thread has the whole height (its log scrolls, the composer stays at the
+ * bottom) and the list slides in from the right behind a "Conversations"
+ * button.
+ */
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .thread {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .sidebar {
+    position: fixed;
+    inset: 0 0 0 auto;
+    width: min(320px, 88vw);
+    z-index: 60;
+    border-radius: 0;
+    transform: translateX(100%);
+    visibility: hidden;
+    transition: transform 160ms ease, visibility 160ms;
+  }
+  .layout[data-list="open"] .sidebar {
+    transform: none;
+    visibility: visible;
+  }
+  .listBackdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+    background: rgba(12, 27, 30, 0.35);
+  }
+  .listToggle {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    padding: var(--space-2) var(--space-3);
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    background: none;
+    color: var(--accent);
+    font: inherit;
+    font-size: var(--text-sm);
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+  }
+  .listToggleName {
+    color: var(--ink-2);
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/* Phones: the conversation-wide actions scroll sideways instead of taking rows from the thread. */
+@media (max-width: 720px) {
+  .screen {
+    gap: var(--space-2);
+  }
+  .footer {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar {
+    transition: none;
+  }
+}
+
+/* ---------- attachments ---------- */
+.attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3) 0;
+}
+.attachment {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+  padding: 4px 8px;
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+  max-width: 260px;
+}
+.attachmentName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.attachmentSize {
+  color: var(--ink-3);
+  flex: none;
+}
+.attachmentRemove {
+  border: 0;
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+  flex: none;
+}
+.attachmentRemove:hover {
+  color: var(--crit);
+}
+.dropzone {
+  outline: 2px dashed var(--accent);
+  outline-offset: -6px;
+  background: var(--accent-wash);
+}
+
+/* ---------- conversation footer ---------- */
+
+.footer {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  flex-wrap: wrap;
+}
+/*
+ * Quiet by default. These act on the whole conversation -- compacting it,
+ * exporting it, deleting it -- and a row of solid buttons under the transcript
+ * reads as the next thing to do rather than as the thing you reach for
+ * deliberately.
+ */
+.footerAction {
+  border: 0;
+  background: transparent;
+  color: var(--ink-2);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: var(--radius-xs);
+}
+.footerAction:hover {
+  background: var(--surface-alt);
+  color: var(--ink);
+}
+.footerActionDanger {
+  color: var(--crit);
+}
+.footerActionDanger:hover {
+  background: var(--crit-wash);
+  color: var(--crit);
+}
+
+/* ---------- transcript actions ---------- */
+/*
+ * Hidden until the entry is hovered or focused, except under an answer: that is
+ * where copying and branching are actually reached for, and a control you have
+ * to discover by hovering is one most people never find.
+ */
+.entryActions {
+  display: flex;
+  gap: var(--space-3);
+  margin-top: 5px;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.entry:hover .entryActions,
+.entry:focus-within .entryActions {
+  opacity: 1;
+}
+.entryActionsPinned {
+  opacity: 1;
+}
+.entryAction {
+  border: 0;
+  background: transparent;
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  padding: 0;
+}
+.entryAction:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+/* ---------- slash command menu ---------- */
+.commandMenu {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  max-height: 260px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(12, 27, 30, 0.14);
+  z-index: var(--z-modal);
+}
+.commandItem {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  padding: 8px var(--space-3);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+.commandItem:hover,
+.commandItemActive {
+  background: var(--accent-wash);
+  color: var(--accent);
+}
+.commandName {
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+.commandHint {
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+  margin-top: 1px;
+}
+.composerWrap {
+  position: relative;
+}
+
+/* ---------- inspector ---------- */
+.inspector {
+  border-top: 1px solid var(--line);
+  padding: var(--space-3);
+  background: var(--surface-alt);
+  max-height: 40vh;
+  overflow: auto;
+}
+.inspectorText {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--ink-2);
+  margin: 0;
+}
+
+/* ---------- transcript: steps, groups, answers ---------- */
+/*
+ * A finished task logs many steps and one answer. The steps are a dense,
+ * scannable column -- monospace code, one line each -- and the answer is
+ * ordinary prose with room around it. The visual weight is the point: it is
+ * how you find the answer without reading the working.
+ */
+
+.group {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md, 8px);
+  background: var(--surface-2, var(--surface));
+  overflow: hidden;
+  /*
+   * A flex column shrinks its children to fit before it will scroll. `.log` is
+   * one, so a transcript taller than the pane had every group squeezed -- and
+   * with `overflow: hidden` right above, squeezed means the header is sliced in
+   * half. Thin grey strips with the title cut through the middle, which is what
+   * a transcript looks like when it is laid out by a scrollbar that never got
+   * the chance to appear.
+   *
+   * The margin is gone with it: `.log` already sets `gap`, and the two stacked.
+   */
+  flex: none;
+}
+.groupHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.groupHeader:hover { background: var(--surface-3, rgba(127, 127, 127, 0.06)); }
+.groupTitle {
+  flex: 1;
+  font-weight: 600;
+  font-size: var(--text-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.groupMeta {
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+.groupQuiet .groupTitle { font-weight: 400; color: var(--ink-3); }
+.groupSteps { border-top: 1px solid var(--line); }
+
+.step { border-bottom: 1px solid var(--line); }
+.step:last-child { border-bottom: 0; }
+.stepRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 3px var(--space-3);
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.stepRow:hover { background: var(--surface-3, rgba(127, 127, 127, 0.06)); }
+.stepCaret {
+  color: var(--ink-3);
+  font-size: 10px;
+  width: 10px;
+  flex: none;
+}
+.stepCode {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  width: 84px;
+  flex: none;
+  color: var(--ink-3);
+}
+/* Only the codes worth telling apart at a glance are coloured; the rest stay
+   muted so the column does not become a rainbow. */
+.stepMark {
+  width: 12px;
+  flex: none;
+  font-size: 11px;
+  color: var(--ok);
+  text-align: center;
+}
+.stepMarkFailed { color: var(--crit); font-weight: 700; }
+.stepMarkWarn { color: var(--warn); font-weight: 700; }
+.stepLine { margin: 0 0 var(--space-2); font-size: var(--text-sm); color: var(--ink); }
+.stepTech { margin: 0 0 var(--space-2); font-size: var(--text-sm); color: var(--ink-3); }
+.stepTech > summary { cursor: pointer; margin-bottom: var(--space-1); }
+.groupFailed { color: var(--crit); font-weight: 600; }
+.entryWho {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--ink-3);
+  margin-bottom: 2px;
+}
+.codeGEN { color: var(--accent); }
+.codeEXE { color: var(--violet, #a78bfa); }
+.codeWRN { color: var(--warn, #d29922); }
+.codeERR { color: var(--danger, #f85149); }
+.stepTitle {
+  flex: 1;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.stepBody {
+  padding: 0 var(--space-3) var(--space-2) calc(var(--space-3) + 32px);
+}
+.stepPre {
+  margin: 0 0 var(--space-2);
+  padding: var(--space-2);
+  background: var(--surface-3, rgba(127, 127, 127, 0.08));
+  border-radius: 6px;
+  font-size: var(--text-xs);
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-x: auto;
+}
+.stepDetails { margin: 0 0 var(--space-2); }
+.stepDetail { margin-bottom: var(--space-2); }
+.stepDetail dt {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 10px;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.stepDetail dd { margin: 2px 0 0; }
+.stepActions { display: flex; gap: var(--space-2); }
+
+/* The answer is clamped rather than truncated: the text stays selectable and
+   searchable, it is only visually bounded until asked for. */
+.answerClamped {
+  max-height: 22em;
+  overflow: hidden;
+  mask-image: linear-gradient(to bottom, black 70%, transparent 100%);
+}
+.showMore {
+  margin-top: var(--space-2);
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--accent);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.showMore:hover { text-decoration: underline; }
+
+/* ---------- markdown ---------- */
+.mdHeading { margin: var(--space-3) 0 var(--space-2); line-height: 1.3; }
+.mdHeading:first-child { margin-top: 0; }
+.mdParagraph { margin: 0 0 var(--space-2); line-height: 1.6; }
+.mdList { margin: 0 0 var(--space-2); padding-left: 1.4em; line-height: 1.6; }
+.mdList li { margin-bottom: 2px; }
+.mdCode {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.9em;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: var(--surface-3, rgba(127, 127, 127, 0.12));
+}
+.mdPre {
+  margin: 0 0 var(--space-2);
+  padding: var(--space-3);
+  background: var(--surface-3, rgba(127, 127, 127, 0.08));
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: var(--text-xs);
+  overflow-x: auto;
+}
+.mdPre code { font-family: var(--font-mono, ui-monospace, monospace); }
+.mdTable { border-collapse: collapse; width: 100%; margin: 0 0 var(--space-2); font-size: var(--text-sm); }
+.mdTable th, .mdTable td { border: 1px solid var(--line); padding: var(--space-2); text-align: left; vertical-align: top; }
+.mdTable th { background: var(--surface-2, var(--surface)); font-weight: 600; }
+.mdQuote {
+  margin: 0 0 var(--space-2);
+  padding-left: var(--space-3);
+  border-left: 3px solid var(--line);
+  color: var(--ink-2);
+}
+.mdRule { border: 0; border-top: 1px solid var(--line); margin: var(--space-3) 0; }
+
+/* Housekeeping steps are hidden by default; this is how the group admits it. */
+.quietToggle {
+  display: block;
+  width: 100%;
+  padding: 4px var(--space-3) 4px calc(var(--space-3) + 42px);
+  background: none;
+  border: 0;
+  border-top: 1px solid var(--line);
+  color: var(--ink-3);
+  font: inherit;
+  font-size: var(--text-xs);
+  text-align: left;
+  cursor: pointer;
+}
+.quietToggle:hover { color: var(--ink-2); background: var(--surface-3, rgba(127, 127, 127, 0.06)); }
+
+/* ---------- focus mode ---------- */
+/*
+ * One conversation, the whole window. The conversation list is gone, so the
+ * grid has a single column; the rail is hidden by the shell.
+ */
+.layoutFocus {
+  grid-template-columns: minmax(0, 1fr);
+}
+.threadHeadSpacer { flex: 1; }
+.headAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: 13px;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+}
+.headAction:hover { color: var(--ink-1); border-color: var(--ink-3); }
+.focusBack {
+  background: none;
+  border: 0;
+  padding: 0;
+  margin-right: var(--space-2);
+  color: var(--accent);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+  flex: none;
+}
+.focusBack:hover { text-decoration: underline; }
+
+/* ---------- attachments ---------- */
+/*
+ * The point of the feature is that this is a control, not a path. It reads as a
+ * button because clicking it is the whole interaction.
+ */
+.attachment {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: 100%;
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-2, var(--surface));
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md, 8px);
+  color: inherit;
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+  text-align: left;
+}
+.attachment:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.attachment:disabled { opacity: 0.6; cursor: default; }
+.attachmentName {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.attachmentSize { color: var(--ink-3); font-size: var(--text-xs); flex: none; }
+.stepAttachment { padding: 0 var(--space-3) var(--space-2) calc(var(--space-3) + 42px); }
+
+/* ---------- context meter ---------- */
+/*
+ * A number that moves on its own deserves to be visible: the skill catalogue is
+ * rebuilt into every prompt and Auto Skills adds to it without anyone asking.
+ */
+.meter {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: none;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+.meterLabel {
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.meterTrack {
+  display: block;
+  width: 56px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+.meterFill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width 240ms ease;
+}
+@media (prefers-reduced-motion: reduce) { .meterFill { transition: none; } }
+/* Semantic, and separate from the accent: the question is whether to compact. */
+.meterWarn { background: var(--warn, #d29922); }
+.meterCrit { background: var(--danger, #f85149); }
+.meterValue { font-variant-numeric: tabular-nums; min-width: 3ch; text-align: right; }
+
+/* ---------- interaction cards ---------- */
+/*
+ * Bordered in the accent rather than the ordinary line colour: this is the one
+ * thing in the turn waiting on the reader, and it has to be findable by
+ * scrolling past rather than by reading.
+ */
+.card {
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: var(--space-4);
+  margin: var(--space-3) 0;
+  max-width: 640px;
+}
+
+/* Spent cards stay legible and stop being controls. Removing them would hide
+   what was asked; leaving them live would let an old question be answered. */
+.cardSpent {
+  border-color: var(--line-2);
+  opacity: 0.72;
+}
+
+.cardQuestion {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-md);
+  font-weight: 650;
+  color: var(--ink);
+}
+
+.cardContext {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+.cardOptions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.cardOption {
+  display: block;
+  text-align: left;
+  padding: var(--space-3);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+}
+
+.cardOption:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+}
+
+.cardOption:disabled {
+  cursor: default;
+}
+
+.cardOption b {
+  display: block;
+  font-size: var(--text-base);
+  font-weight: 650;
+}
+
+.cardOption span {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.cardOptionOn {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+}
+
+.cardOther {
+  border-style: dashed;
+}
+
+/* The secure credential form: labelled inputs stacked, the secret masked. */
+.cardSecret {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  max-width: 24rem;
+}
+
+.cardSecret label {
+  display: grid;
+  gap: 2px;
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+.cardSecret input {
+  padding: var(--space-2);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+
+.cardSecret button {
+  justify-self: start;
+}
+
+.cardActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.cardStep {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.cardStep span {
+  display: inline-grid;
+  place-items: center;
+  width: 1.4em;
+  height: 1.4em;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--surface);
+  font-size: var(--text-xs);
+}
+
+.cardOutcome {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.cardStale {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+/*
+ * Approvals sit inline rather than in the option grid: two decisions do not
+ * need a grid, and putting them on one line keeps the consequence -- the thing
+ * actually being decided -- next to them rather than above a block of cards.
+ */
+.cardDecisions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.cardDocument {
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--text-sm);
+}
+
+.cardDocument:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.cardWhy {
+  align-self: center;
+  font-size: var(--text-xs);
+  color: var(--ink-2, var(--ink));
+}
+
+.cardDecision {
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+}
+
+/* Off must look off: a lit green Approve that does nothing reads as a broken button, and was pressed as one. */
+.cardDecision:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.cardDecision b {
+  font-size: var(--text-base);
+  font-weight: 650;
+}
+
+.cardDecision span {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+/* Semantic, and deliberately not the brand accent: going ahead and stopping are
+   states, and a state that borrows the brand colour reads as decoration. */
+.cardGo {
+  border-color: var(--ok);
+  background: var(--ok-wash);
+  color: var(--ok);
+}
+
+.cardGo:hover:not(:disabled) {
+  background: var(--ok);
+  color: var(--surface);
+}
+
+.cardStop {
+  border-color: var(--crit);
+  background: var(--crit-wash);
+  color: var(--crit);
+}
+
+.cardStop:hover:not(:disabled) {
+  background: var(--crit);
+  color: var(--surface);
+}
+
+/* What a decision is being made on: facts, pre-checks, the literal commands. */
+.cardTier {
+  display: inline-block;
+  margin: 0 0 var(--space-2);
+  padding: 1px var(--space-2);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.cardDetails {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 2px var(--space-3);
+  margin: var(--space-2) 0;
+  font-size: var(--text-sm);
+}
+
+.cardDetails div {
+  display: contents;
+}
+
+.cardDetails dt {
+  color: var(--ink-3);
+}
+
+.cardDetails dd {
+  margin: 0;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.cardChecks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  margin: var(--space-2) 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cardChecks li {
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+}
+
+.cardCheckOk {
+  background: var(--ok-wash);
+  color: var(--ok);
+}
+
+.cardCheckFail {
+  background: var(--crit-wash);
+  color: var(--crit);
+}
+
+/* Advice: shown, never blocking. */
+.cardCheckWarn {
+  background: var(--warn-wash);
+  color: var(--warn);
+}
+
+.cardCommands {
+  margin: var(--space-2) 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+  font-family: var(--font-mono, monospace);
+  font-size: var(--text-xs);
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.diffAdd {
+  color: var(--ok);
+}
+
+.diffDel {
+  color: var(--crit);
+}
+
+/* A resource that is changed in place: `~ address`. */
+.diffUpd {
+  color: var(--warn);
+}
+
+/* An Azure change set: one collapsed block per step, a state chip on each once the set has run. */
+.cardSteps {
+  display: grid;
+  gap: var(--space-1);
+  margin: var(--space-2) 0;
+}
+
+.cardSetStep {
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.cardSetStep summary {
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.cardSetStep pre {
+  margin-bottom: var(--space-1);
+}
+
+.cardStepState {
+  margin-left: var(--space-2);
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+  color: var(--ink-2, var(--ink));
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.cardStepState_applied {
+  background: var(--ok-wash);
+  color: var(--ok);
+}
+
+.cardStepState_failed,
+.cardStepState_verify_failed,
+.cardStepState_superseded {
+  background: var(--crit-wash);
+  color: var(--crit);
+}
+
+.cardStepState_applying {
+  background: var(--warn-wash);
+  color: var(--warn);
+}
+
+/* change-high: the line the person types before Approve lights up. */
+.cardConfirm {
+  display: grid;
+  gap: var(--space-1);
+  margin: var(--space-2) 0;
+  font-size: var(--text-sm);
+  color: var(--ink-2, var(--ink));
+}
+
+.cardConfirm input {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-mono, monospace);
+  font-size: var(--text-xs);
+}
+
+.cardEdit {
+  display: block;
+  width: 100%;
+  margin: var(--space-2) 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-mono, monospace);
+  font-size: var(--text-xs);
+  resize: vertical;
+}
+
+/* ---------- conversation search ---------- */
+.chatSearch {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-sm);
+}
+
+.chatSearch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.chatListEmpty {
+  padding: var(--space-2);
+  margin: 0;
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+}
+
+/* Titles matched instantly; these were found by reading what was said. Saying
+   which is which stops the second group looking like a ranking of the first. */
+.chatListDivider {
+  padding: var(--space-3) var(--space-2) var(--space-1);
+  margin: 0;
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.chatItemSnippet {
+  display: block;
+  margin-top: 2px;
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* ---------- find in conversation ---------- */
+.findBar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+  margin-bottom: var(--space-3);
+}
+
+.findInput {
+  flex: 1 1 auto;
+  min-width: 120px;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-sm);
+}
+
+.findCount {
+  flex: 0 0 auto;
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Said out loud: "3 matches" while one is visible reads as a bug. */
+.findHidden {
+  color: var(--ink-3);
+}
+
+/* The match itself, not a text highlight: the answer goes through Markdown, so
+   marking characters inside it would mean rewriting rendered HTML. Outlining
+   the entry says where it is without pretending to more precision than we have. */
+.findHit {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}

@@ -1,0 +1,114 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.13.1",
+  "variables": {
+    "firewall_policy_id": {
+      "value": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-hub-prod-uaen/providers/Microsoft.Network/firewallPolicies/fwpol-hub-uaen-001"
+    },
+    "name": {
+      "value": "rcg-spokes"
+    },
+    "priority": {
+      "value": 200
+    },
+    "collection_name": {
+      "value": "net-allow"
+    },
+    "collection_priority": {
+      "value": 210
+    },
+    "kind": {
+      "value": "network"
+    },
+    "rule_name": {
+      "value": "snet-a-to-vm-b"
+    },
+    "protocols": {
+      "value": [
+        {
+          "name": "TCP"
+        }
+      ]
+    },
+    "sources": {
+      "value": [
+        {
+          "cidr": "10.10.1.0/24"
+        }
+      ]
+    },
+    "destinations": {
+      "value": [
+        {
+          "cidr": "10.20.1.4/32"
+        }
+      ]
+    },
+    "ports": {
+      "value": [
+        {
+          "range": "80"
+        }
+      ]
+    }
+  },
+  "resource_changes": [
+    {
+      "address": "azurerm_firewall_policy_rule_collection_group.this",
+      "mode": "managed",
+      "type": "azurerm_firewall_policy_rule_collection_group",
+      "name": "this",
+      "provider_name": "registry.opentofu.org/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "name": "rcg-spokes",
+          "firewall_policy_id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-hub-prod-uaen/providers/Microsoft.Network/firewallPolicies/fwpol-hub-uaen-001",
+          "priority": 200,
+          "network_rule_collection": [
+            {
+              "name": "net-allow",
+              "priority": 210,
+              "action": "Allow",
+              "rule": [
+                {
+                  "name": "snet-a-to-vm-b",
+                  "protocols": [
+                    "TCP"
+                  ],
+                  "source_addresses": [
+                    "10.10.1.0/24"
+                  ],
+                  "destination_addresses": [
+                    "10.20.1.4/32"
+                  ],
+                  "destination_ports": [
+                    "80"
+                  ]
+                }
+              ]
+            }
+          ],
+          "application_rule_collection": [],
+          "nat_rule_collection": []
+        },
+        "after_unknown": {
+          "id": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {}
+      }
+    }
+  ],
+  "configuration": {
+    "provider_config": {
+      "azurerm": {
+        "name": "azurerm",
+        "full_name": "registry.opentofu.org/hashicorp/azurerm"
+      }
+    }
+  }
+}

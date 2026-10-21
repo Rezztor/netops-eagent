@@ -1,0 +1,31 @@
+{
+  "_comment": "UNVERIFIED: constructed from the vendor module documentation, not captured from a live device. Correct on first live run. Shape: the fortinet.fortios.fortios_monitor_fact / configuration_fact results keyed by selector. system_status top-level serial/version/build is confirmed by the module return docs; results.hostname/model_name and the whole system_ha-peer shape (serial_no, a 'primary' flag) are UNVERIFIED. system_ha is the cmdb singleton (mode, group-name). Values invented.",
+  "facts": {
+    "system_status": {
+      "serial": "FGT60F0000000001",
+      "version": "v7.2.4",
+      "build": "1396",
+      "results": {
+        "hostname": "FW-Edge1",
+        "model_name": "FortiGate",
+        "model_number": "60F",
+        "model": "FGT60F"
+      }
+    },
+    "system_ha": {
+      "results": {
+        "mode": "a-p",
+        "group-name": "edge-cluster"
+      }
+    },
+    "system_ha-peer": {
+      "results": [
+        {
+          "serial_no": "FGT60F0000000002",
+          "hostname": "fw-edge2",
+          "primary": true
+        }
+      ]
+    }
+  }
+}

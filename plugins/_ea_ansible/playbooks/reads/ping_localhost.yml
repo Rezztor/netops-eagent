@@ -1,0 +1,13 @@
+# The Phase 1 playbook, and deliberately the only one.
+#
+# It touches no device and needs no inventory, credentials or network reach, so
+# it can prove the whole path -- job accepted, playbook resolved, ansible-runner
+# invoked, structured events returned -- before anything is mounted that would
+# make a failure expensive.
+- name: Prove the executor can run a playbook
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Ping the control node itself
+      ansible.builtin.ping:

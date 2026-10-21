@@ -1,0 +1,2901 @@
+{
+ "description": "Licences: certs accepted, then TrustStore.verify_licence(envelope, now, iid).",
+ "cases": [
+  {
+   "name": "valid subscription",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "wQrLy2Gf02oeWE_aBAbCzpL-pUc2JYp_acXGe_SnpqLwRZ_94KJ3xnPqNjmwvSyabOd28Uaw8xg1_oZrnKWLAQ"
+   },
+   "expect": "ok"
+  },
+  {
+   "name": "valid subscription, asked by an installation",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": "inst-0002-bbbb",
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "wQrLy2Gf02oeWE_aBAbCzpL-pUc2JYp_acXGe_SnpqLwRZ_94KJ3xnPqNjmwvSyabOd28Uaw8xg1_oZrnKWLAQ"
+   },
+   "expect": "ok"
+  },
+  {
+   "name": "offline licence, asked by the installation it names",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": "inst-0001-aaaa",
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjp0cnVlLCJvZmZsaW5lX2lpZCI6Imluc3QtMDAwMS1hYWFhIiwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "xo_8YP02ke6mz--dwoCcPL4mI4od2KVp4E5gBAU2LSvYp8MSRTAYja4G0ls8S640LLgPqCbzmgtB3LFtxks4DQ"
+   },
+   "expect": "ok"
+  },
+  {
+   "name": "offline licence, asked by another installation",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": "inst-0002-bbbb",
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjp0cnVlLCJvZmZsaW5lX2lpZCI6Imluc3QtMDAwMS1hYWFhIiwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "xo_8YP02ke6mz--dwoCcPL4mI4od2KVp4E5gBAU2LSvYp8MSRTAYja4G0ls8S640LLgPqCbzmgtB3LFtxks4DQ"
+   },
+   "expect": "wrong_iid"
+  },
+  {
+   "name": "offline licence, asked by an installation whose id only begins the same",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": "inst-0001-aaa",
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjp0cnVlLCJvZmZsaW5lX2lpZCI6Imluc3QtMDAwMS1hYWFhIiwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "xo_8YP02ke6mz--dwoCcPL4mI4od2KVp4E5gBAU2LSvYp8MSRTAYja4G0ls8S640LLgPqCbzmgtB3LFtxks4DQ"
+   },
+   "expect": "wrong_iid"
+  },
+  {
+   "name": "root key signing an id of the trial key",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVFJJQUwtVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "F7VqBZjhkbwZNx01jrKdRH6j5TmqihcnknJ2fgXJ2WwJvHDK83BZp4-ZvOIvhD9rwZ6-LnVBog94OJuL3-eIBw"
+   },
+   "expect": "trial_lic_reserved"
+  },
+  {
+   "name": "root key signing a trial with an id of the trial key",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InRyaWFsIiwibGVhc2VfZGF5cyI6MzAsImxpYyI6IlJFWi1UUklBTC1URVNULTAwMDEiLCJuYmYiOjE3OTAwMDAwMDAsIm9mZmxpbmUiOmZhbHNlLCJzZWF0cyI6NTAsInR5cCI6ImxpY2VuY2UiLCJ2ZXIiOjF9",
+    "sig": "KzS0KxPgybaA26ZkY478Tm5tZxS5yrWMY8hCNIoDwgnRO_ClobWVNSDIyN1ZjUFdUJff-q4LheMnAtmUBxtWDQ"
+   },
+   "expect": "trial_lic_reserved"
+  },
+  {
+   "name": "a repeated key deep in a good licence",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUsInNlYXRzIjo1MCwidHlwIjoibGljZW5jZSIsInZlciI6MX0",
+    "sig": "oCSLeKdzqaAhX6G-EjZqP0UdwaLxL8HOPEidvkGoncOEbT6sKS1l3EIxdWN0-OOs8O3IEsi7ErJj4NvhAaxwBg"
+   },
+   "expect": "bad_payload"
+  },
+  {
+   "name": "valid, non-ASCII customer",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6Ik3DvGxsZXIgQmFuayDDqeS4rSIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "c4vxB6cXkzgCJmSiknJeZgMp1hNAuv3yAk1YKrRfqm1Dwbb7up5UpHXxK6qV9t4jntVDL-HeQTY16hWCoyqIAg"
+   },
+   "expect": "ok"
+  },
+  {
+   "name": "valid, no features",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOltdLCJncmFjZV9kYXlzIjozMCwiaWF0IjoxNzkwMDAwMDAwLCJpbnN0YW5jZXMiOjEsImtpbmQiOiJzdWJzY3JpcHRpb24iLCJsZWFzZV9kYXlzIjozMCwibGljIjoiUkVaLVRFU1QtMDAwMSIsIm5iZiI6MTc5MDAwMDAwMCwib2ZmbGluZSI6ZmFsc2UsInNlYXRzIjo1MCwidHlwIjoibGljZW5jZSIsInZlciI6MX0",
+    "sig": "yWt924uXcCUeZfglHOYPMsxLN6D8v8MgyLMwqiTcMdiGsg7kMEs4Lm7e0K_J80f75Kh8HiI_vsytdrP-wJVCBQ"
+   },
+   "expect": "ok"
+  },
+  {
+   "name": "valid, grace 0",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjAsImlhdCI6MTc5MDAwMDAwMCwiaW5zdGFuY2VzIjoxLCJraW5kIjoic3Vic2NyaXB0aW9uIiwibGVhc2VfZGF5cyI6MzAsImxpYyI6IlJFWi1URVNULTAwMDEiLCJuYmYiOjE3OTAwMDAwMDAsIm9mZmxpbmUiOmZhbHNlLCJzZWF0cyI6NTAsInR5cCI6ImxpY2VuY2UiLCJ2ZXIiOjF9",
+    "sig": "kcQQJB7rNBxAwB0nkxDG_Y6U9XBJj47tdtAWhH5LvRnAzPh1XpegCy-j0Hgoh8EBkor7zosw6F1O3bl_X_yeAA"
+   },
+   "expect": "ok"
+  },
+  {
+   "name": "valid, extra unknown field is ignored",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjb2xvdXIiOiJibHVlIiwiY3VzdG9tZXIiOiJFeGFtcGxlIEJhbmsiLCJlZGl0aW9uIjoic3RhbmRhcmQiLCJleHAiOjE4MjE1MzYwMDAsImZlYXR1cmVzIjpbImF6dXJlIiwic29sYXJ3aW5kcyJdLCJncmFjZV9kYXlzIjozMCwiaWF0IjoxNzkwMDAwMDAwLCJpbnN0YW5jZXMiOjEsImtpbmQiOiJzdWJzY3JpcHRpb24iLCJsZWFzZV9kYXlzIjozMCwibGljIjoiUkVaLVRFU1QtMDAwMSIsIm5iZiI6MTc5MDAwMDAwMCwib2ZmbGluZSI6ZmFsc2UsInNlYXRzIjo1MCwidHlwIjoibGljZW5jZSIsInZlciI6MX0",
+    "sig": "GtHPRhF9CPE3zksjF-zO0Hui-sgPWV2zrrJdBqWk95c8n2hZxiN9726Pd80IUqrBTBtNBahmf3wOmyNZiilHAg"
+   },
+   "expect": "ok"
+  },
+  {
+   "name": "valid, devices 500",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImRldmljZXMiOjUwMCwiZWRpdGlvbiI6InN0YW5kYXJkIiwiZXhwIjoxODIxNTM2MDAwLCJmZWF0dXJlcyI6WyJhenVyZSIsInNvbGFyd2luZHMiXSwiZ3JhY2VfZGF5cyI6MzAsImlhdCI6MTc5MDAwMDAwMCwiaW5zdGFuY2VzIjoxLCJraW5kIjoic3Vic2NyaXB0aW9uIiwibGVhc2VfZGF5cyI6MzAsImxpYyI6IlJFWi1URVNULTAwMDEiLCJuYmYiOjE3OTAwMDAwMDAsIm9mZmxpbmUiOmZhbHNlLCJzZWF0cyI6NTAsInR5cCI6ImxpY2VuY2UiLCJ2ZXIiOjF9",
+    "sig": "JWRu1wvBFwhsdjashX0wroiiYR8ZVqV3iI6MHk2GcmlQBJHBfysK2hvioXlgHwYrBJeyL2HVKxzyzg2rl5gaBw"
+   },
+   "expect": "ok"
+  },
+  {
+   "name": "valid, devices 1",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImRldmljZXMiOjEsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "Pqfnqe3WjL3Ft7CMO7UZA4nx1y2U6IeertrmW_C8HTdmgAbv4jlrNHvxBch_FE8uMjVIUbaTsxk4jjbqSRvmDg"
+   },
+   "expect": "ok"
+  },
+  {
+   "name": "valid root-signed trial",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InRyaWFsIiwibGVhc2VfZGF5cyI6MzAsImxpYyI6IlJFWi1URVNULTAwMDEiLCJuYmYiOjE3OTAwMDAwMDAsIm9mZmxpbmUiOmZhbHNlLCJzZWF0cyI6NTAsInR5cCI6ImxpY2VuY2UiLCJ2ZXIiOjF9",
+    "sig": "eAvkY4ZST3vAEc0N_GdTQcpFyHzufn9oYEnfSbUn0RwEKA8uDzRvt1QzD_HfvSjeLE45orJaXZNV7Fx2zAK4Cw"
+   },
+   "expect": "ok"
+  },
+  {
+   "name": "valid offline, exactly 366 days",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTYyMjQwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjp0cnVlLCJvZmZsaW5lX2lpZCI6Imluc3QtMDAwMS1hYWFhIiwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "PhjqjAkJDKJiWa68J2yBA6emo6F9RkQu1UEXomXNjAmMSl0sCx9R31ZM6cRawZFlepuuLUsQ3LoV13tzvJLDBQ"
+   },
+   "expect": "ok"
+  },
+  {
+   "name": "offline, 366 days and one second",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTYyMjQwMSwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjp0cnVlLCJvZmZsaW5lX2lpZCI6Imluc3QtMDAwMS1hYWFhIiwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "s0Lr2UaUiNCdzvkbuK-oEukbCr4paMIseVUfl74MAqZqu16MBB_sT4Orvwl5r0fomsatQ3AAGZmvfbwbMeq_BQ"
+   },
+   "expect": "offline_term"
+  },
+  {
+   "name": "lease presented as a licence",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [
+    {
+     "v": 2,
+     "typ": "cert",
+     "kid": "root-test-a",
+     "alg": "Ed25519",
+     "payload": "eyJleHAiOjE3OTc3NzYwMDAsImtpZCI6ImxlYXNlLXRlc3QtMSIsImxpbWl0cyI6e30sIm5iZiI6MTc4OTkxMzYwMCwicHViIjoicXM2NWR3ZzFxbXNkaThKMGoyaUgwTE5IVFpiTENLdzR2d2pBemo2cTBIUSIsInR5cCI6ImNlcnQiLCJ1c2UiOlsibGVhc2UiXX0",
+     "sig": "zm5_bMsA6QdjI6LnNxIxEnWuls5oC37unOkoKQYFjGMZGphVK0fOwgIX5aeEzTkScB9sOYEkxLlbUSc-jFAPBQ"
+    }
+   ],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "lease",
+    "kid": "lease-test-1",
+    "alg": "Ed25519",
+    "payload": "eyJleHAiOjE3OTI1OTIwMDAsImlhdCI6MTc5MDAwMDAwMCwiaWlkIjoiaW5zdC0wMDAxLWFhYWEiLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibGljZW5jZV9oYXNoIjoiX3k4SmttbDk4LUlUN0dYV2VKc0h3TG5vdGNsSmVsQmlKR29yckdXS0FPZyIsIm5vbmNlIjoiQUFFQ0F3UUZCZ2NJQ1FvTERBME9EdyIsIm5vdGljZV91bnRpbCI6MCwibm93IjoxNzkwMDAwMDAwLCJwcmV2IjoiIiwic2VxIjoxLCJzdGF0dXMiOiJvayIsInR5cCI6ImxlYXNlIiwidmVyIjoxfQ",
+    "sig": "hnoagPRulkLf464m3VpZCuRZaznEF83_IpDgj_9i6i1ZLsWclPQEm12MLtXkFSGXGa5uaLhwqEehDKDjh20yCg"
+   },
+   "expect": "bad_typ"
+  },
+  {
+   "name": "wrong key",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "7XejypjQb8Msg32Z9uX2S7Xb9WsGfu0TadkLXhual-JbzOS4rh8Av3kQtaDO3F1hzwL96M93H4Ub6J2iyzuaCg"
+   },
+   "expect": "bad_signature"
+  },
+  {
+   "name": "unknown kid",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "unknown-key",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "wQrLy2Gf02oeWE_aBAbCzpL-pUc2JYp_acXGe_SnpqLwRZ_94KJ3xnPqNjmwvSyabOd28Uaw8xg1_oZrnKWLAQ"
+   },
+   "expect": "unknown_kid"
+  },
+  {
+   "name": "signed under another type's prefix",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "Fw_jZLbscKXwQ67NrYMnOhtvvwbjMbg7BG1XsTf2rZDKYv7d3HBQ-cAiGpSijMV2v3ZwN-HZl6Pi_tAqeqf-AQ"
+   },
+   "expect": "bad_signature"
+  },
+  {
+   "name": "tampered payload byte",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RgbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "wQrLy2Gf02oeWE_aBAbCzpL-pUc2JYp_acXGe_SnpqLwRZ_94KJ3xnPqNjmwvSyabOd28Uaw8xg1_oZrnKWLAQ"
+   },
+   "expect": "bad_signature"
+  },
+  {
+   "name": "alg other",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "RS256",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "wQrLy2Gf02oeWE_aBAbCzpL-pUc2JYp_acXGe_SnpqLwRZ_94KJ3xnPqNjmwvSyabOd28Uaw8xg1_oZrnKWLAQ"
+   },
+   "expect": "bad_alg"
+  },
+  {
+   "name": "alg lower case",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "wQrLy2Gf02oeWE_aBAbCzpL-pUc2JYp_acXGe_SnpqLwRZ_94KJ3xnPqNjmwvSyabOd28Uaw8xg1_oZrnKWLAQ"
+   },
+   "expect": "bad_alg"
+  },
+  {
+   "name": "alg missing",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "wQrLy2Gf02oeWE_aBAbCzpL-pUc2JYp_acXGe_SnpqLwRZ_94KJ3xnPqNjmwvSyabOd28Uaw8xg1_oZrnKWLAQ"
+   },
+   "expect": "bad_alg"
+  },
+  {
+   "name": "v is 3",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 3,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "wQrLy2Gf02oeWE_aBAbCzpL-pUc2JYp_acXGe_SnpqLwRZ_94KJ3xnPqNjmwvSyabOd28Uaw8xg1_oZrnKWLAQ"
+   },
+   "expect": "bad_version"
+  },
+  {
+   "name": "v is 1",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 1,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "wQrLy2Gf02oeWE_aBAbCzpL-pUc2JYp_acXGe_SnpqLwRZ_94KJ3xnPqNjmwvSyabOd28Uaw8xg1_oZrnKWLAQ"
+   },
+   "expect": "bad_version"
+  },
+  {
+   "name": "v is a string",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": "2",
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "wQrLy2Gf02oeWE_aBAbCzpL-pUc2JYp_acXGe_SnpqLwRZ_94KJ3xnPqNjmwvSyabOd28Uaw8xg1_oZrnKWLAQ"
+   },
+   "expect": "bad_version"
+  },
+  {
+   "name": "v is a boolean",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": true,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "wQrLy2Gf02oeWE_aBAbCzpL-pUc2JYp_acXGe_SnpqLwRZ_94KJ3xnPqNjmwvSyabOd28Uaw8xg1_oZrnKWLAQ"
+   },
+   "expect": "bad_version"
+  },
+  {
+   "name": "envelope typ is another type",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "lease",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "wQrLy2Gf02oeWE_aBAbCzpL-pUc2JYp_acXGe_SnpqLwRZ_94KJ3xnPqNjmwvSyabOd28Uaw8xg1_oZrnKWLAQ"
+   },
+   "expect": "bad_typ"
+  },
+  {
+   "name": "envelope typ unknown",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "admin",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "wQrLy2Gf02oeWE_aBAbCzpL-pUc2JYp_acXGe_SnpqLwRZ_94KJ3xnPqNjmwvSyabOd28Uaw8xg1_oZrnKWLAQ"
+   },
+   "expect": "bad_typ"
+  },
+  {
+   "name": "kid too short",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "ab",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "wQrLy2Gf02oeWE_aBAbCzpL-pUc2JYp_acXGe_SnpqLwRZ_94KJ3xnPqNjmwvSyabOd28Uaw8xg1_oZrnKWLAQ"
+   },
+   "expect": "bad_kid"
+  },
+  {
+   "name": "kid upper case",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "Root-Test",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "wQrLy2Gf02oeWE_aBAbCzpL-pUc2JYp_acXGe_SnpqLwRZ_94KJ3xnPqNjmwvSyabOd28Uaw8xg1_oZrnKWLAQ"
+   },
+   "expect": "bad_kid"
+  },
+  {
+   "name": "kid too long",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "wQrLy2Gf02oeWE_aBAbCzpL-pUc2JYp_acXGe_SnpqLwRZ_94KJ3xnPqNjmwvSyabOd28Uaw8xg1_oZrnKWLAQ"
+   },
+   "expect": "bad_kid"
+  },
+  {
+   "name": "sig not base64url",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "!!!!"
+   },
+   "expect": "bad_sig"
+  },
+  {
+   "name": "sig with padding",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "wQrLy2Gf02oeWE_aBAbCzpL-pUc2JYp_acXGe_SnpqLwRZ_94KJ3xnPqNjmwvSyabOd28Uaw8xg1_oZrnKWLAQ=="
+   },
+   "expect": "bad_sig"
+  },
+  {
+   "name": "sig too short",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4"
+   },
+   "expect": "bad_sig"
+  },
+  {
+   "name": "sig missing",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ"
+   },
+   "expect": "bad_sig"
+  },
+  {
+   "name": "payload not base64url",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "a b",
+    "sig": "wQrLy2Gf02oeWE_aBAbCzpL-pUc2JYp_acXGe_SnpqLwRZ_94KJ3xnPqNjmwvSyabOd28Uaw8xg1_oZrnKWLAQ"
+   },
+   "expect": "bad_payload"
+  },
+  {
+   "name": "payload missing",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "sig": "wQrLy2Gf02oeWE_aBAbCzpL-pUc2JYp_acXGe_SnpqLwRZ_94KJ3xnPqNjmwvSyabOd28Uaw8xg1_oZrnKWLAQ"
+   },
+   "expect": "bad_payload"
+  },
+  {
+   "name": "envelope is not an object",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": [
+    "not",
+    "an",
+    "object"
+   ],
+   "expect": "bad_envelope"
+  },
+  {
+   "name": "payload is an array",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "WzFd",
+    "sig": "rfWGzb7fsolbP8p6_ghL0zhIgFxkFwT_4EA-aYo1uYXWzmNkYPRpQ_AwU4-y2l6RVK9eiycoLTDTpoQw9I0zBA"
+   },
+   "expect": "bad_payload"
+  },
+  {
+   "name": "payload is not JSON",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "bm90IGpzb24",
+    "sig": "cobrxtHoW4imwuGH5hQZUAhepoH2sGcTNK449Zt9AtzM_E5-y5NbIPrIPL6AdiFZEM3Qgt_zpUR17LNULCmaAA"
+   },
+   "expect": "bad_payload"
+  },
+  {
+   "name": "payload has NaN",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJ0eXAiOiJsaWNlbmNlIiwieCI6TmFOfQ",
+    "sig": "CUvTLd4a4YRokjSszwzxMJ41OsY0vM_OMsU8RjltG3KWqRrhEbleccWT81Exco70mb-BMlTo-VSPnzOQco0MCg"
+   },
+   "expect": "bad_payload"
+  },
+  {
+   "name": "payload names a key twice",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxLCJ0eXAiOiJsaWNlbmNlIn0",
+    "sig": "9FmtGZ4ayck524OCXXi8IFOe_jbazMWXjXtZAintsuV9_IQ2XY6uvLY3zw5cgg1WxdxQ7tbPy2I1iTd8sPDOAw"
+   },
+   "expect": "bad_payload"
+  },
+  {
+   "name": "payload names a key twice in a nested object",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxLCJ4Ijp7ImEiOjEsImEiOjF9fQ",
+    "sig": "EiWeb6KALn4f18-PE2nm9ttKuhIX-USM2NsLo9xig5ui-7UegycrPILFnZ1wh0O1V0DQqquruAz4ojK0kOWPCw"
+   },
+   "expect": "bad_payload"
+  },
+  {
+   "name": "payload typ differs from envelope typ",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsZWFzZSIsInZlciI6MX0",
+    "sig": "TT0MrXx20rLvHAWiEhT_XHY-NFvYWM2PyPU8PAvxIFMb5ZXP6JkgmRhndJz-YnaOj8k8WLXFjCL8UXHmX-_LBQ"
+   },
+   "expect": "payload_typ_mismatch"
+  },
+  {
+   "name": "payload typ missing",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ2ZXIiOjF9",
+    "sig": "if9aPx0o2uFgL5QSliCn5_CchOxO98aBpBJh7i2NFWzlKn-5vtZISTWJUW_QnROqmvuLBtbamUD18WhvWJ8NAg"
+   },
+   "expect": "payload_typ_mismatch"
+  },
+  {
+   "name": "lic lower case",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotYWJjZC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "Lp7vff8qNK2hnHopAQqBEWD8ZcXRhHRlV2ioGz28ZzUHyZSmebSJGHzej9rwFhLpKAmxhW9lmlf_Q1VHUGTPAw"
+   },
+   "expect": "bad_field:lic"
+  },
+  {
+   "name": "lic too short",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotQUJDIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "0fm-5j7ZDkwF4zi5ebUhw_ql2cs1O4HESGUS_ettXbQ0SFRgWo-orahQV311rDLjmKHnhLm29qc-L6D97D3cBg"
+   },
+   "expect": "bad_field:lic"
+  },
+  {
+   "name": "lic too long",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQSIsIm5iZiI6MTc5MDAwMDAwMCwib2ZmbGluZSI6ZmFsc2UsInNlYXRzIjo1MCwidHlwIjoibGljZW5jZSIsInZlciI6MX0",
+    "sig": "MudrabvZlLyD97c3mttWHkzSTYzaTct019_vwawuV4AR2q9Wwy58fmYny7gyfZUSGsV9R3e-DlKyLIOoTXSOAA"
+   },
+   "expect": "bad_field:lic"
+  },
+  {
+   "name": "lic without prefix",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJBQkNELTAwMDEiLCJuYmYiOjE3OTAwMDAwMDAsIm9mZmxpbmUiOmZhbHNlLCJzZWF0cyI6NTAsInR5cCI6ImxpY2VuY2UiLCJ2ZXIiOjF9",
+    "sig": "ZPlpUVNSzCiU_7sWbZq0-ZoWduGpWFGpUk0o7r5YFpygCkuoy_1jJtGKoy365DM4GyNfMhyT8Jdb_6FQdg4QBw"
+   },
+   "expect": "bad_field:lic"
+  },
+  {
+   "name": "lic with space",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotQUIgQ0QiLCJuYmYiOjE3OTAwMDAwMDAsIm9mZmxpbmUiOmZhbHNlLCJzZWF0cyI6NTAsInR5cCI6ImxpY2VuY2UiLCJ2ZXIiOjF9",
+    "sig": "KRhAjrBAOZL1FGJBJdrJkey_wiNPxf-qRNuW28pXwvYjjXfoPPpHYZ9U8wo96AcR9uNNYwHrpWTfXt53wuEICw"
+   },
+   "expect": "bad_field:lic"
+  },
+  {
+   "name": "lic with newline",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotQUJDRFxuIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "XzvJ6V_7D_XthdV5E4Rhz74SBCFuxyWyywvprjOtHF3aMMtMrCzUflNlZx0Uo8iVfA0hsR85ttUwBfsD4kXEDg"
+   },
+   "expect": "bad_field:lic"
+  },
+  {
+   "name": "ver zero",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjowfQ",
+    "sig": "9PwJ0s-6TArD3a_zG0znOjtN4ClYfzTHwZll3AiTSC5i6jnsWyjzYRGdr0Tjj_CaUqRZD1kpRzjXc4WWVoM9DQ"
+   },
+   "expect": "bad_field:ver"
+  },
+  {
+   "name": "ver a string",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoiMSJ9",
+    "sig": "9ePyTAseZjXRisKBueVMU2TdRej_voOEwPHHOxnUJiR5K94WmfHIiqH_VsPZYNMOttKXCeXfVvlRtf3FDxB6Ag"
+   },
+   "expect": "bad_field:ver"
+  },
+  {
+   "name": "ver a boolean",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjp0cnVlfQ",
+    "sig": "WRF9Xdv-KFMfIOSnrh1CEQDrjFYIUpnM31c94wKOLhgWhHukhqcXOgSIfv0wtDMLeghnUBrRreVMx_RDWSxABw"
+   },
+   "expect": "bad_field:ver"
+  },
+  {
+   "name": "ver a float",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxLjB9",
+    "sig": "zZJzmDpi3tYpnQUe8Vp_k5NcaytAD_rPqmcIQ1tZg4olda1sh6em-8XkSr8ydqUnUROBSn1YQkGaLrTgSPKwDQ"
+   },
+   "expect": "bad_field:ver"
+  },
+  {
+   "name": "customer empty",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IiIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "h03A00GV3DXJ3cmrc4nzB_UkJWFKpTWYBmfdaCqPBRRNLQ7iIHMCYzlz0FEiPaZzUmJLdyyBP9cd5ZuwkubgAw"
+   },
+   "expect": "bad_field:customer"
+  },
+  {
+   "name": "customer 201 characters",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6Inh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eCIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "oVKDAGOrBvyOcK4rHE_dbPEEMJEm5JqHxIwiK_I9jWPwkICmNmYEG6OjAPbkHwRD2NFsQABXr7DqJPafGptzBA"
+   },
+   "expect": "bad_field:customer"
+  },
+  {
+   "name": "customer a number",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6NywiZWRpdGlvbiI6InN0YW5kYXJkIiwiZXhwIjoxODIxNTM2MDAwLCJmZWF0dXJlcyI6WyJhenVyZSIsInNvbGFyd2luZHMiXSwiZ3JhY2VfZGF5cyI6MzAsImlhdCI6MTc5MDAwMDAwMCwiaW5zdGFuY2VzIjoxLCJraW5kIjoic3Vic2NyaXB0aW9uIiwibGVhc2VfZGF5cyI6MzAsImxpYyI6IlJFWi1URVNULTAwMDEiLCJuYmYiOjE3OTAwMDAwMDAsIm9mZmxpbmUiOmZhbHNlLCJzZWF0cyI6NTAsInR5cCI6ImxpY2VuY2UiLCJ2ZXIiOjF9",
+    "sig": "pudy04ZW6sK--Ho2h0dYThaRylKEb6F4_w_UeadTMi29H7dRWXSlATiwbEwk7rYrv_9qRGIoytLjFUguzewSBA"
+   },
+   "expect": "bad_field:customer"
+  },
+  {
+   "name": "customer with ESC",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkFjbWVcdTAwMWJbOG0iLCJlZGl0aW9uIjoic3RhbmRhcmQiLCJleHAiOjE4MjE1MzYwMDAsImZlYXR1cmVzIjpbImF6dXJlIiwic29sYXJ3aW5kcyJdLCJncmFjZV9kYXlzIjozMCwiaWF0IjoxNzkwMDAwMDAwLCJpbnN0YW5jZXMiOjEsImtpbmQiOiJzdWJzY3JpcHRpb24iLCJsZWFzZV9kYXlzIjozMCwibGljIjoiUkVaLVRFU1QtMDAwMSIsIm5iZiI6MTc5MDAwMDAwMCwib2ZmbGluZSI6ZmFsc2UsInNlYXRzIjo1MCwidHlwIjoibGljZW5jZSIsInZlciI6MX0",
+    "sig": "Ttn6JRN0arZly_EGypnxo3lfvbVdL_rSCWgGcgGA-lOwtaw70ygTwBibL1wdmpYCkioIIkxZbhzExvAoyrIdAg"
+   },
+   "expect": "bad_field:customer"
+  },
+  {
+   "name": "customer with a newline",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkFjbWUgTHRkXG5TZWF0czogNSIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "Zj9_JUC-AizzbI_5EI9J-PJTwlQaloPRLjpUArGNSY1KOttb-40ce0wsF3an6gp-HFR6VGK2PGhnfYDtrPuvAQ"
+   },
+   "expect": "bad_field:customer"
+  },
+  {
+   "name": "customer with a carriage return",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkFjbWVcckx0ZCIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "eUKGYF7Lnrhjz-Kz5Xtkj5IJMNEdJAmWU9NdvsP6VHf1bepLuyPF7vDqo68CPflQO3_WqKrwR4Af2j5oHRbwCw"
+   },
+   "expect": "bad_field:customer"
+  },
+  {
+   "name": "customer with NUL",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkFjbWVcdTAwMDAiLCJlZGl0aW9uIjoic3RhbmRhcmQiLCJleHAiOjE4MjE1MzYwMDAsImZlYXR1cmVzIjpbImF6dXJlIiwic29sYXJ3aW5kcyJdLCJncmFjZV9kYXlzIjozMCwiaWF0IjoxNzkwMDAwMDAwLCJpbnN0YW5jZXMiOjEsImtpbmQiOiJzdWJzY3JpcHRpb24iLCJsZWFzZV9kYXlzIjozMCwibGljIjoiUkVaLVRFU1QtMDAwMSIsIm5iZiI6MTc5MDAwMDAwMCwib2ZmbGluZSI6ZmFsc2UsInNlYXRzIjo1MCwidHlwIjoibGljZW5jZSIsInZlciI6MX0",
+    "sig": "ahJ67a47FWf34PTBKKuGQwghNNWQ0XgI9s2RQmexGxmeMl5anEQ_fZGP8SsSVq089bJWqfeNnkEAgUtBn5knAQ"
+   },
+   "expect": "bad_field:customer"
+  },
+  {
+   "name": "customer with a tab",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkFjbWVcdEx0ZCIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "bDvgCZIIJFqCgifJJASBdqn66fju1N4fz2vE4PuMgFdxa--T5d566yetr4V9uoCy01T0yxPBVnz79t6eAnsDDA"
+   },
+   "expect": "bad_field:customer"
+  },
+  {
+   "name": "customer with DEL",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkFjbWV_IiwiZWRpdGlvbiI6InN0YW5kYXJkIiwiZXhwIjoxODIxNTM2MDAwLCJmZWF0dXJlcyI6WyJhenVyZSIsInNvbGFyd2luZHMiXSwiZ3JhY2VfZGF5cyI6MzAsImlhdCI6MTc5MDAwMDAwMCwiaW5zdGFuY2VzIjoxLCJraW5kIjoic3Vic2NyaXB0aW9uIiwibGVhc2VfZGF5cyI6MzAsImxpYyI6IlJFWi1URVNULTAwMDEiLCJuYmYiOjE3OTAwMDAwMDAsIm9mZmxpbmUiOmZhbHNlLCJzZWF0cyI6NTAsInR5cCI6ImxpY2VuY2UiLCJ2ZXIiOjF9",
+    "sig": "T-bleAL_gNxE4AALt0DVTXc3nM6CgtzAjPGii-H7WJNvDj8RF8RJOdzGLYCa6uN9j_DWYkPvhOaYArsd_pR8CQ"
+   },
+   "expect": "bad_field:customer"
+  },
+  {
+   "name": "customer with a C1 control",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkFjbWXChUx0ZCIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "kOmpYMr2IvpAAN-CvWcE_vUhvW8jUYAkdaYSM6EbL5bfYRZwVGXzwwNgN_qR2efTm-PO6tQMwr-Xcipr8npNAw"
+   },
+   "expect": "bad_field:customer"
+  },
+  {
+   "name": "customer with a line separator",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkFjbWXigKhMdGQiLCJlZGl0aW9uIjoic3RhbmRhcmQiLCJleHAiOjE4MjE1MzYwMDAsImZlYXR1cmVzIjpbImF6dXJlIiwic29sYXJ3aW5kcyJdLCJncmFjZV9kYXlzIjozMCwiaWF0IjoxNzkwMDAwMDAwLCJpbnN0YW5jZXMiOjEsImtpbmQiOiJzdWJzY3JpcHRpb24iLCJsZWFzZV9kYXlzIjozMCwibGljIjoiUkVaLVRFU1QtMDAwMSIsIm5iZiI6MTc5MDAwMDAwMCwib2ZmbGluZSI6ZmFsc2UsInNlYXRzIjo1MCwidHlwIjoibGljZW5jZSIsInZlciI6MX0",
+    "sig": "A6TuuuzwR-Sh84gqYc9PYOazmgnBaZIZCRlnIOxHCvgI2opZEn-IRxNU-oK3oSIi6Yv3nlpZePfByPIfzvZaAg"
+   },
+   "expect": "bad_field:customer"
+  },
+  {
+   "name": "kind perpetual (reserved)",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InBlcnBldHVhbCIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "WDL9zxZoOCFa1f82t9pT6GGcYADcZTx5izUYrnwXdQB6t6ooaU3JsSwBF2P5JJICCdqx8PFelwvkD2hWgdBEDg"
+   },
+   "expect": "bad_field:kind"
+  },
+  {
+   "name": "kind upper case",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6IlRyaWFsIiwibGVhc2VfZGF5cyI6MzAsImxpYyI6IlJFWi1URVNULTAwMDEiLCJuYmYiOjE3OTAwMDAwMDAsIm9mZmxpbmUiOmZhbHNlLCJzZWF0cyI6NTAsInR5cCI6ImxpY2VuY2UiLCJ2ZXIiOjF9",
+    "sig": "JmKcmxHRLwH299umjkpvnqfI2E5sNp_cjfLS1aoZpIb1mgEJWpYzVdMonS7SV0WLH5b6OWF3i3ZrknxqNEz_AA"
+   },
+   "expect": "bad_field:kind"
+  },
+  {
+   "name": "edition empty",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiIiLCJleHAiOjE4MjE1MzYwMDAsImZlYXR1cmVzIjpbImF6dXJlIiwic29sYXJ3aW5kcyJdLCJncmFjZV9kYXlzIjozMCwiaWF0IjoxNzkwMDAwMDAwLCJpbnN0YW5jZXMiOjEsImtpbmQiOiJzdWJzY3JpcHRpb24iLCJsZWFzZV9kYXlzIjozMCwibGljIjoiUkVaLVRFU1QtMDAwMSIsIm5iZiI6MTc5MDAwMDAwMCwib2ZmbGluZSI6ZmFsc2UsInNlYXRzIjo1MCwidHlwIjoibGljZW5jZSIsInZlciI6MX0",
+    "sig": "gnxnDdkuyFZNIgUKPLSpo9Q5Th5ldEnbRH53_nHCqSUyDwetw4t1PJa8E_iML2DhRjuo9x8h8gXvtPxN8wIYDA"
+   },
+   "expect": "bad_field:edition"
+  },
+  {
+   "name": "edition upper case",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJTdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "M5aA9YEmmS5vtFhP0QWvmIlS22dTgKQx85mQTYxxal-iSKSxT_ZJH2bv4GKKMW3wAtQNeqHNMSBk99Ov0LQhBg"
+   },
+   "expect": "bad_field:edition"
+  },
+  {
+   "name": "edition 41 characters",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZSIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "TyfX1ldaAVKt0qYOBMnF4olo7PAx931Bb0wXgPRuYq1eH7Sl-tj5zGA8e8IFmqf_ytVufzqbwO3DkcKUIo2ABQ"
+   },
+   "expect": "bad_field:edition"
+  },
+  {
+   "name": "features not a list",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOiJhenVyZSIsImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "n7mOIetZR9SxeBDxDjEPmIHaEwTnUiAYc-aTj8kYkOkVkFy9dYkXn_0c2UMW_j7pMsHKlWbh7wA9KWSupBLHDw"
+   },
+   "expect": "bad_field:features"
+  },
+  {
+   "name": "feature upper case",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiQXp1cmUiXSwiZ3JhY2VfZGF5cyI6MzAsImlhdCI6MTc5MDAwMDAwMCwiaW5zdGFuY2VzIjoxLCJraW5kIjoic3Vic2NyaXB0aW9uIiwibGVhc2VfZGF5cyI6MzAsImxpYyI6IlJFWi1URVNULTAwMDEiLCJuYmYiOjE3OTAwMDAwMDAsIm9mZmxpbmUiOmZhbHNlLCJzZWF0cyI6NTAsInR5cCI6ImxpY2VuY2UiLCJ2ZXIiOjF9",
+    "sig": "GP-RabV_MzzW3AeBQan5roZi9fGEO4Wx4yv8gIQ4CKBysOCJxBJlYkMALUeXKcq2ng-lZj0FHmhIkZofXHFLDw"
+   },
+   "expect": "bad_field:features"
+  },
+  {
+   "name": "feature empty",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "fsTHl2DJtLN16HVlrnt7rzhNhhEOICp4xBI--cVQk9-L_8NqRqMpYdsJ-S_3qzxfqO-jH55_Lo4GNYX_f0oMDQ"
+   },
+   "expect": "bad_field:features"
+  },
+  {
+   "name": "feature 41 characters",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmYiXSwiZ3JhY2VfZGF5cyI6MzAsImlhdCI6MTc5MDAwMDAwMCwiaW5zdGFuY2VzIjoxLCJraW5kIjoic3Vic2NyaXB0aW9uIiwibGVhc2VfZGF5cyI6MzAsImxpYyI6IlJFWi1URVNULTAwMDEiLCJuYmYiOjE3OTAwMDAwMDAsIm9mZmxpbmUiOmZhbHNlLCJzZWF0cyI6NTAsInR5cCI6ImxpY2VuY2UiLCJ2ZXIiOjF9",
+    "sig": "Qr563zud-_KkuorpAmZN0VNvVLxizBYlmnfCtNt01YR0bfeTOSGcmzSVyT_4lDkgtxQEi6A5yzAgdg_uEcqfAQ"
+   },
+   "expect": "bad_field:features"
+  },
+  {
+   "name": "feature not a string",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsxXSwiZ3JhY2VfZGF5cyI6MzAsImlhdCI6MTc5MDAwMDAwMCwiaW5zdGFuY2VzIjoxLCJraW5kIjoic3Vic2NyaXB0aW9uIiwibGVhc2VfZGF5cyI6MzAsImxpYyI6IlJFWi1URVNULTAwMDEiLCJuYmYiOjE3OTAwMDAwMDAsIm9mZmxpbmUiOmZhbHNlLCJzZWF0cyI6NTAsInR5cCI6ImxpY2VuY2UiLCJ2ZXIiOjF9",
+    "sig": "Nohzu514ndpnoG6aICqvVxAH4wBZ64xv0yDZjZCekBU5-876Z1ogwjVSazksMjetOYFTqnlFPpCHS0tYWscFAw"
+   },
+   "expect": "bad_field:features"
+  },
+  {
+   "name": "seats zero",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjAsInR5cCI6ImxpY2VuY2UiLCJ2ZXIiOjF9",
+    "sig": "pZmTwHMygwAJMpfEM4NF3JSFQPhwg8LtE2DnHY_teLntev_Xyfk3vGF-VDjxnuKsVe4aQL4562-f2IfSq4AWDA"
+   },
+   "expect": "bad_field:seats"
+  },
+  {
+   "name": "seats a boolean",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOnRydWUsInR5cCI6ImxpY2VuY2UiLCJ2ZXIiOjF9",
+    "sig": "qmTKdomWM8VSbSwQbSx5TDid3GssWOybmYxCHtpn6dv_n81bRZ9AcPWR24Zg1VXY4oUkOXlHxyPchXqYv_vsBw"
+   },
+   "expect": "bad_field:seats"
+  },
+  {
+   "name": "seats a string",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOiI1MCIsInR5cCI6ImxpY2VuY2UiLCJ2ZXIiOjF9",
+    "sig": "XZhdstL3F8vQh7vdRYOKmZY6DBKT0QJ7KbME8eppTgdg4_6d19gw1WWVQm2rpJKbpT3bNRbnZbrtBFcf4Q4uDw"
+   },
+   "expect": "bad_field:seats"
+  },
+  {
+   "name": "devices zero",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImRldmljZXMiOjAsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "Sk4nI1iklm44A7TQJqEjnHTR05iITEW6dJQke5U7ObnAJpO4MqE9Efuaf7gczBRlDYpuTaIFVTvCogicg-S6BA"
+   },
+   "expect": "bad_field:devices"
+  },
+  {
+   "name": "devices a boolean",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImRldmljZXMiOnRydWUsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "UJMdVPchDm7sh1oYWXpkWchGrYbHcwgSYPTqgIH9GuxKkCcmOsWUGYE0hDRRuXiq6ctQs9Fb54Df5eKrnwzbAw"
+   },
+   "expect": "bad_field:devices"
+  },
+  {
+   "name": "devices a string",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImRldmljZXMiOiIxMDAiLCJlZGl0aW9uIjoic3RhbmRhcmQiLCJleHAiOjE4MjE1MzYwMDAsImZlYXR1cmVzIjpbImF6dXJlIiwic29sYXJ3aW5kcyJdLCJncmFjZV9kYXlzIjozMCwiaWF0IjoxNzkwMDAwMDAwLCJpbnN0YW5jZXMiOjEsImtpbmQiOiJzdWJzY3JpcHRpb24iLCJsZWFzZV9kYXlzIjozMCwibGljIjoiUkVaLVRFU1QtMDAwMSIsIm5iZiI6MTc5MDAwMDAwMCwib2ZmbGluZSI6ZmFsc2UsInNlYXRzIjo1MCwidHlwIjoibGljZW5jZSIsInZlciI6MX0",
+    "sig": "2VU5CHzhh-ItNItXnorFBkjkXCXWdwuhwKkVuUgdI-F3Q2KFIZKwRf61qw6v9tkit1m3rrwSDos5A07oD-maAw"
+   },
+   "expect": "bad_field:devices"
+  },
+  {
+   "name": "devices a float",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImRldmljZXMiOjEwMC4wLCJlZGl0aW9uIjoic3RhbmRhcmQiLCJleHAiOjE4MjE1MzYwMDAsImZlYXR1cmVzIjpbImF6dXJlIiwic29sYXJ3aW5kcyJdLCJncmFjZV9kYXlzIjozMCwiaWF0IjoxNzkwMDAwMDAwLCJpbnN0YW5jZXMiOjEsImtpbmQiOiJzdWJzY3JpcHRpb24iLCJsZWFzZV9kYXlzIjozMCwibGljIjoiUkVaLVRFU1QtMDAwMSIsIm5iZiI6MTc5MDAwMDAwMCwib2ZmbGluZSI6ZmFsc2UsInNlYXRzIjo1MCwidHlwIjoibGljZW5jZSIsInZlciI6MX0",
+    "sig": "OjUlh2Iv9qNHHwnoPUmCdWq8avJqAQowgF7W1fPfE1UqAZkdWBDAXMWMK3--q-Rr0hWSJfMDpEYuqFArKLsxCQ"
+   },
+   "expect": "bad_field:devices"
+  },
+  {
+   "name": "devices null",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImRldmljZXMiOm51bGwsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "vp_zkX76CO4w-CTSogk6WJ-qD5u5pgTV87oQiQ8RcaBB3fHl9fD44eGVVvxypv6J3pBEBQOKIcxXN784V2BdDA"
+   },
+   "expect": "bad_field:devices"
+  },
+  {
+   "name": "devices negative",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImRldmljZXMiOi0xLCJlZGl0aW9uIjoic3RhbmRhcmQiLCJleHAiOjE4MjE1MzYwMDAsImZlYXR1cmVzIjpbImF6dXJlIiwic29sYXJ3aW5kcyJdLCJncmFjZV9kYXlzIjozMCwiaWF0IjoxNzkwMDAwMDAwLCJpbnN0YW5jZXMiOjEsImtpbmQiOiJzdWJzY3JpcHRpb24iLCJsZWFzZV9kYXlzIjozMCwibGljIjoiUkVaLVRFU1QtMDAwMSIsIm5iZiI6MTc5MDAwMDAwMCwib2ZmbGluZSI6ZmFsc2UsInNlYXRzIjo1MCwidHlwIjoibGljZW5jZSIsInZlciI6MX0",
+    "sig": "SDXo6Dmo9TxzeG8WAojTestOsfy4VkBbTJHaGioDQDRRvtH2NeesWTJc3VCLBUcdaheOMshJRdQn55q1tnqPAQ"
+   },
+   "expect": "bad_field:devices"
+  },
+  {
+   "name": "instances zero",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MCwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "PUap9bcnGe7UiCLHxG17i_VoWPHx5TDPfiv9wgAzenhLKAJjAaNhNYa4T5nymMDO4qAj9kzAILiNYYqChNHbDw"
+   },
+   "expect": "bad_field:instances"
+  },
+  {
+   "name": "instances a float",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MS41LCJraW5kIjoic3Vic2NyaXB0aW9uIiwibGVhc2VfZGF5cyI6MzAsImxpYyI6IlJFWi1URVNULTAwMDEiLCJuYmYiOjE3OTAwMDAwMDAsIm9mZmxpbmUiOmZhbHNlLCJzZWF0cyI6NTAsInR5cCI6ImxpY2VuY2UiLCJ2ZXIiOjF9",
+    "sig": "NEnImOcyCHqZ_WnLOPuzLXN3shFreXuLb9cSN-MKDaeDIJnPKDWV8Qv0_ZvlS6w_DmCpU-x6_zBws0mWjVSoCg"
+   },
+   "expect": "bad_field:instances"
+  },
+  {
+   "name": "iat a string",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOiIxIiwiaW5zdGFuY2VzIjoxLCJraW5kIjoic3Vic2NyaXB0aW9uIiwibGVhc2VfZGF5cyI6MzAsImxpYyI6IlJFWi1URVNULTAwMDEiLCJuYmYiOjE3OTAwMDAwMDAsIm9mZmxpbmUiOmZhbHNlLCJzZWF0cyI6NTAsInR5cCI6ImxpY2VuY2UiLCJ2ZXIiOjF9",
+    "sig": "IdMUfr7tSqTMBmsNzhJLVK6fDdeDY8VPZgxOEcgRbqMaiN_nQRvcFPU0m-IxKWHcRXZSLLOnzd2-OHGb4Hw1CQ"
+   },
+   "expect": "bad_field:iat"
+  },
+  {
+   "name": "iat negative",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOi01LCJpbnN0YW5jZXMiOjEsImtpbmQiOiJzdWJzY3JpcHRpb24iLCJsZWFzZV9kYXlzIjozMCwibGljIjoiUkVaLVRFU1QtMDAwMSIsIm5iZiI6MTc5MDAwMDAwMCwib2ZmbGluZSI6ZmFsc2UsInNlYXRzIjo1MCwidHlwIjoibGljZW5jZSIsInZlciI6MX0",
+    "sig": "dNdQ5l0uu3rp1tmxSHv4g2FzuhUqPtthKpZSqJnaGF-1NbVqi4nESRA6T_XsL5NGsaGYTZan3iZRum1-Hns6CQ"
+   },
+   "expect": "bad_field:iat"
+  },
+  {
+   "name": "nbf a boolean",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjpmYWxzZSwib2ZmbGluZSI6ZmFsc2UsInNlYXRzIjo1MCwidHlwIjoibGljZW5jZSIsInZlciI6MX0",
+    "sig": "X9ACOdeOiFJHzT_lareE1TRNDFmREhnNUuZj7Nym4r2IvqIK_-qxRTLFRZDb1wCnwiWuwwNuHZUlRkfXVMshAg"
+   },
+   "expect": "bad_field:nbf"
+  },
+  {
+   "name": "exp before nbf",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTc4OTk5OTk5OSwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "61dkZAtkBvV9-fJv9BiQj8kk--aIVPCV1qEm_e0RZuiGwXfeGqsritZnaGsXX27HlYhw4ODlspV_YKDJazGwDQ"
+   },
+   "expect": "bad_field:exp"
+  },
+  {
+   "name": "exp a string",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6IngiLCJmZWF0dXJlcyI6WyJhenVyZSIsInNvbGFyd2luZHMiXSwiZ3JhY2VfZGF5cyI6MzAsImlhdCI6MTc5MDAwMDAwMCwiaW5zdGFuY2VzIjoxLCJraW5kIjoic3Vic2NyaXB0aW9uIiwibGVhc2VfZGF5cyI6MzAsImxpYyI6IlJFWi1URVNULTAwMDEiLCJuYmYiOjE3OTAwMDAwMDAsIm9mZmxpbmUiOmZhbHNlLCJzZWF0cyI6NTAsInR5cCI6ImxpY2VuY2UiLCJ2ZXIiOjF9",
+    "sig": "0CurSqCYcDCVujCIxXhTjcYLscI4OewrHtnMoXRaVmUatzC9YPJxZOvj_OCLleXB0coXvsB8_2Kb8DVZWqtfDg"
+   },
+   "expect": "bad_field:exp"
+  },
+  {
+   "name": "lease_days zero",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjAsImxpYyI6IlJFWi1URVNULTAwMDEiLCJuYmYiOjE3OTAwMDAwMDAsIm9mZmxpbmUiOmZhbHNlLCJzZWF0cyI6NTAsInR5cCI6ImxpY2VuY2UiLCJ2ZXIiOjF9",
+    "sig": "B4sJvy1XtOUQ614HYRjGb-aaszanYkaRU6NaaH1Yky7RhovS3iPqkdi9vwdhV-Fzm_kAKUD7ZvfI2h_tYmk_AA"
+   },
+   "expect": "bad_field:lease_days"
+  },
+  {
+   "name": "lease_days 91",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjkxLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "HgWPKETBiRs-vXEmZiIHVGK88VyoxxVaam8dgNTYAC5xs1btlpXDc0_VDet7oNXtgI_494RFQDQpnk46qCWfAg"
+   },
+   "expect": "bad_field:lease_days"
+  },
+  {
+   "name": "grace_days negative",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOi0xLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "6CofpZW2SS7zYcmu-0vlGuwSMaa_nnSzWd_nGfMsJxf0fKwjXbLnf3Jwp4xAGUgysLqh6rKBnO1nBz0PbHU0BA"
+   },
+   "expect": "bad_field:grace_days"
+  },
+  {
+   "name": "grace_days 91",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjkxLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "PXI8fMfZ2Im2XlBySsiT0kiIijk2zrW4gw0HgZsid-kxTqQx3RhNHo5Tot9h-gjNyW_A00mptPeoZ5LytAJDAg"
+   },
+   "expect": "bad_field:grace_days"
+  },
+  {
+   "name": "offline a string",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjoiZmFsc2UiLCJzZWF0cyI6NTAsInR5cCI6ImxpY2VuY2UiLCJ2ZXIiOjF9",
+    "sig": "httHMdPC1vNewAKTJyWZ9VyYwzOGVnDgfFDE9gKZ8jmt93fqOCwoTYJ2gA6riZftBcABllQxq6jUouK7RjVdAg"
+   },
+   "expect": "bad_field:offline"
+  },
+  {
+   "name": "offline a number",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjowLCJzZWF0cyI6NTAsInR5cCI6ImxpY2VuY2UiLCJ2ZXIiOjF9",
+    "sig": "cVdbGmfyUmrYs81NxusuReJeuu09ytFmpUAMDPKDsT5oGIQkxm7csgkpWDm8nrd-8cC_DSm_T9UlY51lT9u9BA"
+   },
+   "expect": "bad_field:offline"
+  },
+  {
+   "name": "offline true without offline_iid",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjp0cnVlLCJzZWF0cyI6NTAsInR5cCI6ImxpY2VuY2UiLCJ2ZXIiOjF9",
+    "sig": "EHp2Mb7P03hoNm7zfnIvsjEJLXdNzU1IkuHLVZMobcbRd3g5HOFvEXlAWiKjrEobkZlvehmCpKkN-XDReT56Bw"
+   },
+   "expect": "bad_field:offline_iid"
+  },
+  {
+   "name": "offline_iid present while offline is false",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwib2ZmbGluZV9paWQiOiJpbnN0LTAwMDEtYWFhYSIsInNlYXRzIjo1MCwidHlwIjoibGljZW5jZSIsInZlciI6MX0",
+    "sig": "lXFVdxOveScna0OkpYEJkITBpJhN8FBHQfBU0g4JUKVPQMDj8Z-z8oANympbZseAO74nndAX3aq42q62wqJhCQ"
+   },
+   "expect": "bad_field:offline_iid"
+  },
+  {
+   "name": "offline_iid too short",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjp0cnVlLCJvZmZsaW5lX2lpZCI6InNob3J0Iiwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "2Ln6whn8NGd82J5uqip-4N0dehcC2Br9g1n7KaxybFBsTmhUr0fRuou32bHADmYfWFbtXLhAwA6l9kaW7p5EDg"
+   },
+   "expect": "bad_field:offline_iid"
+  },
+  {
+   "name": "offline_iid with a space",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjp0cnVlLCJvZmZsaW5lX2lpZCI6ImhhcyBhIHNwYWNlISIsInNlYXRzIjo1MCwidHlwIjoibGljZW5jZSIsInZlciI6MX0",
+    "sig": "y9zmXb89yOjDSfso0ShPkSEi_1GIGZ2zo6SRQ4B6otzebVy57UxwmVClEZAgV5UmWjD9ARYe6IAYCQY3NYYsDQ"
+   },
+   "expect": "bad_field:offline_iid"
+  },
+  {
+   "name": "lic missing",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJuYmYiOjE3OTAwMDAwMDAsIm9mZmxpbmUiOmZhbHNlLCJzZWF0cyI6NTAsInR5cCI6ImxpY2VuY2UiLCJ2ZXIiOjF9",
+    "sig": "LfYlzaPmcBdT-qgJBEFfYm3LpMEiZBhvfSqRJXI3AwOLwEhrPRciTpV17DJT4ff8Djiu121uZlPZ8vbsSqRTDQ"
+   },
+   "expect": "bad_field:lic"
+  },
+  {
+   "name": "ver missing",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIn0",
+    "sig": "EJAb7b8jfFfqk06V-SNxh5SKFh4RFH8tAdQfzOXXBm4LT3oYWFIghBdodWNJioZmIEnzagD-PAk0uRNGuJ-xBA"
+   },
+   "expect": "bad_field:ver"
+  },
+  {
+   "name": "customer missing",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJlZGl0aW9uIjoic3RhbmRhcmQiLCJleHAiOjE4MjE1MzYwMDAsImZlYXR1cmVzIjpbImF6dXJlIiwic29sYXJ3aW5kcyJdLCJncmFjZV9kYXlzIjozMCwiaWF0IjoxNzkwMDAwMDAwLCJpbnN0YW5jZXMiOjEsImtpbmQiOiJzdWJzY3JpcHRpb24iLCJsZWFzZV9kYXlzIjozMCwibGljIjoiUkVaLVRFU1QtMDAwMSIsIm5iZiI6MTc5MDAwMDAwMCwib2ZmbGluZSI6ZmFsc2UsInNlYXRzIjo1MCwidHlwIjoibGljZW5jZSIsInZlciI6MX0",
+    "sig": "S0xohwQ_XAWHjvAyFxtv76nvwH6qvaPL8fOYD_IiPPttPvxLS98IGROd4iHhcC65cPtkPj7a9YuKckyide_1Ag"
+   },
+   "expect": "bad_field:customer"
+  },
+  {
+   "name": "kind missing",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwibGVhc2VfZGF5cyI6MzAsImxpYyI6IlJFWi1URVNULTAwMDEiLCJuYmYiOjE3OTAwMDAwMDAsIm9mZmxpbmUiOmZhbHNlLCJzZWF0cyI6NTAsInR5cCI6ImxpY2VuY2UiLCJ2ZXIiOjF9",
+    "sig": "bkxc2KKxCQnKMp6QREUz4ExSMGL9ER4T_n_2eXdZx4dsPUaKU7OM9yHZDCaH28WfFxSK_vCgZDhDlbR9R6pkAQ"
+   },
+   "expect": "bad_field:kind"
+  },
+  {
+   "name": "edition missing",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "yVO5ApYNt2Oumf0e7-KaYl9AGs3VSaSDJmJjV9lz9WQ8clFcXhnxSo1p8AbPVfVh2bsTxxP_8K61kQBchGHjDA"
+   },
+   "expect": "bad_field:edition"
+  },
+  {
+   "name": "features missing",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZ3JhY2VfZGF5cyI6MzAsImlhdCI6MTc5MDAwMDAwMCwiaW5zdGFuY2VzIjoxLCJraW5kIjoic3Vic2NyaXB0aW9uIiwibGVhc2VfZGF5cyI6MzAsImxpYyI6IlJFWi1URVNULTAwMDEiLCJuYmYiOjE3OTAwMDAwMDAsIm9mZmxpbmUiOmZhbHNlLCJzZWF0cyI6NTAsInR5cCI6ImxpY2VuY2UiLCJ2ZXIiOjF9",
+    "sig": "muFw-qqkagSTHu9id555qxMxTsPq0-seQ4uJ9unnmJvV_wAV-MOCEJqwBjaOZGkl0aAHxD7ybFkwgwKLuPnrCQ"
+   },
+   "expect": "bad_field:features"
+  },
+  {
+   "name": "seats missing",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwidHlwIjoibGljZW5jZSIsInZlciI6MX0",
+    "sig": "LHKioAm6EHyDeAEi81ZwcbB77-nK-5gFVIPcQLx3xw5j6vb2eiSz2jeEE8_aUBB9Qf7G45lQNzm_7sx5c232BQ"
+   },
+   "expect": "bad_field:seats"
+  },
+  {
+   "name": "instances missing",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImtpbmQiOiJzdWJzY3JpcHRpb24iLCJsZWFzZV9kYXlzIjozMCwibGljIjoiUkVaLVRFU1QtMDAwMSIsIm5iZiI6MTc5MDAwMDAwMCwib2ZmbGluZSI6ZmFsc2UsInNlYXRzIjo1MCwidHlwIjoibGljZW5jZSIsInZlciI6MX0",
+    "sig": "nyfUt_zFAFKnwrWBL880IMsaFICCGd_It-yJOOkYWUwd5_D-v8uC8111eliBOzALT7kl_-eYGKP5tBitzlAOCg"
+   },
+   "expect": "bad_field:instances"
+  },
+  {
+   "name": "iat missing",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpbnN0YW5jZXMiOjEsImtpbmQiOiJzdWJzY3JpcHRpb24iLCJsZWFzZV9kYXlzIjozMCwibGljIjoiUkVaLVRFU1QtMDAwMSIsIm5iZiI6MTc5MDAwMDAwMCwib2ZmbGluZSI6ZmFsc2UsInNlYXRzIjo1MCwidHlwIjoibGljZW5jZSIsInZlciI6MX0",
+    "sig": "FVM44ulNp-BQTtOztjR9VezpZY6JD2Ej2uvjOGKnhJdaB-TfZ_pAZFwIA7ExYJz82ehOcdpIWT0tDM7Q8k3mDA"
+   },
+   "expect": "bad_field:iat"
+  },
+  {
+   "name": "nbf missing",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwib2ZmbGluZSI6ZmFsc2UsInNlYXRzIjo1MCwidHlwIjoibGljZW5jZSIsInZlciI6MX0",
+    "sig": "DdAiPbYIUWj0y7AeciH7OOLFJRsAg8SgQC1bssMMhuqTfgHkyUn626z2BBNx7HGfjaY4C8QADnIfa0jBtuqkCQ"
+   },
+   "expect": "bad_field:nbf"
+  },
+  {
+   "name": "exp missing",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImZlYXR1cmVzIjpbImF6dXJlIiwic29sYXJ3aW5kcyJdLCJncmFjZV9kYXlzIjozMCwiaWF0IjoxNzkwMDAwMDAwLCJpbnN0YW5jZXMiOjEsImtpbmQiOiJzdWJzY3JpcHRpb24iLCJsZWFzZV9kYXlzIjozMCwibGljIjoiUkVaLVRFU1QtMDAwMSIsIm5iZiI6MTc5MDAwMDAwMCwib2ZmbGluZSI6ZmFsc2UsInNlYXRzIjo1MCwidHlwIjoibGljZW5jZSIsInZlciI6MX0",
+    "sig": "x_mNpStyi1lzDekna-sp1E4PgEIzYcP7xgkmaL-7PUhZ7vm_qIeNXnpyD8rcoyiJenzmbfU49Ti-y0vDcI6BAA"
+   },
+   "expect": "bad_field:exp"
+  },
+  {
+   "name": "lease_days missing",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxpYyI6IlJFWi1URVNULTAwMDEiLCJuYmYiOjE3OTAwMDAwMDAsIm9mZmxpbmUiOmZhbHNlLCJzZWF0cyI6NTAsInR5cCI6ImxpY2VuY2UiLCJ2ZXIiOjF9",
+    "sig": "tLRIrWiGhbSpbxy64ppppcLFgDf3yhHMaq-RY_uXe_WSYQw1bhqi_mTGLNA5dIWUPL_lOB_T_RpN03pUvTr9Cw"
+   },
+   "expect": "bad_field:lease_days"
+  },
+  {
+   "name": "grace_days missing",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImlhdCI6MTc5MDAwMDAwMCwiaW5zdGFuY2VzIjoxLCJraW5kIjoic3Vic2NyaXB0aW9uIiwibGVhc2VfZGF5cyI6MzAsImxpYyI6IlJFWi1URVNULTAwMDEiLCJuYmYiOjE3OTAwMDAwMDAsIm9mZmxpbmUiOmZhbHNlLCJzZWF0cyI6NTAsInR5cCI6ImxpY2VuY2UiLCJ2ZXIiOjF9",
+    "sig": "KG4q8Jmio5589nVvMZHWT9xzi9OIpJucKFRfPNyxeG3Vb4g-tJw4lPGEaqGkfqsULZdj87jXPwpPlFkllXXtDg"
+   },
+   "expect": "bad_field:grace_days"
+  },
+  {
+   "name": "offline missing",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "root-test-a",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJzZWF0cyI6NTAsInR5cCI6ImxpY2VuY2UiLCJ2ZXIiOjF9",
+    "sig": "vCSyMmv24zwbupkYFP01UzGzAJ_wnLFOp1TwBwsRtBP5wig3kJf_GVE_ms-LE6NZCC_X_lstQ9DEL8E5LXRDDQ"
+   },
+   "expect": "bad_field:offline"
+  },
+  {
+   "name": "licence signed by a lease-only key",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [
+    {
+     "v": 2,
+     "typ": "cert",
+     "kid": "root-test-a",
+     "alg": "Ed25519",
+     "payload": "eyJleHAiOjE3OTc3NzYwMDAsImtpZCI6ImxlYXNlLXRlc3QtMSIsImxpbWl0cyI6e30sIm5iZiI6MTc4OTkxMzYwMCwicHViIjoicXM2NWR3ZzFxbXNkaThKMGoyaUgwTE5IVFpiTENLdzR2d2pBemo2cTBIUSIsInR5cCI6ImNlcnQiLCJ1c2UiOlsibGVhc2UiXX0",
+     "sig": "zm5_bMsA6QdjI6LnNxIxEnWuls5oC37unOkoKQYFjGMZGphVK0fOwgIX5aeEzTkScB9sOYEkxLlbUSc-jFAPBQ"
+    }
+   ],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "lease-test-1",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTgyMTUzNjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUwLCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "GVXnMn97nSgFxG6BKtl3TxR3pOOWf3t65elAdBJ5F-mEjhfmqydZjS5hfGlj8Mh4AkVSSkjrVYUxTXbg-j9tDg"
+   },
+   "expect": "key_not_allowed"
+  },
+  {
+   "name": "valid trial signed by the trial key",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [
+    {
+     "v": 2,
+     "typ": "cert",
+     "kid": "root-test-a",
+     "alg": "Ed25519",
+     "payload": "eyJleHAiOjE3OTc3NzYwMDAsImtpZCI6InRyaWFsLXRlc3QtMSIsImxpbWl0cyI6eyJtYXhfZGF5cyI6MzAsIm1heF9pbnN0YW5jZXMiOjEsIm1heF9zZWF0cyI6NX0sIm5iZiI6MTc4OTkxMzYwMCwicHViIjoiNGh6MEpnZ1NPVS01R1Q5VXU3SDE1Q09lQzhGdEJNc2hCcXM4VVZ4U3FsYyIsInR5cCI6ImNlcnQiLCJ1c2UiOlsidHJpYWwtbGljZW5jZSJdfQ",
+     "sig": "jrOJsD0A5ZNxXm8d-LBma6NQWOZQGdoRf6_q1DCU2gMG9jTK4MHCSFZ88uWVATHUInA4xurTP_Q9CrvHjIOyBA"
+    }
+   ],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "trial-test-1",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTc5MjU5MjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InRyaWFsIiwibGVhc2VfZGF5cyI6MzAsImxpYyI6IlJFWi1UUklBTC1URVNULTAwMDEiLCJuYmYiOjE3OTAwMDAwMDAsIm9mZmxpbmUiOmZhbHNlLCJzZWF0cyI6NSwidHlwIjoibGljZW5jZSIsInZlciI6MX0",
+    "sig": "-oqX-wCfUEpmJM-tCLeosCfS7EMuTaBwrBzh5qYaht0vSZYGqZsy_bq0WH69zMhFSQ2WcVbk99ldsnSahK_wCg"
+   },
+   "expect": "ok"
+  },
+  {
+   "name": "trial key whose certificate was never accepted",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "trial-test-1",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTc5MjU5MjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InRyaWFsIiwibGVhc2VfZGF5cyI6MzAsImxpYyI6IlJFWi1UUklBTC1URVNULTAwMDEiLCJuYmYiOjE3OTAwMDAwMDAsIm9mZmxpbmUiOmZhbHNlLCJzZWF0cyI6NSwidHlwIjoibGljZW5jZSIsInZlciI6MX0",
+    "sig": "-oqX-wCfUEpmJM-tCLeosCfS7EMuTaBwrBzh5qYaht0vSZYGqZsy_bq0WH69zMhFSQ2WcVbk99ldsnSahK_wCg"
+   },
+   "expect": "unknown_kid"
+  },
+  {
+   "name": "trial exactly at max_days",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [
+    {
+     "v": 2,
+     "typ": "cert",
+     "kid": "root-test-a",
+     "alg": "Ed25519",
+     "payload": "eyJleHAiOjE3OTc3NzYwMDAsImtpZCI6InRyaWFsLXRlc3QtMSIsImxpbWl0cyI6eyJtYXhfZGF5cyI6MzAsIm1heF9pbnN0YW5jZXMiOjEsIm1heF9zZWF0cyI6NX0sIm5iZiI6MTc4OTkxMzYwMCwicHViIjoiNGh6MEpnZ1NPVS01R1Q5VXU3SDE1Q09lQzhGdEJNc2hCcXM4VVZ4U3FsYyIsInR5cCI6ImNlcnQiLCJ1c2UiOlsidHJpYWwtbGljZW5jZSJdfQ",
+     "sig": "jrOJsD0A5ZNxXm8d-LBma6NQWOZQGdoRf6_q1DCU2gMG9jTK4MHCSFZ88uWVATHUInA4xurTP_Q9CrvHjIOyBA"
+    }
+   ],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "trial-test-1",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTc5MjU5MjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InRyaWFsIiwibGVhc2VfZGF5cyI6MzAsImxpYyI6IlJFWi1UUklBTC1URVNULTAwMDEiLCJuYmYiOjE3OTAwMDAwMDAsIm9mZmxpbmUiOmZhbHNlLCJzZWF0cyI6NSwidHlwIjoibGljZW5jZSIsInZlciI6MX0",
+    "sig": "-oqX-wCfUEpmJM-tCLeosCfS7EMuTaBwrBzh5qYaht0vSZYGqZsy_bq0WH69zMhFSQ2WcVbk99ldsnSahK_wCg"
+   },
+   "expect": "ok"
+  },
+  {
+   "name": "trial one second beyond max_days",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [
+    {
+     "v": 2,
+     "typ": "cert",
+     "kid": "root-test-a",
+     "alg": "Ed25519",
+     "payload": "eyJleHAiOjE3OTc3NzYwMDAsImtpZCI6InRyaWFsLXRlc3QtMSIsImxpbWl0cyI6eyJtYXhfZGF5cyI6MzAsIm1heF9pbnN0YW5jZXMiOjEsIm1heF9zZWF0cyI6NX0sIm5iZiI6MTc4OTkxMzYwMCwicHViIjoiNGh6MEpnZ1NPVS01R1Q5VXU3SDE1Q09lQzhGdEJNc2hCcXM4VVZ4U3FsYyIsInR5cCI6ImNlcnQiLCJ1c2UiOlsidHJpYWwtbGljZW5jZSJdfQ",
+     "sig": "jrOJsD0A5ZNxXm8d-LBma6NQWOZQGdoRf6_q1DCU2gMG9jTK4MHCSFZ88uWVATHUInA4xurTP_Q9CrvHjIOyBA"
+    }
+   ],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "trial-test-1",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTc5MjU5MjAwMSwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InRyaWFsIiwibGVhc2VfZGF5cyI6MzAsImxpYyI6IlJFWi1UUklBTC1URVNULTAwMDEiLCJuYmYiOjE3OTAwMDAwMDAsIm9mZmxpbmUiOmZhbHNlLCJzZWF0cyI6NSwidHlwIjoibGljZW5jZSIsInZlciI6MX0",
+    "sig": "ELHnLL9p4ImSoKAwIDbO4vfzTKheCKd14g8Cwr-WAT_xfJ5CIgTXNf_jl_OAqXUxjSx7LORZsyYGsyzU6U6nDA"
+   },
+   "expect": "trial_term"
+  },
+  {
+   "name": "trial beyond max_seats",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [
+    {
+     "v": 2,
+     "typ": "cert",
+     "kid": "root-test-a",
+     "alg": "Ed25519",
+     "payload": "eyJleHAiOjE3OTc3NzYwMDAsImtpZCI6InRyaWFsLXRlc3QtMSIsImxpbWl0cyI6eyJtYXhfZGF5cyI6MzAsIm1heF9pbnN0YW5jZXMiOjEsIm1heF9zZWF0cyI6NX0sIm5iZiI6MTc4OTkxMzYwMCwicHViIjoiNGh6MEpnZ1NPVS01R1Q5VXU3SDE1Q09lQzhGdEJNc2hCcXM4VVZ4U3FsYyIsInR5cCI6ImNlcnQiLCJ1c2UiOlsidHJpYWwtbGljZW5jZSJdfQ",
+     "sig": "jrOJsD0A5ZNxXm8d-LBma6NQWOZQGdoRf6_q1DCU2gMG9jTK4MHCSFZ88uWVATHUInA4xurTP_Q9CrvHjIOyBA"
+    }
+   ],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "trial-test-1",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTc5MjU5MjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InRyaWFsIiwibGVhc2VfZGF5cyI6MzAsImxpYyI6IlJFWi1UUklBTC1URVNULTAwMDEiLCJuYmYiOjE3OTAwMDAwMDAsIm9mZmxpbmUiOmZhbHNlLCJzZWF0cyI6NiwidHlwIjoibGljZW5jZSIsInZlciI6MX0",
+    "sig": "Y4iBWLQFy_rWCD_OislH97QHoCE1M8Nz0aWmvS60ztdpGHJhi2C4SQOz7X4qRQ9MWoDn4DG-yTmX2MjHNV6BBg"
+   },
+   "expect": "trial_seats"
+  },
+  {
+   "name": "trial exactly max_seats",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [
+    {
+     "v": 2,
+     "typ": "cert",
+     "kid": "root-test-a",
+     "alg": "Ed25519",
+     "payload": "eyJleHAiOjE3OTc3NzYwMDAsImtpZCI6InRyaWFsLXRlc3QtMSIsImxpbWl0cyI6eyJtYXhfZGF5cyI6MzAsIm1heF9pbnN0YW5jZXMiOjEsIm1heF9zZWF0cyI6NX0sIm5iZiI6MTc4OTkxMzYwMCwicHViIjoiNGh6MEpnZ1NPVS01R1Q5VXU3SDE1Q09lQzhGdEJNc2hCcXM4VVZ4U3FsYyIsInR5cCI6ImNlcnQiLCJ1c2UiOlsidHJpYWwtbGljZW5jZSJdfQ",
+     "sig": "jrOJsD0A5ZNxXm8d-LBma6NQWOZQGdoRf6_q1DCU2gMG9jTK4MHCSFZ88uWVATHUInA4xurTP_Q9CrvHjIOyBA"
+    }
+   ],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "trial-test-1",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTc5MjU5MjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InRyaWFsIiwibGVhc2VfZGF5cyI6MzAsImxpYyI6IlJFWi1UUklBTC1URVNULTAwMDEiLCJuYmYiOjE3OTAwMDAwMDAsIm9mZmxpbmUiOmZhbHNlLCJzZWF0cyI6NSwidHlwIjoibGljZW5jZSIsInZlciI6MX0",
+    "sig": "-oqX-wCfUEpmJM-tCLeosCfS7EMuTaBwrBzh5qYaht0vSZYGqZsy_bq0WH69zMhFSQ2WcVbk99ldsnSahK_wCg"
+   },
+   "expect": "ok"
+  },
+  {
+   "name": "trial carrying devices: not a certificate limit",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [
+    {
+     "v": 2,
+     "typ": "cert",
+     "kid": "root-test-a",
+     "alg": "Ed25519",
+     "payload": "eyJleHAiOjE3OTc3NzYwMDAsImtpZCI6InRyaWFsLXRlc3QtMSIsImxpbWl0cyI6eyJtYXhfZGF5cyI6MzAsIm1heF9pbnN0YW5jZXMiOjEsIm1heF9zZWF0cyI6NX0sIm5iZiI6MTc4OTkxMzYwMCwicHViIjoiNGh6MEpnZ1NPVS01R1Q5VXU3SDE1Q09lQzhGdEJNc2hCcXM4VVZ4U3FsYyIsInR5cCI6ImNlcnQiLCJ1c2UiOlsidHJpYWwtbGljZW5jZSJdfQ",
+     "sig": "jrOJsD0A5ZNxXm8d-LBma6NQWOZQGdoRf6_q1DCU2gMG9jTK4MHCSFZ88uWVATHUInA4xurTP_Q9CrvHjIOyBA"
+    }
+   ],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "trial-test-1",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImRldmljZXMiOjEwMDAwMCwiZWRpdGlvbiI6InN0YW5kYXJkIiwiZXhwIjoxNzkyNTkyMDAwLCJmZWF0dXJlcyI6WyJhenVyZSIsInNvbGFyd2luZHMiXSwiZ3JhY2VfZGF5cyI6MzAsImlhdCI6MTc5MDAwMDAwMCwiaW5zdGFuY2VzIjoxLCJraW5kIjoidHJpYWwiLCJsZWFzZV9kYXlzIjozMCwibGljIjoiUkVaLVRSSUFMLVRFU1QtMDAwMSIsIm5iZiI6MTc5MDAwMDAwMCwib2ZmbGluZSI6ZmFsc2UsInNlYXRzIjo1LCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "_KYik-aPOBiNOQOkwUrAIOoTkWyCBNZIAMATSLaIOgfpUKJhE5FH0tzGt_gZIY9eGPbVPo61LG7QfHYr4A_eDQ"
+   },
+   "expect": "ok"
+  },
+  {
+   "name": "trial beyond max_instances",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [
+    {
+     "v": 2,
+     "typ": "cert",
+     "kid": "root-test-a",
+     "alg": "Ed25519",
+     "payload": "eyJleHAiOjE3OTc3NzYwMDAsImtpZCI6InRyaWFsLXRlc3QtMSIsImxpbWl0cyI6eyJtYXhfZGF5cyI6MzAsIm1heF9pbnN0YW5jZXMiOjEsIm1heF9zZWF0cyI6NX0sIm5iZiI6MTc4OTkxMzYwMCwicHViIjoiNGh6MEpnZ1NPVS01R1Q5VXU3SDE1Q09lQzhGdEJNc2hCcXM4VVZ4U3FsYyIsInR5cCI6ImNlcnQiLCJ1c2UiOlsidHJpYWwtbGljZW5jZSJdfQ",
+     "sig": "jrOJsD0A5ZNxXm8d-LBma6NQWOZQGdoRf6_q1DCU2gMG9jTK4MHCSFZ88uWVATHUInA4xurTP_Q9CrvHjIOyBA"
+    }
+   ],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "trial-test-1",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTc5MjU5MjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6Miwia2luZCI6InRyaWFsIiwibGVhc2VfZGF5cyI6MzAsImxpYyI6IlJFWi1UUklBTC1URVNULTAwMDEiLCJuYmYiOjE3OTAwMDAwMDAsIm9mZmxpbmUiOmZhbHNlLCJzZWF0cyI6NSwidHlwIjoibGljZW5jZSIsInZlciI6MX0",
+    "sig": "5wfYjwso1clMu-p3eW25554OVmuO1KabcrmrVI69EViyL8CStLFTuEgMG1sMdoFUSA3CUC6ODkihoUzFVFPrBQ"
+   },
+   "expect": "trial_instances"
+  },
+  {
+   "name": "trial key signing a subscription",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [
+    {
+     "v": 2,
+     "typ": "cert",
+     "kid": "root-test-a",
+     "alg": "Ed25519",
+     "payload": "eyJleHAiOjE3OTc3NzYwMDAsImtpZCI6InRyaWFsLXRlc3QtMSIsImxpbWl0cyI6eyJtYXhfZGF5cyI6MzAsIm1heF9pbnN0YW5jZXMiOjEsIm1heF9zZWF0cyI6NX0sIm5iZiI6MTc4OTkxMzYwMCwicHViIjoiNGh6MEpnZ1NPVS01R1Q5VXU3SDE1Q09lQzhGdEJNc2hCcXM4VVZ4U3FsYyIsInR5cCI6ImNlcnQiLCJ1c2UiOlsidHJpYWwtbGljZW5jZSJdfQ",
+     "sig": "jrOJsD0A5ZNxXm8d-LBma6NQWOZQGdoRf6_q1DCU2gMG9jTK4MHCSFZ88uWVATHUInA4xurTP_Q9CrvHjIOyBA"
+    }
+   ],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "trial-test-1",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTc5MjU5MjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InN1YnNjcmlwdGlvbiIsImxlYXNlX2RheXMiOjMwLCJsaWMiOiJSRVotVFJJQUwtVEVTVC0wMDAxIiwibmJmIjoxNzkwMDAwMDAwLCJvZmZsaW5lIjpmYWxzZSwic2VhdHMiOjUsInR5cCI6ImxpY2VuY2UiLCJ2ZXIiOjF9",
+    "sig": "xTCi9_SV6ZbK9wiwiRSN3eV_TQGS8F75HxPF9WoVM-q-pEuZygoPhAHX2wyAiI-LjFwti81gRgXiTc2LODPVAQ"
+   },
+   "expect": "trial_only"
+  },
+  {
+   "name": "trial key signing an offline licence",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [
+    {
+     "v": 2,
+     "typ": "cert",
+     "kid": "root-test-a",
+     "alg": "Ed25519",
+     "payload": "eyJleHAiOjE3OTc3NzYwMDAsImtpZCI6InRyaWFsLXRlc3QtMSIsImxpbWl0cyI6eyJtYXhfZGF5cyI6MzAsIm1heF9pbnN0YW5jZXMiOjEsIm1heF9zZWF0cyI6NX0sIm5iZiI6MTc4OTkxMzYwMCwicHViIjoiNGh6MEpnZ1NPVS01R1Q5VXU3SDE1Q09lQzhGdEJNc2hCcXM4VVZ4U3FsYyIsInR5cCI6ImNlcnQiLCJ1c2UiOlsidHJpYWwtbGljZW5jZSJdfQ",
+     "sig": "jrOJsD0A5ZNxXm8d-LBma6NQWOZQGdoRf6_q1DCU2gMG9jTK4MHCSFZ88uWVATHUInA4xurTP_Q9CrvHjIOyBA"
+    }
+   ],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "trial-test-1",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTc5MjU5MjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InRyaWFsIiwibGVhc2VfZGF5cyI6MzAsImxpYyI6IlJFWi1UUklBTC1URVNULTAwMDEiLCJuYmYiOjE3OTAwMDAwMDAsIm9mZmxpbmUiOnRydWUsIm9mZmxpbmVfaWlkIjoiaW5zdC0wMDAxLWFhYWEiLCJzZWF0cyI6NSwidHlwIjoibGljZW5jZSIsInZlciI6MX0",
+    "sig": "WTW4AB-ODKUaDwhXGbpH2t2cbRurz2n-nVhfyMFanfQQwJMYpG4l89UlPV2JGDzKuXMtSCzHX6nxzrDLzfI6DQ"
+   },
+   "expect": "offline_not_root"
+  },
+  {
+   "name": "trial issued before its key's certificate began",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [
+    {
+     "v": 2,
+     "typ": "cert",
+     "kid": "root-test-a",
+     "alg": "Ed25519",
+     "payload": "eyJleHAiOjE3OTc3NzYwMDAsImtpZCI6InRyaWFsLXRlc3QtMSIsImxpbWl0cyI6eyJtYXhfZGF5cyI6MzAsIm1heF9pbnN0YW5jZXMiOjEsIm1heF9zZWF0cyI6NX0sIm5iZiI6MTc4OTkxMzYwMCwicHViIjoiNGh6MEpnZ1NPVS01R1Q5VXU3SDE1Q09lQzhGdEJNc2hCcXM4VVZ4U3FsYyIsInR5cCI6ImNlcnQiLCJ1c2UiOlsidHJpYWwtbGljZW5jZSJdfQ",
+     "sig": "jrOJsD0A5ZNxXm8d-LBma6NQWOZQGdoRf6_q1DCU2gMG9jTK4MHCSFZ88uWVATHUInA4xurTP_Q9CrvHjIOyBA"
+    }
+   ],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "trial-test-1",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTc4OTgyNzIwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3ODk3NDA4MDAsImluc3RhbmNlcyI6MSwia2luZCI6InRyaWFsIiwibGVhc2VfZGF5cyI6MzAsImxpYyI6IlJFWi1UUklBTC1URVNULTAwMDEiLCJuYmYiOjE3ODk3NDA4MDAsIm9mZmxpbmUiOmZhbHNlLCJzZWF0cyI6NSwidHlwIjoibGljZW5jZSIsInZlciI6MX0",
+    "sig": "8ORXqV-k_I6n0JSGoMFcAVu6nZDh8GWjNVRahC8hzJu9KNtfBljDEh4cb3f4ZJnFEK13rLxUFgoKQoUBFW25Aw"
+   },
+   "expect": "cert_window"
+  },
+  {
+   "name": "trial issued after its key's certificate ended",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [
+    {
+     "v": 2,
+     "typ": "cert",
+     "kid": "root-test-a",
+     "alg": "Ed25519",
+     "payload": "eyJleHAiOjE3OTc3NzYwMDAsImtpZCI6InRyaWFsLXRlc3QtMSIsImxpbWl0cyI6eyJtYXhfZGF5cyI6MzAsIm1heF9pbnN0YW5jZXMiOjEsIm1heF9zZWF0cyI6NX0sIm5iZiI6MTc4OTkxMzYwMCwicHViIjoiNGh6MEpnZ1NPVS01R1Q5VXU3SDE1Q09lQzhGdEJNc2hCcXM4VVZ4U3FsYyIsInR5cCI6ImNlcnQiLCJ1c2UiOlsidHJpYWwtbGljZW5jZSJdfQ",
+     "sig": "jrOJsD0A5ZNxXm8d-LBma6NQWOZQGdoRf6_q1DCU2gMG9jTK4MHCSFZ88uWVATHUInA4xurTP_Q9CrvHjIOyBA"
+    }
+   ],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "trial-test-1",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTc5Nzk0ODgwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTc4NjI0MDAsImluc3RhbmNlcyI6MSwia2luZCI6InRyaWFsIiwibGVhc2VfZGF5cyI6MzAsImxpYyI6IlJFWi1UUklBTC1URVNULTAwMDEiLCJuYmYiOjE3OTc4NjI0MDAsIm9mZmxpbmUiOmZhbHNlLCJzZWF0cyI6NSwidHlwIjoibGljZW5jZSIsInZlciI6MX0",
+    "sig": "u1k95-5ImiJ1xC87VPy8L4yJ6wdgJi1w6ZG6Uk95WNQFgUd_Fwi8DMsdYSe0aNoaFTp1PgQBBXCJa8AAHBiMCQ"
+   },
+   "expect": "cert_window"
+  },
+  {
+   "name": "trial still valid long after its certificate ended (checked at iat)",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [
+    {
+     "v": 2,
+     "typ": "cert",
+     "kid": "root-test-a",
+     "alg": "Ed25519",
+     "payload": "eyJleHAiOjE3OTc3NzYwMDAsImtpZCI6InRyaWFsLXRlc3QtMSIsImxpbWl0cyI6eyJtYXhfZGF5cyI6MzAsIm1heF9pbnN0YW5jZXMiOjEsIm1heF9zZWF0cyI6NX0sIm5iZiI6MTc4OTkxMzYwMCwicHViIjoiNGh6MEpnZ1NPVS01R1Q5VXU3SDE1Q09lQzhGdEJNc2hCcXM4VVZ4U3FsYyIsInR5cCI6ImNlcnQiLCJ1c2UiOlsidHJpYWwtbGljZW5jZSJdfQ",
+     "sig": "jrOJsD0A5ZNxXm8d-LBma6NQWOZQGdoRf6_q1DCU2gMG9jTK4MHCSFZ88uWVATHUInA4xurTP_Q9CrvHjIOyBA"
+    }
+   ],
+   "certs_now": 1790000000,
+   "now": 1824560000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "trial-test-1",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTc5MjU5MjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InRyaWFsIiwibGVhc2VfZGF5cyI6MzAsImxpYyI6IlJFWi1UUklBTC1URVNULTAwMDEiLCJuYmYiOjE3OTAwMDAwMDAsIm9mZmxpbmUiOmZhbHNlLCJzZWF0cyI6NSwidHlwIjoibGljZW5jZSIsInZlciI6MX0",
+    "sig": "-oqX-wCfUEpmJM-tCLeosCfS7EMuTaBwrBzh5qYaht0vSZYGqZsy_bq0WH69zMhFSQ2WcVbk99ldsnSahK_wCg"
+   },
+   "expect": "ok"
+  },
+  {
+   "name": "trial verified by a trust store built after its certificate ended",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [
+    {
+     "v": 2,
+     "typ": "cert",
+     "kid": "root-test-a",
+     "alg": "Ed25519",
+     "payload": "eyJleHAiOjE3OTc3NzYwMDAsImtpZCI6InRyaWFsLXRlc3QtMSIsImxpbWl0cyI6eyJtYXhfZGF5cyI6MzAsIm1heF9pbnN0YW5jZXMiOjEsIm1heF9zZWF0cyI6NX0sIm5iZiI6MTc4OTkxMzYwMCwicHViIjoiNGh6MEpnZ1NPVS01R1Q5VXU3SDE1Q09lQzhGdEJNc2hCcXM4VVZ4U3FsYyIsInR5cCI6ImNlcnQiLCJ1c2UiOlsidHJpYWwtbGljZW5jZSJdfQ",
+     "sig": "jrOJsD0A5ZNxXm8d-LBma6NQWOZQGdoRf6_q1DCU2gMG9jTK4MHCSFZ88uWVATHUInA4xurTP_Q9CrvHjIOyBA"
+    }
+   ],
+   "certs_now": 1798208000,
+   "now": 1798208000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "trial-test-1",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTc5MjU5MjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InRyaWFsIiwibGVhc2VfZGF5cyI6MzAsImxpYyI6IlJFWi1UUklBTC1URVNULTAwMDEiLCJuYmYiOjE3OTAwMDAwMDAsIm9mZmxpbmUiOmZhbHNlLCJzZWF0cyI6NSwidHlwIjoibGljZW5jZSIsInZlciI6MX0",
+    "sig": "-oqX-wCfUEpmJM-tCLeosCfS7EMuTaBwrBzh5qYaht0vSZYGqZsy_bq0WH69zMhFSQ2WcVbk99ldsnSahK_wCg"
+   },
+   "expect": "ok"
+  },
+  {
+   "name": "trial key signing an id outside REZ-TRIAL-",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [
+    {
+     "v": 2,
+     "typ": "cert",
+     "kid": "root-test-a",
+     "alg": "Ed25519",
+     "payload": "eyJleHAiOjE3OTc3NzYwMDAsImtpZCI6InRyaWFsLXRlc3QtMSIsImxpbWl0cyI6eyJtYXhfZGF5cyI6MzAsIm1heF9pbnN0YW5jZXMiOjEsIm1heF9zZWF0cyI6NX0sIm5iZiI6MTc4OTkxMzYwMCwicHViIjoiNGh6MEpnZ1NPVS01R1Q5VXU3SDE1Q09lQzhGdEJNc2hCcXM4VVZ4U3FsYyIsInR5cCI6ImNlcnQiLCJ1c2UiOlsidHJpYWwtbGljZW5jZSJdfQ",
+     "sig": "jrOJsD0A5ZNxXm8d-LBma6NQWOZQGdoRf6_q1DCU2gMG9jTK4MHCSFZ88uWVATHUInA4xurTP_Q9CrvHjIOyBA"
+    }
+   ],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "trial-test-1",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTc5MjU5MjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InRyaWFsIiwibGVhc2VfZGF5cyI6MzAsImxpYyI6IlJFWi1URVNULTAwMDEiLCJuYmYiOjE3OTAwMDAwMDAsIm9mZmxpbmUiOmZhbHNlLCJzZWF0cyI6NSwidHlwIjoibGljZW5jZSIsInZlciI6MX0",
+    "sig": "xP4S6zaKNVUt02bIbYScVoCH6UarGk8scgdIO1CV4S1fBCXPeOhOYcFtTq_wGnmkkhfIwGw8d22mvOXc9kIGDw"
+   },
+   "expect": "trial_lic_required"
+  },
+  {
+   "name": "trial key signing an id that only resembles the prefix",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [
+    {
+     "v": 2,
+     "typ": "cert",
+     "kid": "root-test-a",
+     "alg": "Ed25519",
+     "payload": "eyJleHAiOjE3OTc3NzYwMDAsImtpZCI6InRyaWFsLXRlc3QtMSIsImxpbWl0cyI6eyJtYXhfZGF5cyI6MzAsIm1heF9pbnN0YW5jZXMiOjEsIm1heF9zZWF0cyI6NX0sIm5iZiI6MTc4OTkxMzYwMCwicHViIjoiNGh6MEpnZ1NPVS01R1Q5VXU3SDE1Q09lQzhGdEJNc2hCcXM4VVZ4U3FsYyIsInR5cCI6ImNlcnQiLCJ1c2UiOlsidHJpYWwtbGljZW5jZSJdfQ",
+     "sig": "jrOJsD0A5ZNxXm8d-LBma6NQWOZQGdoRf6_q1DCU2gMG9jTK4MHCSFZ88uWVATHUInA4xurTP_Q9CrvHjIOyBA"
+    }
+   ],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "trial-test-1",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTc5MjU5MjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InRyaWFsIiwibGVhc2VfZGF5cyI6MzAsImxpYyI6IlJFWi1UUklBTFMtMDAwMSIsIm5iZiI6MTc5MDAwMDAwMCwib2ZmbGluZSI6ZmFsc2UsInNlYXRzIjo1LCJ0eXAiOiJsaWNlbmNlIiwidmVyIjoxfQ",
+    "sig": "ys8h71uzRJJTGwbW78wW58b7FV0WvxofDAxeEjXzpL3dTrQGDxnvrFpVl1k_VqwDpHO_Oi-XLxSFoh2ZrClODw"
+   },
+   "expect": "trial_lic_required"
+  },
+  {
+   "name": "trial licence signed with the wrong key",
+   "op": "verify_licence",
+   "roots": {
+    "root-test-a": "xp31eaWgWjd-jJsHI2vENvK9c3UXTDHi-5nBNlXpRKk"
+   },
+   "certs": [
+    {
+     "v": 2,
+     "typ": "cert",
+     "kid": "root-test-a",
+     "alg": "Ed25519",
+     "payload": "eyJleHAiOjE3OTc3NzYwMDAsImtpZCI6InRyaWFsLXRlc3QtMSIsImxpbWl0cyI6eyJtYXhfZGF5cyI6MzAsIm1heF9pbnN0YW5jZXMiOjEsIm1heF9zZWF0cyI6NX0sIm5iZiI6MTc4OTkxMzYwMCwicHViIjoiNGh6MEpnZ1NPVS01R1Q5VXU3SDE1Q09lQzhGdEJNc2hCcXM4VVZ4U3FsYyIsInR5cCI6ImNlcnQiLCJ1c2UiOlsidHJpYWwtbGljZW5jZSJdfQ",
+     "sig": "jrOJsD0A5ZNxXm8d-LBma6NQWOZQGdoRf6_q1DCU2gMG9jTK4MHCSFZ88uWVATHUInA4xurTP_Q9CrvHjIOyBA"
+    }
+   ],
+   "certs_now": 1790000000,
+   "now": 1790000000,
+   "iid": null,
+   "envelope": {
+    "v": 2,
+    "typ": "licence",
+    "kid": "trial-test-1",
+    "alg": "Ed25519",
+    "payload": "eyJjdXN0b21lciI6IkV4YW1wbGUgQmFuayIsImVkaXRpb24iOiJzdGFuZGFyZCIsImV4cCI6MTc5MjU5MjAwMCwiZmVhdHVyZXMiOlsiYXp1cmUiLCJzb2xhcndpbmRzIl0sImdyYWNlX2RheXMiOjMwLCJpYXQiOjE3OTAwMDAwMDAsImluc3RhbmNlcyI6MSwia2luZCI6InRyaWFsIiwibGVhc2VfZGF5cyI6MzAsImxpYyI6IlJFWi1UUklBTC1URVNULTAwMDEiLCJuYmYiOjE3OTAwMDAwMDAsIm9mZmxpbmUiOmZhbHNlLCJzZWF0cyI6NSwidHlwIjoibGljZW5jZSIsInZlciI6MX0",
+    "sig": "3qP2ahdmmaFcNM3zPI6oMFJwxNtWAsbNfDuOjH7wtcUs_l4SumtXOaCFO0qEAkW69zVLnN7vZMqp4o8vd4AHAA"
+   },
+   "expect": "bad_signature"
+  }
+ ]
+}

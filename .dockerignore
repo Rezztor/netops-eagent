@@ -1,0 +1,203 @@
+###############################################################################
+# Project‑specific exclusions / re‑includes
+###############################################################################
+
+# Obsolete
+memory/**
+instruments/**
+knowledge/custom/**
+
+# Logs, tmp, usr
+logs/*
+tmp/*
+usr/*
+
+# Pinned developer tooling. Gitignored already, but that does not reach the
+# Docker build context -- 125 MB of local binaries were shipping in every image.
+deploy/dev/.bin/
+
+# Licensed vendor lab images (Cisco, F5, ...) for a local test lab.
+# Gitignored already, and the same lesson again: on 2026-10-11 three of them,
+# 3 GB, went into the application image and made a 10 GB ISO.
+image/
+.pytest_cache/
+
+
+# Keep .gitkeep markers anywhere
+!**/.gitkeep
+
+
+###############################################################################
+# Environment / tooling
+###############################################################################
+.conda/
+.cursor/
+# Agent worktrees live under .claude/worktrees/: whole copies of this and other repositories, which a local build
+# put into the image and Nuitka then failed on (UAT, 2026-10-19).
+.claude/
+.venv/
+.git/
+# The Playwright MCP's screenshots, logs and whatever a test hands the
+# browser to upload -- a 3 GB update bundle, once.
+.playwright-mcp/
+
+
+###############################################################################
+# Tests (root‑level only)
+###############################################################################
+/*.test.py
+
+
+###############################################################################
+# Never delivered to a customer
+#
+# The image goes to companies who buy this product. None of the following
+# is a credential, and none of it lets anyone forge a licence -- the
+# signing key never leaves the licence server. But it is all internal
+# material that benefits the recipient not at all.
+#
+# tests/test_delivery_hygiene.py asserts these stay out of a built image.
+###############################################################################
+# Decision records, roadmaps, and the licensing strategy itself.
+docs/internal/
+# The sales presentation: two megabytes of screenshots nobody needs inside a customer's container.
+docs/presentation/
+
+# Test names and fixtures describe internal behaviour and security
+# assumptions; nothing at runtime imports from here.
+tests/
+
+# The release signing tool. Its own docstring says "never shipped" --
+# this is what makes that true.
+scripts/sign_release.py
+
+# Internal engineering process.
+CONTRIBUTING.md
+
+# The same kind of material in other folders. graphify-out/ is a generated
+# graph of the whole repository, 41 MB, and it quotes docs/internal/ -- the
+# licensing plan included -- so excluding docs/internal/ alone did not keep
+# that text out. The rest is notes, plans and tool configuration.
+graphify-out/
+handoff/
+obsidion-note/
+docs/plans/
+.github/
+.hermes/
+.vscode/
+
+# The development stack's own secrets. docker/run/.env and the runner's SSH
+# key pair are gitignored, so they exist only on the machine that builds the
+# image -- which is the one place they could get into it from. They did:
+# `*.env` at the bottom of this file matched the root only.
+docker/run/runner_key
+docker/run/runner_key.pub
+**/*.pem
+
+# A UAT build's licence trust (ADR 0085). build_local.sh reads REZZTOR_UAT_TRUST
+# (uat-trust.json in its example) and passes it as a build argument, and the image
+# build writes licence_trust.json itself. A copy lying in the working folder must
+# never enter the context: a non-UAT image would carry a dummy root beside it.
+**/uat-trust.json
+**/licence_trust.json
+
+# The local DEV setup (dev/run.sh): its settings, keys and data, and the stamp it
+# writes into the working tree so that a host run trusts the licence server's DEV
+# root. An image build writes its own build_info.json; this one must not be there
+# for it to find.
+dev/
+build_info.json
+
+# The public marketing website at rezztor.com lives in its own repository now
+# (a separate website repository), so there is normally no site/ here to
+# exclude. The entry stays because working on both at once usually means a
+# checkout or a symlink at this path, and a node_modules arriving in the build
+# context is worth hundreds of megabytes on a runner whose disk is already
+# the binding constraint.
+site/
+
+###############################################################################
+# Engineering material: what explains the code, tests it or builds it
+#
+# The owner's rule (2026-10-12): a customer gets what the machine runs and
+# nothing that documents how it is made. 210 file-level notes, 130 AGENTS.md
+# contracts, CLAUDE.md, the developer guides, every plugin's tests and the
+# scripts that build the ISO were all in the delivered image until then.
+#
+# Nothing at run time reads any of it. The AGENTS.md the product does read
+# is a customer's own, in a project under usr/. Skills are found by SKILL.md.
+# A plugin with no README.md shows no "Read me" on the Plugins screen.
+#
+# What the build needs but the machine does not (docker/, the frontend
+# sources, requirements.txt) cannot be listed here; the Dockerfile's assemble
+# step removes it. scripts/build_offline_bundle.sh looks inside the built
+# images and stops when any of this is back.
+###############################################################################
+**/*.dox.md
+**/AGENTS.md
+**/README.md
+CLAUDE.md
+docs/
+**/tests/
+**/conftest.py
+testsupport.py
+pytest.ini
+requirements.dev.txt
+mise.toml
+jsconfig.json
+deploy/
+# Four of its files do go into the image: they also live on the appliance's own
+# disk, and an update package takes the new ones from the image it is made of
+# (HOST in scripts/sign_release.py). So do the public release keys, so that an
+# update can add one (NEW_KEY there); support/ stays out, no update touches it.
+!deploy/customer/docker-compose.yml
+!deploy/iso/host/rezztor-update
+!deploy/iso/host/rezztor-setup
+!deploy/iso/host/rezztor-network
+# The guard and the units an update package may carry (ADR 0092; scripts/sign_release.py, HOST).
+!deploy/customer/rezztor-guard
+!deploy/customer/rezztor-guard.service
+!deploy/customer/rezztor-guard-runner.service
+!deploy/iso/host/rezztor-firewall.service
+!deploy/iso/host/rezztor-load-images.service
+!deploy/iso/host/rezztor-setup.service
+!deploy/iso/host/rezztor-update.service
+!deploy/iso/host/rezztor-update.path
+!deploy/iso/keys/*.pub
+scripts/
+**/Dockerfile*
+.dockerignore
+.gitignore
+.gitattributes
+
+# Read by the agent at run time, and still a description of how the product
+# is built inside. The owner's decision of 2026-10-12: the six skills for
+# developing the framework and its plugins stay here, and so does the note
+# that lists the main files. "Create an agent profile", "build a skill" and
+# the other four notes about itself are delivered.
+skills/eagent-development/
+skills/eagent-create-plugin/
+skills/eagent-debug-plugin/
+skills/eagent-manage-plugin/
+skills/eagent-plugin-router/
+skills/eagent-review-plugin/
+knowledge/main/about/architecture.md
+
+
+###############################################################################
+# ─── LAST SECTION: universal junk / caches (MUST BE LAST) ───
+#   Put these at the *bottom* so they override any ! re‑includes above
+###############################################################################
+# OS / editor junk
+**/.DS_Store
+**/Thumbs.db
+
+# Python caches / compiled artefacts
+**/__pycache__/
+**/*.py[cod]
+**/*.pyo
+**/*.pyd
+
+# Environment files anywhere. `**/`: a pattern without it matches the root
+# of the build context only.
+**/*.env

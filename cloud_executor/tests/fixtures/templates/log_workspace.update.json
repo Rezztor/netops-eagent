@@ -1,0 +1,81 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.13.1",
+  "variables": {
+    "resource_group": {
+      "value": "rg-payments-prod-uaen"
+    },
+    "region": {
+      "value": "uaenorth"
+    },
+    "name": {
+      "value": "log-hub-prod-uaen-001"
+    },
+    "retention_days": {
+      "value": 90
+    },
+    "daily_quota_gb": {
+      "value": 5
+    },
+    "tags": {
+      "value": {
+        "env": "prod",
+        "owner": "netops",
+        "costcentre": "cc-1001"
+      }
+    }
+  },
+  "resource_changes": [
+    {
+      "address": "azurerm_log_analytics_workspace.this",
+      "mode": "managed",
+      "type": "azurerm_log_analytics_workspace",
+      "name": "this",
+      "provider_name": "registry.opentofu.org/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "update"
+        ],
+        "before": {
+          "name": "log-hub-prod-uaen-001",
+          "resource_group_name": "rg-payments-prod-uaen",
+          "location": "uaenorth",
+          "sku": "PerGB2018",
+          "retention_in_days": 30,
+          "daily_quota_gb": 2,
+          "tags": {
+            "env": "prod",
+            "owner": "netops",
+            "costcentre": "cc-1001"
+          },
+          "id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.Fixture/azurerm_log_analytics_workspace/log-hub-prod-uaen-001"
+        },
+        "after": {
+          "name": "log-hub-prod-uaen-001",
+          "resource_group_name": "rg-payments-prod-uaen",
+          "location": "uaenorth",
+          "sku": "PerGB2018",
+          "retention_in_days": 90,
+          "daily_quota_gb": 5,
+          "tags": {
+            "env": "prod",
+            "owner": "netops",
+            "costcentre": "cc-1001"
+          },
+          "id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.Fixture/azurerm_log_analytics_workspace/log-hub-prod-uaen-001"
+        },
+        "after_unknown": {},
+        "before_sensitive": {},
+        "after_sensitive": {}
+      }
+    }
+  ],
+  "configuration": {
+    "provider_config": {
+      "azurerm": {
+        "name": "azurerm",
+        "full_name": "registry.opentofu.org/hashicorp/azurerm"
+      }
+    }
+  }
+}

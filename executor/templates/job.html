@@ -1,0 +1,27 @@
+{% extends "_base.html" %}
+{% block heading %}{{ job.playbook_name }}{% endblock %}
+{% block body %}
+<table>
+  <tr><th>Status</th><td>{{ job.status }}{% if job.exit_code is not none %} · exit {{ job.exit_code }}{% endif %}</td></tr>
+  <tr><th>Targets</th><td>{{ job.limit or "all" }}</td></tr>
+  <tr><th>Mode</th><td>{{ "check" if job.check_mode else "apply" }}</td></tr>
+  <tr><th>Catalogue</th><td><code>{{ job.commit }}</code></td></tr>
+  <tr><th>Asked by</th><td>{{ job.source }}{% if job.actor %} · {{ job.actor }}{% endif %}</td></tr>
+  {% if job.change_id %}<tr><th>Change</th><td><code>{{ job.change_id }}</code></td></tr>{% endif %}
+  {% if job.error %}<tr><th>Error</th><td class="crit">{{ job.error }}</td></tr>{% endif %}
+</table>
+
+{% if commands %}
+<h2>Commands</h2>
+<pre>{% for line in commands %}{{ line }}
+{% endfor %}</pre>
+{% endif %}
+
+<h2>Output</h2>
+<p class="note">
+  Device passwords and community strings are stripped from this and kept in the
+  commands above — an approver has to be able to check a value they are about to
+  push, and a stdout tail is where a missing <code>no_log</code> ends up.
+</p>
+<pre>{{ job.output or "No output was captured." }}</pre>
+{% endblock %}

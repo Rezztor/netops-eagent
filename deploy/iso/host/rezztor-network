@@ -1,0 +1,1529 @@
+#!/usr/bin/env python3
+"""rezztor-network: the networks of a machine installed from the ISO.
+
+    rezztor-setup network               the menu: show, add, change or remove an interface, routes, test, restore
+    rezztor-setup network wizard        the first boot's network step: one interface, DHCP or a typed address
+    rezztor-setup network routes        the routes: show, add, remove
+    rezztor-setup network apply FILE    apply an answers file, then ask "keep or go back"
+                          ... --yes     keep without asking when every blocking check passed
+    rezztor-setup network check FILE    say what is wrong with an answers file; changes nothing
+    rezztor-setup network list          the networks and their state
+    rezztor-setup network test          the checks again, on what is applied
+                          ... ADDRESS   and which interface and gateway that address leaves by
+    rezztor-setup network restore       go back to the last settings somebody kept
+    rezztor-setup network revert        undo a change nobody kept (the timer and the boot run this)
+    rezztor-setup network web           "<interface> <address>" of the web interface
+    rezztor-setup network compose       put the Compose variables into the installed stack's .env
+
+One answers file in, four files out, and they change together or not at all:
+
+    /etc/netplan/90-rezztor.yaml          the host's interfaces, addresses and routes (networkd)
+    /etc/rezztor/networks/networks.json   the network list the guard and the product read
+    /etc/rezztor/guard.json               the guard's own settings
+    /etc/rezztor/compose.env              the Compose variables that depend on the network
+
+An answers file is KEY=value lines and is never run. One network:
+
+    NET_IFACE=ens192   NET_MODE=dhcp | static   NET_ADDRESS=192.168.10.20/24
+    NET_GATEWAY=192.168.10.1   NET_DNS=192.168.10.1 1.1.1.1   (NET_VLAN, NET_MAC, NET_MTU)
+    NET_ROUTES=10.50.0.0/16@192.168.10.254     a network behind another gateway than the default one
+
+Several networks, numbered from 1:
+
+    NET1_NAME=VLAN 300     NET1_ROLES=internet users     (internet, users, devices)
+    NET1_IFACE=eno1        NET1_VLAN=300                 (empty: the port is untagged)
+    NET1_MODE=static       NET1_ADDRESS=10.0.30.5/24     NET1_GATEWAY=10.0.30.1
+    NET1_DNS=10.0.30.1     NET1_ROUTES=10.20.0.0/16      (subnets behind the gateway; a subnet behind
+                                                         another gateway of that network: 10.21.0.0/16@10.0.30.254)
+    NET1_SSH=yes           NET1_TEST=10.0.100.10:22      NET1_MAC=  NET1_MTU=
+    APP_SERVICES=10.20.0.9:17774    services in a devices-only network the product may use
+    CONTAINER_PREFIX=172.31         the containers use <prefix>.248.0/21
+    PROXY=http://10.0.30.8:3128     NTP=10.0.30.1
+
+The console never asks for a role. The first boot sets up one interface. "Add an
+interface" makes a second network: it carries devices, the web interface and SSH
+answer on it only when asked, and its gateway is the next hop of the routes named
+on it, never a second default route.
+
+Every change is "keep or go back": the files from before are saved, a systemd
+timer that does not belong to this session is started, and unless somebody
+answers "keep" it puts them back. A lost SSH session, a closed console or a
+restart all end in the settings from before.
+
+Standard library only. Everything that touches the machine is in `Host`; the
+rest are plain functions from answers to text, and tests call those.
+"""
+
+import argparse
+import collections
+import fcntl
+import ipaddress
+import json
+import os
+import re
+import select
+import shutil
+import socket
+import subprocess
+import sys
+import time
+
+ROOT = ""  # tests point this at a temporary directory
+NETPLAN = "/etc/netplan/90-rezztor.yaml"
+LIST = "/etc/rezztor/networks/networks.json"
+GUARD = "/etc/rezztor/guard.json"
+COMPOSE = "/etc/rezztor/compose.env"
+STATE = "/var/lib/rezztor/network"
+ANSWERS = STATE + "/answers.env"
+GOOD = STATE + "/good.env"
+PENDING = STATE + "/pending"
+SETUP_ANSWERS = "/etc/rezztor/answers.env"
+STACK = "/var/lib/rezztor/stack"
+GUARD_TOOL = "/opt/rezztor/rezztor-guard"
+SELF = "/usr/local/sbin/rezztor-network"
+TIMER = "rezztor-network-revert"
+# What one change may replace, and what going back puts back.
+MANAGED = {NETPLAN: 0o600, LIST: 0o644, GUARD: 0o600, COMPOSE: 0o600, ANSWERS: 0o600}
+APPLY_SECONDS = 300  # the timer while the change is being applied and checked
+KEEP_SECONDS = 120   # and from the moment "Keep these settings?" is on the screen
+
+# The block every container network sits in is <prefix>.248.0/21. Must match
+# the Compose file and BLOCK in rezztor-guard; tests/test_iso_build.py compares.
+DEFAULT_PREFIX = "172.31"
+ROLES = ("internet", "users", "devices")
+FIELDS = ("NAME", "ROLES", "IFACE", "MAC", "VLAN", "MODE", "ADDRESS", "GATEWAY", "ROUTES", "DNS", "SSH", "TEST", "MTU")
+FLAT = ("IFACE", "MAC", "VLAN", "MODE", "ADDRESS", "GATEWAY", "ROUTES", "DNS", "MTU")
+ONCE = ("APP_SERVICES", "CONTAINER_PREFIX", "PROXY", "NTP")
+IFNAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,14}")
+NOT_HERE = ("Not in this build: bonds, a second internet uplink, the same subnet in two VLANs, jump hosts,\n"
+            "inbound traps, syslog or TFTP, jumbo frames, and IPv6 on device networks.")
+
+
+class Bad(ValueError):
+    """What a person typed is not acceptable. The text says why, in their words."""
+
+
+# --- one field, as typed -------------------------------------------------------
+
+
+def p_name(value):
+    if not 1 <= len(value) <= 30 or not re.fullmatch(r"[A-Za-z0-9 _.()-]+", value):
+        raise Bad("The name needs 1 to 30 of: letters, digits, spaces and . _ - ( )")
+    return value
+
+
+def p_roles(value):
+    words = [{"user": "users", "device": "devices"}.get(word, word) for word in re.split(r"[\s,+]+", value.lower()) if word]
+    if not words or not set(words) <= set(ROLES):
+        raise Bad("Type one or more of: internet, users, devices.")
+    return tuple(role for role in ROLES if role in words)
+
+
+def p_iface(value):
+    if not IFNAME.fullmatch(value) or value.startswith("rz-"):
+        raise Bad(f"'{value}' is not the name of a network port.")
+    return value
+
+
+def p_mac(value):
+    if value and not re.fullmatch(r"([0-9a-f]{2}:){5}[0-9a-f]{2}", value.lower()):
+        raise Bad(f"'{value}' is not a MAC address like 00:50:56:aa:bb:01.")
+    return value.lower() or None
+
+
+def p_vlan(value):
+    if not value:
+        return None
+    if not re.fullmatch(r"[0-9]{1,4}", value) or not 1 <= int(value) <= 4094:
+        raise Bad("The VLAN ID must be a number from 1 to 4094.")
+    return int(value)
+
+
+def p_tag(value):
+    if not value:
+        raise Bad("The VLAN ID must be a number from 1 to 4094.")
+    return p_vlan(value)
+
+
+def p_ip(value, what="The address"):
+    try:
+        return ipaddress.IPv4Address(value)
+    except ValueError:
+        raise Bad(f"{what} '{value}' is not an IPv4 address like 10.0.100.1."
+                  + (" IPv6 is not in this build." if ":" in value else "")) from None
+
+
+def p_address(value):
+    """An address with its prefix. A dotted mask (10.0.100.5/255.255.255.0) is accepted and converted."""
+    try:
+        if "/" not in value:
+            raise ValueError
+        address = ipaddress.IPv4Interface(value)
+    except ValueError:
+        raise Bad(f"'{value}' is not an address with its prefix, like 10.0.100.5/24."
+                  + (" IPv6 is not in this build." if ":" in value else "")) from None
+    if not 8 <= address.network.prefixlen <= 30:
+        raise Bad("The prefix must be from 8 to 30.")
+    if address.ip in (address.network.network_address, address.network.broadcast_address):
+        raise Bad(f"{address.ip} is the first or the last address of {address.network}; a machine cannot use it.")
+    return address
+
+
+def p_gateway(value):
+    return p_ip(value, "The gateway") if value else None
+
+
+def p_routes(value):
+    """Subnets and the gateway each is behind: 10.20.0.0/16 is behind the gateway of its
+    network, 10.20.0.0/16@10.0.30.254 behind another gateway of that network."""
+    found = []
+    for word in value.replace(",", " ").split():
+        word, _, via = word.partition("@")
+        try:
+            subnet = ipaddress.IPv4Network(word)
+        except ValueError:
+            try:
+                hint = f" Did you mean {ipaddress.IPv4Network(word, strict=False)}?" if "/" in word else " It needs a prefix, like 10.20.0.0/16."
+            except ValueError:
+                hint = " IPv6 is not in this build." if ":" in word else ""
+            raise Bad(f"'{word}' is not a subnet like 10.20.0.0/16.{hint}") from None
+        if subnet.prefixlen < 8:
+            raise Bad(f"{subnet} is wider than /8. That would be the way to everything, not a subnet behind a gateway."
+                      + (" Only one interface has the default route: the one that leads to the internet." if not subnet.prefixlen else ""))
+        found.append((subnet, p_ip(via, "The gateway") if via or _ else None))
+    return found
+
+
+def p_route(value):
+    """One destination, as the Routes menu asks for it."""
+    found = p_routes(value)
+    if len(found) != 1 or "@" in value:
+        raise Bad("Type one network with its prefix, like 172.16.0.0/24.")
+    return found[0][0]
+
+
+def p_dns(value):
+    found = [p_ip(word, "The DNS server") for word in value.replace(",", " ").split()]
+    if len(found) > 3:
+        raise Bad("At most three DNS servers.")
+    return found
+
+
+def p_yes(value):
+    if value.lower() in ("y", "yes", "on"):
+        return True
+    if value.lower() in ("n", "no", "off"):
+        return False
+    raise Bad("Type yes or no.")
+
+
+def p_endpoint(value):
+    """address:port, or an address alone (then port 22). Empty is none."""
+    if not value:
+        return None
+    address, _, port = value.partition(":")
+    if not re.fullmatch(r"[0-9]{1,5}", port or "22") or not 1 <= int(port or 22) <= 65535:
+        raise Bad(f"'{value}' needs an address and a port, like 10.0.100.10:22.")
+    return p_ip(address), int(port or 22)
+
+
+def p_services(value):
+    """address:port or address:port/udp, separated by spaces."""
+    found = []
+    for word in value.replace(",", " ").split():
+        match = re.fullmatch(r"([0-9.]+):([0-9]{1,5})(?:/(tcp|udp))?", word)
+        if not match or not 1 <= int(match.group(2)) <= 65535:
+            raise Bad(f"'{word}' is not a service like 10.20.0.9:17774 (add /udp for UDP).")
+        found.append((p_ip(match.group(1)), match.group(3) or "tcp", int(match.group(2))))
+    return found
+
+
+def p_prefix(value):
+    value = value or DEFAULT_PREFIX
+    if not re.fullmatch(r"[0-9]{1,3}\.[0-9]{1,3}", value) or any(int(part) > 255 for part in value.split(".")):
+        raise Bad(f"The container prefix '{value}' must be the first two numbers of an address, like 172.31 or 10.99.")
+    return value
+
+
+def p_proxy(value):
+    if not value:
+        return None
+    match = re.fullmatch(r"https?://([A-Za-z0-9.-]+):([0-9]{1,5})/?", value)
+    if not match or not 1 <= int(match.group(2)) <= 65535:
+        raise Bad(f"The proxy '{value}' must look like http://10.0.30.8:3128.")
+    return value.rstrip("/"), match.group(1), int(match.group(2))
+
+
+def p_mtu(value):
+    if not value:
+        return None
+    if not re.fullmatch(r"[0-9]{3,4}", value) or int(value) < 576:
+        raise Bad("The MTU must be a number from 576 to 1500.")
+    if int(value) > 1500:
+        raise Bad("Jumbo frames are not in this build: the MTU is at most 1500.")
+    return int(value)
+
+
+def p_mode(value):
+    if value not in ("dhcp", "static"):
+        raise Bad("Addressing must be dhcp or static.")
+    return value
+
+
+def p_ntp(value):
+    words = value.split()
+    if len(words) > 3 or any(not re.fullmatch(r"[A-Za-z0-9.-]+", word) for word in words):
+        raise Bad("NTP servers: at most three host names or addresses.")
+    return words
+
+
+# --- the answers ---------------------------------------------------------------
+
+
+def read_answers(text):
+    """KEY=value lines. Anything else is not an answer; nothing is ever run."""
+    answers = {}
+    for line in text.splitlines():
+        key, sep, value = line.partition("=")
+        if sep and re.fullmatch(r"[A-Z][A-Z0-9_]*", key):
+            answers[key] = value.strip()
+    return answers
+
+
+def split(a):
+    """(flat, networks, once): the answers as networks, each a dict of its fields as typed."""
+    numbers = sorted({int(m.group(1)) for key in a if (m := re.fullmatch(r"NET([0-9]+)_[A-Z_]+", key))})
+    once = {key: a[key] for key in ONCE if a.get(key)}
+    if numbers:
+        return False, [{field: a.get(f"NET{n}_{field}", "") for field in FIELDS} for n in numbers], once
+    return True, [{field: a.get(f"NET_{field}", "") for field in FLAT}], once
+
+
+def join(flat, networks, once):
+    """The answers file for these networks: the inverse of split()."""
+    a = {key: value for key, value in once.items() if value}
+    for n, raw in enumerate(networks, 1):
+        for field in FLAT if flat else FIELDS:
+            if raw.get(field):
+                a[f"NET_{field}" if flat else f"NET{n}_{field}"] = raw[field]
+    return a
+
+
+def dump(a):
+    return "".join(f"{key}={value}\n" for key, value in a.items())
+
+
+Checked = collections.namedtuple("Checked", "plan errors warnings free")
+
+
+def _block(prefix):
+    return ipaddress.IPv4Network(f"{prefix}.248.0/21")
+
+
+def _free_prefix(taken, current):
+    """The next block that collides with nothing the customer named."""
+    for prefix in [f"172.{n}" for n in range(31, 15, -1)] + [f"10.{n}" for n in range(99, 255)] + ["192.168"]:
+        if prefix != current and not any(_block(prefix).overlaps(subnet) for subnet in taken):
+            return prefix
+    return None
+
+
+def check(a, observed=None):
+    """Validate the answers. `observed` holds the addresses DHCP gave, by interface,
+    so that a leased subnet is checked for overlap like a typed one.
+
+    Returns (plan, errors, warnings, free): nothing may be written while `errors`
+    is not empty; `free` is the next free container prefix when the block collides."""
+    observed, errors, warnings = observed or {}, [], []
+    flat, raws, once = split(a)
+    for key in a:
+        match = re.fullmatch(r"NET([0-9]*)_([A-Z_]+)", key)
+        if match and match.group(2) not in (FIELDS if match.group(1) else FLAT):
+            errors.append(f"{key} is not an answer this tool knows.")
+        elif match and not match.group(1) and not flat and a[key]:
+            errors.append(f"{key} belongs to a file with one network; this file numbers its networks (NET1_...).")
+
+    def field(label, raw, key, parser):
+        try:
+            return parser(raw.get(key, ""))
+        except Bad as error:
+            errors.append(label + str(error))
+            return None
+
+    nets = []
+    for n, raw in enumerate(raws, 1):
+        label = "" if flat else f"{raw['NAME'] or f'Network {n}'}: "
+        before = len(errors)
+        routes = field(label, raw, "ROUTES", p_routes) or []
+        net = {
+            "name": "this network" if flat else field(label, raw, "NAME", p_name),
+            "iface": field(label, raw, "IFACE", p_iface), "mac": field(label, raw, "MAC", p_mac),
+            "vlan": field(label, raw, "VLAN", p_vlan), "gateway": field(label, raw, "GATEWAY", p_gateway),
+            "dns": field(label, raw, "DNS", p_dns), "mtu": field(label, raw, "MTU", p_mtu),
+            "routes": [subnet for subnet, _ in routes], "via": {subnet: via for subnet, via in routes if via},
+            "test": None if flat else field(label, raw, "TEST", p_endpoint),
+            "label": label, "flat": flat,
+        }
+        mode = field(label, raw, "MODE", lambda v: p_mode(v or ("static" if raw.get("ADDRESS") else "dhcp")))
+        net["dhcp"] = mode == "dhcp"
+        net["address"] = None
+        if mode == "static":
+            net["address"] = field(label, raw, "ADDRESS", p_address)
+        elif raw.get("ADDRESS") or raw.get("GATEWAY"):
+            errors.append(f"{label}the address comes from DHCP, so no address or gateway can be typed.")
+        # One network does everything. Without a gateway it cannot be the way to the internet.
+        net["roles"] = (ROLES if net["dhcp"] or net["gateway"] else ROLES[1:]) if flat else field(label, raw, "ROLES", p_roles)
+        net["ssh"] = field(label, raw, "SSH", lambda v: p_yes(v) if v else "users" in (net["roles"] or ())) if not flat else True
+        if len(errors) > before:
+            continue
+        net["dev"] = f"vlan{net['vlan']}" if net["vlan"] else net["iface"]
+        roles, address, gateway = net["roles"], net["address"], net["gateway"]
+        if roles == ("devices",) and net["dhcp"]:
+            errors.append(f"{label}a network for devices only needs a fixed address. DHCP is not offered there.")
+        if address and gateway and (gateway not in address.network or gateway == address.ip):
+            errors.append(f"{label}the gateway {gateway} must be another address inside {address.network}.")
+        if "internet" in roles and address and not gateway and not flat:
+            errors.append(f"{label}the network that leads to the internet needs a gateway.")
+        if set(net["routes"]) - set(net["via"]) and not gateway and not (net["dhcp"] and "internet" in roles):
+            errors.append(f"{label}subnets behind a gateway need the gateway's address.")
+        if net["dns"] and roles == ("devices",):
+            errors.append(f"{label}DNS servers belong to the network for the internet or for users, not to a network for devices only.")
+        if net["test"] and "devices" not in roles:
+            errors.append(f"{label}a device to test belongs to a network for devices.")
+        nets.append(net)
+
+    plan = None
+    prefix = field("", once, "CONTAINER_PREFIX", p_prefix)
+    services = field("", once, "APP_SERVICES", p_services)
+    proxy = field("", once, "PROXY", p_proxy)
+    ntp = field("", once, "NTP", p_ntp)
+    if errors:
+        return Checked(None, errors, warnings, None)
+
+    names = [net["name"].lower() for net in nets]
+    for name in sorted({name for name in names if names.count(name) > 1}):
+        errors.append(f"Two networks are called '{name}'. Each needs its own name.")
+    if sum("internet" in net["roles"] for net in nets) > 1:
+        errors.append("Only one network can lead to the internet. A second internet uplink is not in this build.")
+    if not any("users" in net["roles"] for net in nets):
+        errors.append("No network is for users, so nobody could open the web interface. One network must be for users.")
+    for i, net in enumerate(nets):
+        for other in nets[:i]:
+            if net["iface"] == other["iface"] and net["vlan"] == other["vlan"]:
+                errors.append(f"{net['label']}{'VLAN ' + str(net['vlan']) + ' on ' if net['vlan'] else 'port '}"
+                              f"{net['iface']} is already used by {other['name']}.")
+            elif net["iface"] == other["iface"] and None in (net["vlan"], other["vlan"]):
+                errors.append(f"{net['label']}port {net['iface']} would be tagged and untagged at once ({other['name']} "
+                              "uses it too). A port carries either tagged VLANs or one untagged network.")
+            elif net["vlan"] and net["vlan"] == other["vlan"]:
+                errors.append(f"{net['label']}VLAN {net['vlan']} is on {net['iface']} and on {other['iface']} "
+                              f"({other['name']}). The same VLAN ID on two ports is not in this build.")
+
+    # Every subnet this machine would send to one place: on a link, or behind a gateway.
+    entries = []
+    for net in nets:
+        address = net["address"] or observed.get(net["dev"])
+        net["subnet"] = address.network if address else None
+        if address:
+            entries.append((net, f"the subnet {address.network} of {net['name']}", address.network))
+        entries += [(net, f"{subnet} behind the gateway of {net['name']}", subnet) for subnet in net["routes"]]
+        for subnet, via in net["via"].items():
+            # With DHCP the subnet is known only after the lease; the check runs again then.
+            if address and (via not in address.network or via == address.ip):
+                errors.append(f"{net['label']}the gateway {via} of the route to {subnet} must be another address inside {address.network}.")
+        if net["test"] and "internet" not in net["roles"] and address and not any(
+                net["test"][0] in subnet for subnet in [address.network, *net["routes"]]):
+            errors.append(f"{net['label']}the device to test, {net['test'][0]}, is not in {address.network} "
+                          "or in a subnet behind this network's gateway.")
+    for i, (net, text, subnet) in enumerate(entries):
+        for other, other_text, other_subnet in entries[:i]:
+            if subnet.overlaps(other_subnet):
+                errors.append(f"{text[0].upper() + text[1:]} overlaps {other_text}. One address must lead to one place; "
+                              "the same subnet in two networks is not in this build.")
+    block, free = _block(prefix), None
+    for net, text, subnet in entries:
+        if subnet.overlaps(block):
+            free = free or _free_prefix([subnet for _, _, subnet in entries], prefix)
+            errors.append(f"{text[0].upper() + text[1:]} overlaps {block}, which the containers on this machine use."
+                          + (f" The next free block is {_block(free)}: answer CONTAINER_PREFIX={free}." if free else ""))
+
+    closed = [subnet for net in nets if net["roles"] == ("devices",) for subnet in [net["subnet"], *net["routes"]] if subnet]
+    for address, protocol, port in services:
+        if not any(address in subnet for subnet in closed):
+            errors.append(f"The service {address}:{port} is not inside a network for devices only. "
+                          "The product reaches every other address without being named.")
+    named = [(f"the DNS server {server}", server, net) for net in nets for server in net["dns"]]
+    named += [(f"the NTP server {server}", ipaddress.IPv4Address(server), None) for server in ntp
+              if re.fullmatch(r"[0-9.]+", server) and server.count(".") == 3]
+    if proxy and re.fullmatch(r"[0-9.]+", proxy[1]):
+        named.append((f"the proxy {proxy[1]}", ipaddress.IPv4Address(proxy[1]), None))
+    for text, address, owner in named:
+        if address in block:
+            errors.append(f"{text[0].upper() + text[1:]} is inside {block}, which the containers on this machine use.")
+        for net in nets:
+            for subnet in net["routes"]:
+                if address in subnet and net is not owner:
+                    warnings.append(f"{subnet}, behind the gateway of {net['name']}, contains {text}. "
+                                    f"Traffic to it will leave through {net['name']}.")
+    if proxy and not re.fullmatch(r"[0-9.]+", proxy[1]):
+        warnings.append(f"The proxy is a name ({proxy[1]}). If it has a private address, type the address instead: "
+                        "the firewall lets containers reach a private proxy only by its address.")
+    if not errors:
+        plan = {"flat": flat, "nets": nets, "prefix": prefix, "block": block, "services": services, "proxy": proxy, "ntp": ntp}
+    return Checked(plan, errors, warnings, free)
+
+
+# --- answers to files ----------------------------------------------------------
+
+
+def netplan(plan):
+    """The one netplan file. JSON is YAML, and `netplan generate` reads it as such."""
+    off = {"dhcp6": False, "accept-ra": False, "link-local": []}  # IPv6 is off, so no advertised second way out
+    ethernets, vlans = {}, {}
+    trunks = {net["iface"] for net in plan["nets"] if net["vlan"]}
+    for net in plan["nets"]:
+        body, uplink = {"dhcp4": net["dhcp"], **off}, "internet" in net["roles"]
+        # The gateway of a network that does not lead to the internet is the next hop of the routes
+        # named on it and nothing more: one default route, or answers leave by the wrong interface.
+        # A subnet named on the internet network is behind the default route already, unless it has
+        # a gateway of its own.
+        routes = [{"to": str(subnet), "via": str(net["via"].get(subnet) or net["gateway"])} for subnet in net["routes"]
+                  if subnet in net["via"] or (net["gateway"] and not uplink)]
+        if net["dhcp"]:
+            if not uplink:
+                # Only the internet network may bring a default route or DNS servers.
+                body["dhcp4-overrides"] = {"use-routes": False, "use-dns": False}
+        else:
+            body["addresses"] = [str(net["address"])]
+            if net["gateway"] and uplink:
+                routes.insert(0, {"to": "default", "via": str(net["gateway"])})
+        if routes:
+            body["routes"] = routes
+        if net["dns"]:
+            body["nameservers"] = {"addresses": [str(server) for server in net["dns"]]}
+        if net["mtu"]:
+            body["mtu"] = net["mtu"]
+        if net["vlan"]:
+            # The port itself carries tagged frames only: no address, nothing answers on it.
+            ethernets.setdefault(net["iface"], {"dhcp4": False, **off})
+            vlans[net["dev"]] = {"id": net["vlan"], "link": net["iface"], **body}
+        else:
+            if net["mac"] and net["iface"] not in trunks:
+                # By MAC address, so a virtual card that changes its order cannot swap two networks.
+                body = {"match": {"macaddress": net["mac"]}, "set-name": net["iface"], **body}
+            ethernets[net["iface"]] = body
+    document = {"network": {"version": 2, "renderer": "networkd", "ethernets": ethernets, **({"vlans": vlans} if vlans else {})}}
+    return "# Written by rezztor-network. Do not edit: the next change replaces it.\n" + json.dumps(document, indent=2) + "\n"
+
+
+def network_list(plan, live, now):
+    """networks.json, or None for one flat network: with no list the guard and the
+    product know nothing about the network and behave as on any single network."""
+    if plan["flat"]:
+        return None
+    entries = []
+    for net in plan["nets"]:
+        state = live.get(net["dev"], {})
+        address = net["address"] or state.get("address")
+        if address is None:
+            continue
+        gateway = net["gateway"] or state.get("gateway")
+        entries.append({
+            "name": net["name"], "roles": list(net["roles"]), "interface": net["dev"],
+            "parent": net["iface"] if net["vlan"] else None, "vlan": net["vlan"], "address": str(address),
+            "gateway": str(gateway) if gateway else None, "subnet": str(address.network),
+            "routed_subnets": [str(subnet) for subnet in net["routes"]],
+            "state": "up" if state.get("link", True) else "down",
+        })
+    return json.dumps({"version": 1, "generated_at": int(now), "networks": entries}, indent=2) + "\n"
+
+
+def guard_conf(plan):
+    conf = {
+        "form": "full", "container_block": str(plan["block"]), "infra": [],
+        "app_services": [{"address": str(address), "protocol": protocol, "port": port} for address, protocol, port in plan["services"]],
+    }
+    if plan["proxy"] and re.fullmatch(r"[0-9.]+", plan["proxy"][1]):
+        conf["infra"].append({"address": plan["proxy"][1], "protocol": "tcp", "port": plan["proxy"][2]})
+    if not plan["flat"]:
+        conf["ssh_if"] = sorted(net["dev"] for net in plan["nets"] if net["ssh"])
+    return json.dumps(conf, indent=2) + "\n"
+
+
+def compose_env(plan):
+    """The Compose variables that follow from the network. The web port stays on
+    127.0.0.1 whatever the networks are: nginx on the host is the only door, and
+    the guard decides on which networks it answers. That is also why the product may
+    believe nginx about the browser's address: nginx reaches it from the gateway of
+    app_net (.249.1), and with the port on 127.0.0.1 nobody else can."""
+    env = {"REZZTOR_BIND_ADDRESS": "127.0.0.1", "REZZTOR_NET_PREFIX": plan["prefix"],
+           "FORWARDED_ALLOW_IPS": plan["prefix"] + ".249.1", "HTTP_PROXY": "", "HTTPS_PROXY": "", "NO_PROXY": ""}
+    if plan["proxy"]:
+        devices = [str(subnet) for net in plan["nets"] if "devices" in net["roles"] for subnet in [net["subnet"], *net["routes"]] if subnet]
+        env.update(HTTP_PROXY=plan["proxy"][0], HTTPS_PROXY=plan["proxy"][0], NO_PROXY=",".join([str(plan["block"]), *devices]))
+    return dump(env)
+
+
+def _table(rows):
+    widths = [max(len(row[i]) for row in rows) for i in range(len(rows[0]))]
+    return "\n".join("  ".join(cell.ljust(width) for cell, width in zip(row, widths)).rstrip() for row in rows)
+
+
+def route_rows(plan, live=None):
+    """Every route as (network number, subnet, interface, reaches, gateway). The default
+    route has no subnet: it belongs to its interface and is not added or removed by itself."""
+    rows = []
+    for index, net in enumerate(plan["nets"]):
+        name = net["dev"] if plan["flat"] else net["name"]
+        gateway = net["gateway"] or (live or {}).get(net["dev"], {}).get("gateway")
+        if "internet" in net["roles"]:
+            rows.append((index, None, name, "everything else", str(gateway or "from DHCP")))
+        rows += [(index, subnet, name, str(subnet), str(net["via"].get(subnet) or gateway or "from DHCP")) for subnet in net["routes"]]
+    return rows
+
+
+def result(plan, live, warnings=()):
+    """The result screen (research 04, section 6.4). One flat network gets a short one."""
+    def state(net):
+        return live.get(net["dev"], {})
+
+    def address(net):
+        return net["address"] or state(net).get("address")
+
+    lines = []
+    users = [net for net in plan["nets"] if "users" in net["roles"]]
+    web = next((address(net) for net in users if address(net)), None)
+    if plan["flat"]:
+        net = plan["nets"][0]
+        gateway = net["gateway"] or state(net).get("gateway")
+        lines += [
+            f"Network port:   {net['dev']}, {state(net).get('note', 'up')}",
+            f"Address:        {address(net) or 'none yet'}{'  (from DHCP)' if net['dhcp'] else ''}",
+            f"Gateway:        {gateway or 'none'}",
+            *[f"Route:          {row[3]} through {row[4]}" for row in route_rows(plan, live) if row[1]],
+            f"Web interface:  https://{web.ip if web else '<no address yet>'}",
+        ]
+    else:
+        rows = [("Interface", "Used for", "Port", "Address", "Gateway", "Reaches", "State")]
+        for net in plan["nets"]:
+            reaches = ", ".join(str(subnet) for subnet in [net["subnet"] or (address(net).network if address(net) else None), *net["routes"]] if subnet)
+            rows.append((
+                net["name"], "+".join(role.capitalize() for role in net["roles"]), net["dev"],
+                f"{address(net) or 'none yet'}{' (DHCP)' if net['dhcp'] else ''}",
+                str(net["gateway"] or state(net).get("gateway") or "none"),
+                "everything else" if "internet" in net["roles"] else reaches, state(net).get("note", "up"),
+            ))
+        lines.append(_table(rows))
+        only = ", ".join(net["name"] for net in users)
+        ssh = ", ".join(net["name"] for net in plan["nets"] if net["ssh"])
+        lines += [
+            "",
+            f"Web interface:  https://{web.ip if web else '<no address yet>'}   (answers on {only} only)",
+            f"SSH:            {ssh + ' only, while SSH is switched on' if ssh else 'on no network'}",
+        ]
+        allow = [f"{address(net).ip} ({net['name']})" for net in plan["nets"] if "devices" in net["roles"] and address(net)]
+        if allow:
+            lines.append("On your devices, allow management from:  " + ",  ".join(allow))
+        if plan["services"]:
+            lines.append("The product may also use:  " + ", ".join(f"{a}:{port}/{proto}" for a, proto, port in plan["services"]))
+    return "\n".join(lines + [f"Warning: {text}" for text in warnings])
+
+
+# --- the machine ---------------------------------------------------------------
+
+
+def _path(path):
+    return ROOT + path
+
+
+def _read(path):
+    try:
+        with open(_path(path), encoding="utf-8") as handle:
+            return handle.read()
+    except OSError:
+        return None
+
+
+def _write(path, text, mode=0o600):
+    """Write `text`, or remove the file when it is None. Whole file or nothing."""
+    path = _path(path)
+    if text is None:
+        if os.path.exists(path):
+            os.remove(path)
+        return
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path + ".new", "w", encoding="utf-8") as handle:
+        os.chmod(handle.name, mode)
+        handle.write(text)
+    os.replace(path + ".new", path)
+
+
+def _run(*argv, timeout=60):
+    try:
+        return subprocess.run(argv, capture_output=True, text=True, timeout=timeout)
+    except (OSError, subprocess.TimeoutExpired) as error:
+        return subprocess.CompletedProcess(argv, 127, "", str(error))
+
+
+class Host:
+    """Everything that touches the machine. Tests replace it with a fake."""
+
+    def interfaces(self, wake=False):
+        """The ports a network can sit on: name, MAC address, link."""
+        names = sorted(name for name in os.listdir("/sys/class/net") if os.path.exists(f"/sys/class/net/{name}/device"))
+        if wake:
+            # A port that was never switched on reports no link, cable or not.
+            for name in names:
+                _run("ip", "link", "set", name, "up")
+            time.sleep(2)
+        return [{"name": name, "mac": (self._sys(name, "address") or "").strip(), "link": self.link(name)} for name in names]
+
+    @staticmethod
+    def _sys(dev, name):
+        try:
+            with open(f"/sys/class/net/{dev}/{name}", encoding="ascii") as handle:
+                return handle.read()
+        except OSError:
+            return None
+
+    def link(self, dev):
+        return (self._sys(dev, "carrier") or "").strip() == "1"
+
+    def address(self, dev):
+        words = _run("ip", "-4", "-o", "addr", "show", "dev", dev, "scope", "global").stdout.split()
+        return ipaddress.IPv4Interface(words[words.index("inet") + 1]) if "inet" in words else None
+
+    def gateway(self, dev):
+        words = _run("ip", "-4", "route", "show", "default", "dev", dev).stdout.split()
+        return ipaddress.IPv4Address(words[words.index("via") + 1]) if "via" in words else None
+
+    def route(self, address):
+        """(interface, gateway or None, source address) the kernel would use for `address`, or None."""
+        words = _run("ip", "-4", "-o", "route", "get", str(address)).stdout.split()
+        return tuple(words[words.index(key) + 1] if key in words else None for key in ("dev", "via", "src")) if "dev" in words else None
+
+    def lease(self, dev, seconds=30):
+        for _ in range(seconds):
+            if self.address(dev):
+                return self.address(dev)
+            time.sleep(1)
+        return None
+
+    def ensure_link(self, net):
+        """The interface exists and is up, with no address yet, so the duplicate probe can run on it."""
+        _run("ip", "link", "set", net["iface"], "up")
+        if net["vlan"] and not os.path.exists(f"/sys/class/net/{net['dev']}"):
+            _run("ip", "link", "add", "link", net["iface"], "name", net["dev"], "type", "vlan", "id", str(net["vlan"]))
+        _run("ip", "link", "set", net["dev"], "up")
+        for _ in range(10):  # a port that was just switched on needs a moment before a probe can leave it
+            if self.link(net["dev"]):
+                break
+            time.sleep(0.5)
+
+    def duplicate(self, dev, address):
+        """Who already answers for `address` (RFC 5227 probe), or None. iputils arping -D: 0 is free, 1 is taken."""
+        done = _run("arping", "-D", "-I", dev, "-c", "3", "-w", "3", str(address))
+        if done.returncode != 1:
+            return None
+        found = re.search(r"\[([0-9A-Fa-f:]{17})\]", done.stdout)
+        return found.group(1).lower() if found else "unknown MAC address"
+
+    def arp(self, dev, address):
+        """True when `address` answers ARP on `dev`; None when it could not be asked."""
+        done = _run("arping", "-f", "-I", dev, "-c", "2", "-w", "2", str(address))
+        return None if done.returncode == 127 else done.returncode == 0
+
+    def ping(self, address):
+        return _run("ping", "-c", "1", "-W", "2", str(address)).returncode == 0
+
+    def tcp(self, address, port):
+        """ok, refused, or none (no answer)."""
+        try:
+            socket.create_connection((str(address), port), timeout=3).close()
+            return "ok"
+        except ConnectionRefusedError:
+            return "refused"
+        except OSError:
+            return "none"
+
+    @staticmethod
+    def _udp(server, port, packet):
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+                sock.settimeout(2)
+                sock.sendto(packet, (str(server), port))
+                return bool(sock.recv(512))
+        except OSError:
+            return False
+
+    def dns(self, server):
+        """Does the DNS server answer at all? One question for the root's name servers."""
+        return self._udp(server, 53, b"\x52\x7a\x01\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x01")
+
+    def ntp(self, server):
+        return self._udp(server, 123, b"\x1b" + 47 * b"\0")
+
+    def netplan(self):
+        """Check the file, then apply it. Before the network service runs (at boot) checking is all there is to do."""
+        done = _run("netplan", "generate")
+        if done.returncode == 0 and _run("systemctl", "is-active", "--quiet", "systemd-networkd").returncode == 0:
+            done = _run("netplan", "apply", timeout=120)
+        return None if done.returncode == 0 else (done.stderr.strip() or "netplan failed")
+
+    def drop_links(self, devs):
+        """netplan does not remove a VLAN interface that left the file."""
+        for dev in devs:
+            _run("ip", "link", "delete", dev)
+
+    def guard(self):
+        """The guard's own check, then load it. Any failure is a reason to go back, never to carry on."""
+        for command in ("check", "apply"):
+            done = _run(GUARD_TOOL, command)
+            if done.returncode:
+                return done.stderr.strip() or f"rezztor-guard {command} failed"
+        if _run("nft", "list", "table", "inet", "rezztor_guard").returncode:
+            return "the firewall table is not loaded"
+        return None
+
+    def compose(self, text):
+        """Put the variables into the stack's .env, line by line (never a new file: it holds
+        the secrets), and let Compose act only when one changed. Before the product is
+        installed there is no .env; rezztor-setup hands the variables to the installer."""
+        old = _read(STACK + "/.env")
+        if old is None:
+            return None
+        lines, wanted = old.splitlines(), read_answers(text)
+        for key, value in wanted.items():
+            at = [i for i, line in enumerate(lines) if line.startswith(key + "=")]
+            if at:
+                lines[at[0]] = f"{key}={value}"
+            elif value:
+                lines.append(f"{key}={value}")
+        new = "\n".join(lines) + "\n"
+        if new == old:
+            return None
+        _write(STACK + "/.env", new)
+        done = subprocess.run(["docker", "compose", "up", "-d"], cwd=_path(STACK), capture_output=True, text=True)
+        return None if done.returncode == 0 else (done.stderr.strip()[-400:] or "docker compose failed")
+
+    def arm(self, seconds):
+        """The timer that goes back. A system unit: it outlives this session, SSH and the console.
+        A timer is a minute coarse unless told otherwise, and "120 seconds" must not be 180."""
+        self.disarm()
+        _run("systemd-run", "--quiet", "--collect", "--unit", TIMER, "--timer-property=AccuracySec=1s",
+             f"--on-active={seconds}", SELF, "revert")
+
+    def disarm(self):
+        _run("systemctl", "stop", TIMER + ".timer")
+
+    def session_from(self):
+        """The IPv4 address this session comes from, or None on the console. sudo drops
+        SSH_CONNECTION, so the terminal's own record (`who -m`) is asked as well."""
+        words = os.environ.get("SSH_CONNECTION", "").split() or re.findall(r"\(([0-9.]+)\)", _run("who", "-m").stdout)
+        try:
+            return str(ipaddress.IPv4Address(words[0])) if words else None
+        except ValueError:
+            return None
+
+
+# --- keep or go back -----------------------------------------------------------
+
+
+def _locked():
+    os.makedirs(_path(STATE), exist_ok=True)
+    handle = open(_path(STATE + "/lock"), "w")  # noqa: SIM115 - held until the caller drops it
+    fcntl.flock(handle, fcntl.LOCK_EX)
+    return handle
+
+
+def _deadline():
+    try:
+        return float(_read(PENDING))
+    except (TypeError, ValueError):
+        return None
+
+
+def _saved(path):
+    return STATE + "/previous/" + path.strip("/").replace("/", "_")
+
+
+def _vlan_devs(a):
+    return {f"vlan{raw['VLAN']}" for raw in split(a)[1] if raw.get("VLAN")}
+
+
+def begin(host, clock, seconds=APPLY_SECONDS):
+    """Save what is in force and start the timer that puts it back."""
+    revert(host)  # a change somebody left half done goes back first
+    with _locked():
+        shutil.rmtree(_path(STATE + "/previous"), ignore_errors=True)
+        for path in MANAGED:
+            if _read(path) is not None:
+                _write(_saved(path), _read(path))
+        _write(PENDING, str(clock() + seconds))
+        host.arm(seconds)
+
+
+def rearm(host, clock, seconds=KEEP_SECONDS):
+    with _locked():
+        _write(PENDING, str(clock() + seconds))
+        host.arm(seconds)
+    return clock() + seconds
+
+
+def revert(host):
+    """Put back the files from before the change nobody kept, and apply them.
+    Does nothing when no change is waiting. Every step is tried: a firewall that
+    will not load must not keep the network from coming back."""
+    with _locked():
+        if _read(PENDING) is None:
+            return False
+        gone = _vlan_devs(read_answers(_read(ANSWERS) or ""))
+        for path, mode in MANAGED.items():
+            _write(path, _read(_saved(path)), mode)
+        back = read_answers(_read(ANSWERS) or "")
+        for step in (host.netplan, lambda: host.drop_links(sorted(gone - _vlan_devs(back))), host.guard,
+                     lambda: host.compose(_read(COMPOSE) or "")):
+            try:
+                step()
+            except Exception as error:  # noqa: BLE001 - going back must reach its last step
+                print(f"rezztor-network: while going back: {error}", file=sys.stderr)
+        _write(PENDING, None)
+        host.disarm()
+        return True
+
+
+def keep(host, clock):
+    """Make the change the settings to go back to. False when the time is over: the timer has gone back, or will."""
+    with _locked():
+        deadline = _deadline()
+        if deadline is None or clock() >= deadline:
+            return False
+        _write(GOOD, _read(ANSWERS))
+        _write(PENDING, None)
+        host.disarm()
+        return True
+
+
+def current():
+    """The answers in force. The NTP servers are rezztor-setup's; they are read for the checks."""
+    a = read_answers(_read(ANSWERS) or "")
+    ntp = read_answers(_read(SETUP_ANSWERS) or "").get("NTP")
+    return {**a, **({"NTP": ntp} if ntp else {})}
+
+
+def probes(plan, host, live, warnings):
+    """What answers. Nothing here blocks: a gateway may drop ping, a device may be switched off."""
+    for net in plan["nets"]:
+        state, label, notes = live[net["dev"]], net["label"], []
+        if not state.get("link"):
+            state["note"] = "no link"
+            warnings.append(f"{label}{net['dev']} has no link. Check the cable, or that the virtual network card is connected.")
+            continue
+        gateway = state.get("gateway")
+        if gateway:
+            if host.arp(net["dev"], gateway) or host.ping(gateway):
+                notes.append("gateway answers")
+            else:
+                notes.append("gateway does not answer")
+                warnings.append(f"{label}the gateway {gateway} does not answer. " + (
+                    f"Ask the switch administrator to allow VLAN {net['vlan']} on this port." if net["vlan"]
+                    else "Check the address and that this port is in the right network."))
+        if net["test"] and state.get("address"):
+            address, port = net["test"]
+            on_link = address in state["address"].network
+            if on_link and host.arp(net["dev"], address) is False:
+                answer = "none"
+            else:
+                answer = host.tcp(address, port)
+            notes.append("test device answers" if answer == "ok" else "test device does not answer")
+            if answer == "refused":
+                warnings.append(f"{label}{address} answers but refuses port {port}. Is SSH enabled, or is this device managed over HTTPS?")
+            elif answer == "none" and on_link:
+                warnings.append(f"{label}nothing answers at {address}. Check that the device is up" + (
+                    f" and that VLAN {net['vlan']} is allowed on this machine's switch port." if net["vlan"] else " and on this network."))
+            elif answer == "none":
+                warnings.append(f"{label}no answer from {address} through gateway {gateway}. Check the way back on the gateway, "
+                                f"and that the device allows management from {state['address'].ip}.")
+        state["note"] = ", ".join(["up", *notes])
+    for net in plan["nets"]:
+        for server in net["dns"]:
+            if not host.dns(server):
+                warnings.append(f"The DNS server {server} does not answer.")
+    for server in plan["ntp"]:
+        if not host.ntp(server):
+            warnings.append(f"The NTP server {server} does not answer. A wrong clock breaks sign-in and the licence check.")
+    if plan["proxy"] and host.tcp(plan["proxy"][1], plan["proxy"][2]) != "ok":
+        warnings.append(f"The proxy {plan['proxy'][1]}:{plan['proxy'][2]} does not accept a connection.")
+
+
+def _apply(a, plan, old, host, live, warnings, now, auto=False):
+    """Write and apply. Returns what went wrong, or None; the caller goes back on anything but None."""
+    ports = {port["name"] for port in host.interfaces()}
+    for net in plan["nets"]:
+        if net["iface"] not in ports:
+            return f"{net['label']}network port {net['iface']} does not exist on this machine."
+    _write(ANSWERS, dump(a))
+    for net in plan["nets"]:
+        host.ensure_link(net)
+        mine = host.address(net["dev"])
+        if net["address"] and (mine is None or mine.ip != net["address"].ip):
+            taken = host.duplicate(net["dev"], net["address"].ip)
+            if taken:
+                return f"{net['label']}the address {net['address'].ip} is already used by another machine ({taken}). Choose another address."
+    _write(NETPLAN, netplan(plan))
+    problem = host.netplan()
+    if problem:
+        return f"The network settings were refused: {problem}"
+    host.drop_links(sorted(_vlan_devs(old) - _vlan_devs(a)))
+    for net in plan["nets"]:
+        state = live.setdefault(net["dev"], {})
+        state["link"] = host.link(net["dev"])
+        if net["dhcp"]:
+            state["address"] = host.lease(net["dev"])
+            if state["address"] is None:
+                late = (f"{net['label']}no address came from DHCP on {net['dev']} within 30 seconds. "
+                        "Check the cable and the DHCP server, or type a fixed address.")
+                if not auto:
+                    return late
+                # Nobody is there to answer. The setting stays, so a cable plugged in later still gets its address.
+                warnings.append(late)
+            state["gateway"] = host.gateway(net["dev"])
+        else:
+            state["address"], state["gateway"] = net["address"], net["gateway"]
+    again = check(a, {dev: state["address"] for dev, state in live.items() if state["address"]})
+    if again.errors:
+        return "\n".join(again.errors)
+    plan.update(again.plan)
+    _write(LIST, network_list(plan, live, now), MANAGED[LIST])
+    _write(GUARD, guard_conf(plan))
+    problem = host.guard()
+    if problem:
+        return f"The firewall refused these networks, so they cannot be kept: {problem}"
+    text = compose_env(plan)
+    changed = text != _read(COMPOSE)
+    _write(COMPOSE, text)
+    if changed and (problem := host.compose(text)):
+        return f"The product could not take the new settings: {problem}"
+    probes(plan, host, live, warnings)
+    return None
+
+
+def change(a, host, io, clock=time.time, auto=False, no_lease=None):
+    """Apply the answers `a`, show the result, and keep them or go back. True when kept.
+
+    `auto` keeps without asking once every blocking check passed (an unattended install).
+    `no_lease`, a set, is given the ports on which DHCP gave no address."""
+    checked = check(a)
+    if checked.free and not auto and p_yes(ask(
+            io, f"The containers on this machine use {_block(p_prefix(a.get('CONTAINER_PREFIX', '')))}, and that "
+            f"collides with a network you named.\nUse {_block(checked.free)} for the containers instead? "
+            "(The product restarts if it is installed.)", p_yes, "y")):
+        a = {**a, "CONTAINER_PREFIX": checked.free}
+        checked = check(a)
+    if checked.errors:
+        for error in checked.errors:
+            io.say(error)
+        return False
+    plan, live, warnings = checked.plan, {}, list(checked.warnings)
+    source = host.session_from()
+    for net in plan["nets"]:
+        if source and any(ipaddress.IPv4Address(source) in subnet for subnet in net["routes"]) and "users" not in net["roles"]:
+            warnings.append(f"Your own address {source} is inside a subnet behind the gateway of {net['name']}. "
+                            "Answers to you will leave through that network and may be dropped on the way.")
+    old = current()
+    begin(host, clock)
+    try:
+        problem = _apply(a, plan, old, host, live, warnings, clock(), auto)
+    except Exception as error:  # noqa: BLE001 - a crash half way is a reason to go back, not to stop there
+        problem = f"The change stopped half way ({error})."
+    if problem:
+        if no_lease is not None:
+            no_lease.update(dev for dev, state in live.items() if state.get("address", "") is None)
+        io.say(problem)
+        revert(host)
+        io.say("Nothing was changed: the settings from before are in force.")
+        return False
+    io.say(result(plan, live, warnings))
+    deadline = rearm(host, clock)
+    if (auto or io.keep(deadline, clock)) and keep(host, clock):
+        io.say("Kept.")
+        return True
+    revert(host)
+    io.say("Went back: the settings from before are in force again.")
+    return False
+
+
+def stages(a, old):
+    """The answers as steps, each a whole file: first every network that is not for
+    devices only (and the device networks already in force, unchanged), then one
+    device network at a time. A mistake in the fourth cannot damage the first three."""
+    flat, raws, once = split(a)
+    if flat:
+        return [a]
+    known = split(old)[1] if old else []
+    services = {key: value for key, value in once.items() if key != "APP_SERVICES"}
+    base = [raw for raw in raws if p_roles(raw["ROLES"]) != ("devices",) or raw in known]
+    steps = [join(False, base, services)] if base else []
+    for raw in raws:
+        if raw not in base:
+            base = [*base, raw]
+            steps.append(join(False, [r for r in raws if r in base], services))
+    return [*(step for step in steps[:-1] if step != old), a]
+
+
+# --- the questions -------------------------------------------------------------
+
+
+class Console:
+    def say(self, text=""):
+        print(text, flush=True)
+
+    def ask(self, prompt, default=""):
+        try:
+            return input(f"{prompt} [{default}]: " if default else f"{prompt}: ").strip() or default
+        except EOFError:
+            raise SystemExit("\nNo answer: stopped. Nothing was changed.") from None
+
+    def keep(self, deadline, clock):
+        """True on "keep". False on "back", on silence until the time is over, and on a closed console."""
+        while (left := int(deadline - clock())) > 0:
+            print(f"Keep these settings?  Type keep or back, then Enter.   Going back by itself in {left} s", flush=True)
+            if not select.select([sys.stdin], [], [], left)[0]:
+                return False
+            word = sys.stdin.readline()
+            if word.strip().lower() in ("keep", "k"):
+                return True
+            if not word or word.strip().lower() in ("back", "b"):
+                return False
+        return False
+
+
+def ask(io, prompt, parser, default=""):
+    """Ask until the answer is acceptable. "none" clears an answer that has a default."""
+    while True:
+        value = io.ask(prompt, default)
+        value = "" if value.lower() in ("none", "-") else value
+        try:
+            parser(value)
+            return value
+        except Bad as error:
+            io.say(f"  {error}")
+
+
+def _pick_port(io, host, new, others=(), ask_one=True):
+    """Choose a port from a list that shows its MAC address and its link."""
+    ports = host.interfaces(wake=True)
+    if not ports:
+        raise SystemExit("This machine has no network port.")
+    if len(ports) == 1 and not ask_one:
+        new["IFACE"], new["MAC"] = ports[0]["name"], ports[0]["mac"]
+        return
+    io.say("Network ports:")
+    for n, port in enumerate(ports, 1):
+        used = ", ".join(raw["NAME"] for raw in others if raw["IFACE"] == port["name"])
+        io.say(f"  {n}) {port['name']:<12} {port['mac']}  link {'up' if port['link'] else 'down'}{'   used by ' + used if used else ''}")
+    names = [port["name"] for port in ports]
+    free = [port["name"] for port in ports if port["link"] and not any(raw["IFACE"] == port["name"] for raw in others)]
+    default = new["IFACE"] if new["IFACE"] in names else free[0] if free else names[0]
+
+    def number(value):
+        if not value.isdigit() or not 1 <= int(value) <= len(ports):
+            raise Bad(f"Type a number from 1 to {len(ports)}.")
+    port = ports[int(ask(io, "Which port?", number, str(names.index(default) + 1))) - 1]
+    new["IFACE"], new["MAC"] = port["name"], port["mac"]
+
+
+def ask_flat(io, host, raw=None, trunk=False):
+    """One network: the port if there is more than one, then DHCP or a fixed address.
+    `trunk` asks for a VLAN ID too: only after a first try failed, so that the usual
+    installation is never asked about one."""
+    new = {**dict.fromkeys(FLAT, ""), **(raw or {})}
+    _pick_port(io, host, new, ask_one=False)
+    if trunk or new["VLAN"]:
+        new["VLAN"] = ask(io, "If this port is a trunk: the VLAN ID to use on it, 1 to 4094 (none: the port is untagged)", p_vlan, new["VLAN"])
+        new["MAC"] = "" if new["VLAN"] else new["MAC"]
+    dhcp = p_yes(ask(io, "Does the network give this machine its address by itself (DHCP)?", p_yes,
+                     "n" if new["MODE"] == "static" else "y"))
+    new["MODE"] = "dhcp" if dhcp else "static"
+    if dhcp:
+        new["ADDRESS"] = new["GATEWAY"] = new["DNS"] = ""
+    else:
+        new["ADDRESS"] = ask(io, "Address and prefix, for example 192.168.10.20/24", p_address, new["ADDRESS"])
+        new["GATEWAY"] = ask(io, "Gateway, for example 192.168.10.1 (none if there is no way out of this network)", p_gateway, new["GATEWAY"])
+        new["DNS"] = ask(io, "DNS servers, separated by spaces (at most three)", p_dns, new["DNS"] or new["GATEWAY"])
+    return new
+
+
+def _name(raw, others):
+    """A name nobody has to type: the VLAN, or the next free number."""
+    if raw["VLAN"]:
+        return f"VLAN {raw['VLAN']}"
+    taken = {other["NAME"].lower() for other in others}
+    return next(f"Interface {n}" for n in range(1, 4096) if f"interface {n}" not in taken)
+
+
+def ask_interface(io, host, others, raw=None):
+    """The questions of one more interface (`raw` is None), or of one that is changed.
+
+    Nobody types a role. The interface that leads to the internet keeps doing so, a new
+    one carries devices, and one question says whether the web interface and SSH answer
+    on it. Its gateway is the next hop of the routes named on it, never a second default
+    route. `others` are the interfaces there already."""
+    new = {**dict.fromkeys(FIELDS, ""), **(raw or {})}
+    roles = set(p_roles(new["ROLES"])) if raw else {"devices"}
+    uplink = "internet" in roles
+    _pick_port(io, host, new, others)
+    if new["VLAN"] or any(other["VLAN"] or other["IFACE"] == new["IFACE"] for other in others):
+        new["VLAN"] = ask(io, "VLAN ID on this port, 1 to 4094 (none: the port is untagged)", p_vlan, new["VLAN"])
+    new["MAC"] = "" if new["VLAN"] else new["MAC"]
+
+    def front(value):
+        # Said here, not after the last question: the validator would refuse the same answer.
+        if not p_yes(value) and not any("users" in p_roles(other["ROLES"]) for other in others):
+            raise Bad("The web interface must answer on one interface, and no other one has it.")
+        if not p_yes(value) and roles <= {"users"}:
+            raise Bad("Then this interface would carry nothing. Remove it instead.")
+    web = "users" in roles
+    ssh = p_yes(new["SSH"]) if new["SSH"] else web
+    if web == ssh:
+        web = ssh = p_yes(ask(io, "May the web interface and SSH answer on this interface?", front, "y" if web else "n"))
+    else:
+        # An answers file set them apart. Asked apart, so that Enter changes neither.
+        web = p_yes(ask(io, "May the web interface answer on this interface?", front, "y" if web else "n"))
+        ssh = p_yes(ask(io, "May SSH answer on this interface, while SSH is switched on?", p_yes, "y" if ssh else "n"))
+    roles = roles | {"users"} if web else roles - {"users"}
+    new["ROLES"], new["SSH"] = " ".join(role for role in ROLES if role in roles), "yes" if ssh else "no"
+    if web and not uplink:
+        io.say("  It answers users in this interface's own network, and in the networks its routes name.")
+    only = roles == {"devices"}
+    dhcp = not only and p_yes(ask(io, "Does the network give this interface its address by itself (DHCP)?", p_yes,
+                                  "y" if new["MODE"] == "dhcp" else "n"))
+    new["MODE"] = "dhcp" if dhcp else "static"
+    if dhcp:
+        new["ADDRESS"] = new["GATEWAY"] = new["DNS"] = ""
+    else:
+        new["ADDRESS"] = ask(io, "Address and prefix, for example 10.20.30.10/24", p_address, new["ADDRESS"])
+        if uplink:
+            new["GATEWAY"] = ask(io, "Gateway (the default route)", lambda v: p_ip(v, "The gateway"), new["GATEWAY"])
+            new["DNS"] = ask(io, "DNS servers, separated by spaces (at most three)", p_dns, new["DNS"] or new["GATEWAY"])
+        else:
+            io.say("  A gateway here is the next hop of the routes you name on this interface. It never becomes a second default route.")
+            new["GATEWAY"] = ask(io, "Gateway on this network (none: no gateway)", p_gateway, new["GATEWAY"])
+    if only:
+        new["DNS"] = ""
+    if raw is None and new["GATEWAY"]:
+        new["ROUTES"] = ask(io, "Networks reached through that gateway, separated by spaces, for example 172.16.0.0/24 10.100.100.0/24\n"
+                                "(none: add them later under Routes)", p_routes, "")
+    new["TEST"] = ""  # the console asks for an address to try under Test, and stores none
+    if not new["NAME"] or (new["VLAN"] and re.fullmatch(r"VLAN [0-9]+", new["NAME"])):
+        new["NAME"] = _name(new, others)
+    return new
+
+
+def ask_services(io, raws, once):
+    """Asked once, and only when a network is for devices only: everything else the product reaches anyway."""
+    if any(p_roles(raw["ROLES"]) == ("devices",) for raw in raws):
+        io.say("The product itself cannot reach a network that is for devices only. Only its device connections can.")
+        once = {**once, "APP_SERVICES": ask(
+            io, "Services inside those networks that the product may use (a monitoring or log server): address:port, "
+            "separated by spaces (none: no service)", p_services, once.get("APP_SERVICES", ""))}
+    return once
+
+
+def wizard(io, host, clock=time.time):
+    """The first boot's network step: the one interface this machine is reached on."""
+    if current():
+        io.say("The network is set up already. To change it:")
+        return menu(io, host, clock)
+    io.say("The network: the interface you reach this machine on. More interfaces are added later, from the console menu.")
+    one, no_lease, again = None, set(), False
+    while True:
+        one = ask_flat(io, host, one, trunk=again)
+        if change(join(True, [one], {}), host, io, clock, no_lease=no_lease):
+            return 0
+        if no_lease:
+            # DHCP gave nothing, so the question about it now offers "n".
+            one = {**one, "MODE": "static"}
+            no_lease.clear()
+        io.say("\nThe questions again.")
+        again = True
+
+
+def _way(plan, host, source):
+    """(network, gateway) by which answers to `source` leave: no gateway inside a network's
+    own subnet, "default" for the default route, whoever its gateway is."""
+    address = ipaddress.IPv4Address(source)
+    for net in plan["nets"]:
+        mine = net["address"] or host.address(net["dev"])
+        if mine and address in mine.network:
+            return net, None
+        for subnet in net["routes"]:
+            if address in subnet:
+                return net, net["via"].get(subnet) or ("default" if "internet" in net["roles"] else net["gateway"])
+    return next((net for net in plan["nets"] if "internet" in net["roles"]), None), "default"
+
+
+def _through(plan, host, source):
+    """The network a session from `source` arrives through: the one it is in, else the way to everything."""
+    return _way(plan, host, source)[0] if source else None
+
+
+def _sure(io, host, a, index, verb):
+    """Changing or removing the network this session comes through asks twice."""
+    plan = check(a).plan
+    via = _through(plan, host, host.session_from()) if plan else None
+    if via is None or via is not plan["nets"][index]:
+        return True
+    io.say(f"You are connected from {host.session_from()}, through this interface.")
+    io.say("If the new settings are wrong this session is cut off. The settings from before then come back "
+           f"by themselves after {KEEP_SECONDS} seconds.")
+    return p_yes(ask(io, f"{verb} it anyway?", p_yes, "n")) and p_yes(ask(io, "Are you sure?", p_yes, "n"))
+
+
+def show(io, host, a, test=False):
+    checked = check(a)
+    if not a or checked.errors:
+        io.say("No network is set up yet.")
+        return 1
+    plan, live, warnings = checked.plan, {}, list(checked.warnings)
+    for net in plan["nets"]:
+        link = host.link(net["dev"])
+        live[net["dev"]] = {"link": link, "address": net["address"] or host.address(net["dev"]),
+                            "gateway": net["gateway"] or host.gateway(net["dev"]), "note": "up" if link else "no link"}
+    if test:
+        probes(plan, host, live, warnings)
+    io.say(result(plan, live, warnings))
+    return 0
+
+
+def _which(io, raws):
+    if len(raws) == 1:
+        return 0
+    for n, raw in enumerate(raws, 1):
+        io.say(f"  {n}) {raw['NAME']}")
+
+    def one(value):
+        if not value.isdigit() or not 1 <= int(value) <= len(raws):
+            raise Bad(f"Type a number from 1 to {len(raws)}.")
+    return int(ask(io, "Which interface?", one, "1")) - 1
+
+
+def _pick(io, top):
+    def number(value):
+        if not value.isdigit() or int(value) > top:
+            raise Bad(f"Type a number from 0 to {top}.")
+    return int(ask(io, "Choice", number, "0"))
+
+
+def _same_way(io, host, old, new, verb):
+    """A route that changes the way back to this very session, to another interface or to
+    another gateway of the same one, asks first."""
+    source, before, after = host.session_from(), check(old).plan, check(new).plan
+    if not (source and before and after):
+        return True
+    (was, was_via), (now, via) = _way(before, host, source), _way(after, host, source)
+    if (was and was["dev"], str(was_via)) == (now and now["dev"], str(via)):
+        return True
+    where = ", ".join(filter(None, [None if after["flat"] or not now else now["name"], f"gateway {via}" if via else "no gateway"]))
+    io.say(f"You are connected from {source}. With this change, answers to you take another way ({where}), "
+           "and this session may be cut off.")
+    io.say(f"The settings from before then come back by themselves after {KEEP_SECONDS} seconds.")
+    return p_yes(ask(io, f"{verb} it anyway?", p_yes, "n"))
+
+
+def leaves(io, host, a, value):
+    """Which interface and gateway `value` leaves by, asked of the kernel, and whether it answers."""
+    address, plan = p_ip(value), check(a).plan
+    found = host.route(address)
+    if not found:
+        io.say(f"This machine has no way to {address}: no route names it, and there is no default route.")
+        return
+    dev, via, source = found
+    name = next((net["name"] for net in plan["nets"] if net["dev"] == dev and not plan["flat"]), None) if plan else None
+    io.say(f"{address} leaves through {dev}{f' ({name})' if name else ''}, "
+           + (f"gateway {via}" if via else "with no gateway: it is in that interface's own network") + f", from {source}.")
+    io.say("It answers ping." if host.ping(address) else "It does not answer ping. A device may drop ping and still be reachable.")
+
+
+def routes_menu(io, host, clock=time.time):
+    """Show the routes, add one, remove one. A route is a network and the gateway it is behind;
+    the interface is the one whose network holds that gateway."""
+    while True:
+        a = current()
+        flat, raws, once = split(a)
+        plan = check(a).plan if a else None
+        if plan is None:
+            io.say("No network is set up yet.")
+            return 1
+        live = {net["dev"]: {"gateway": host.gateway(net["dev"])} for net in plan["nets"] if net["dhcp"]}
+        rows = route_rows(plan, live)
+        named = [row for row in rows if row[1]]
+        io.say("\nRoutes")
+        io.say(_table([("Interface", "Reaches", "Gateway"), *(row[2:] for row in rows)]) if rows else "There is no route yet.")
+        if len(named) == len(rows):
+            io.say("No default route: this machine reaches the networks above and its own, and nothing else.")
+        io.say("  1) Add a route")
+        io.say("  2) Remove a route")
+        io.say("  0) Back")
+        picked = _pick(io, 2)
+        if not picked:
+            return 0
+        raws = [dict(raw) for raw in raws]
+        if picked == 1:
+            index = _which(io, raws)
+            net = plan["nets"][index]
+            subnet = p_route(ask(io, "Network to reach, with its prefix, for example 172.16.0.0/24", p_route))
+            own = net["gateway"] or live.get(net["dev"], {}).get("gateway")
+            via = p_ip(ask(io, "Gateway it is behind, an address in this interface's own network",
+                           lambda v: p_ip(v, "The gateway"), str(own or "")))
+            if via == own and "internet" in net["roles"] and (flat or "devices" not in net["roles"]):
+                io.say(f"Everything that has no route of its own leaves through {own} already. Nothing was changed.")
+                continue
+            raws[index]["ROUTES"] = f"{raws[index].get('ROUTES', '')} {subnet}{'' if via == own else f'@{via}'}".strip()
+        else:
+            if not named:
+                io.say("There is no route to remove. The default route belongs to its interface: change the interface to change it.")
+                continue
+            for n, row in enumerate(named, 1):
+                io.say(f"  {n}) {row[3]} through {row[4]} ({row[2]})")
+
+            def one(value):
+                if not value.isdigit() or not 1 <= int(value) <= len(named):
+                    raise Bad(f"Type a number from 1 to {len(named)}.")
+            index, subnet = named[int(ask(io, "Which route?", one, "1")) - 1][:2]
+            if not p_yes(ask(io, f"Remove the route to {subnet}?", p_yes, "n")):
+                continue
+            raws[index]["ROUTES"] = " ".join(word for word in raws[index]["ROUTES"].replace(",", " ").split()
+                                             if p_routes(word)[0][0] != subnet)
+        new = join(flat, raws, once)
+        if _same_way(io, host, a, new, "Add" if picked == 1 else "Remove"):
+            change(new, host, io, clock)
+
+
+def menu(io, host, clock=time.time):
+    while True:
+        a = current()
+        flat, raws, once = split(a)
+        io.say("\nNetwork")
+        entries = [("Show the interfaces", "show"), ("Add an interface", "add"), ("Change an interface", "change"),
+                   ("Remove an interface", "remove"), ("Routes: show, add, remove", "routes"),
+                   ("Test: do the gateways answer, and which way does an address leave?", "test"),
+                   ("Restore the last settings that were kept", "restore")]
+        if not flat:
+            entries.append(("Services inside device networks that the product may use", "services"))
+        for n, (text, _) in enumerate(entries, 1):
+            io.say(f"  {n}) {text}")
+        io.say("  0) Back")
+        picked = _pick(io, len(entries))
+        if not picked:
+            return 0
+        action = entries[picked - 1][1]
+
+        if action == "show":
+            show(io, host, a)
+        elif action == "routes":
+            routes_menu(io, host, clock)
+        elif action == "test":
+            if show(io, host, a, test=True) == 0 and (value := ask(
+                    io, "An address to try: which interface does it leave by? (Enter to skip)", lambda v: v and p_ip(v))):
+                leaves(io, host, a, value)
+        elif action == "restore":
+            good = read_answers(_read(GOOD) or "")
+            if not good:
+                io.say("No settings have been kept yet.")
+            elif p_yes(ask(io, "Go back to the last settings that were kept?", p_yes, "n")):
+                change(good, host, io, clock)
+        elif action == "services":
+            change(join(False, raws, ask_services(io, raws, once)), host, io, clock)
+        elif action == "add":
+            if flat:
+                # The interface from the first boot keeps doing all it did: nothing about it is asked again.
+                first = {**dict.fromkeys(FIELDS, ""), **raws[0], "ROLES": " ".join(check(a).plan["nets"][0]["roles"]), "SSH": "yes"}
+                raws = [{**first, "NAME": _name(first, [])}]
+                io.say(NOT_HERE)
+                io.say(f"\nThis machine has one interface so far, now called {raws[0]['NAME']}. With a second one, the product reaches\n"
+                       "devices only in the networks named here: each interface's own network, and the routes on it.\n"
+                       f"A device network behind the gateway of {raws[0]['NAME']} is named under Routes, with that gateway.")
+            new = ask_interface(io, host, raws)
+            if change(join(False, [*raws, new], once), host, io, clock) and new["ROLES"] == "devices":
+                io.say("The product itself cannot reach that network; only its device connections can. A monitoring or log\n"
+                       "server inside it that the product may use is named under the last entry of this menu.")
+        elif action == "change":
+            index = _which(io, raws)
+            if _sure(io, host, a, index, "Change"):
+                raws[index] = ask_flat(io, host, raws[index]) if flat else ask_interface(
+                    io, host, raws[:index] + raws[index + 1:], raws[index])
+                change(join(flat, raws, once), host, io, clock)
+        elif action == "remove":
+            if len(raws) == 1:
+                io.say("This is the only interface. It can be changed, not removed.")
+                continue
+            index = _which(io, raws)
+            if _sure(io, host, a, index, "Remove") and p_yes(ask(io, f"Remove {raws[index]['NAME']}?", p_yes, "n")):
+                change(join(False, raws[:index] + raws[index + 1:], once), host, io, clock)
+
+
+def main(argv=None, host=None, io=None):
+    parser = argparse.ArgumentParser(prog="rezztor-setup network", description=__doc__.split("\n\n")[0], epilog=NOT_HERE)
+    parser.add_argument("command", nargs="?", default="menu",
+                        choices=("menu", "wizard", "routes", "apply", "check", "list", "test", "restore", "revert", "web", "compose"))
+    parser.add_argument("file", nargs="?", help="the answers file, for apply and check; for test, an address to try")
+    parser.add_argument("--yes", action="store_true", help="apply: keep without asking when every blocking check passed")
+    args = parser.parse_args(argv)
+    host, io = host or Host(), io or Console()
+    if args.command in ("apply", "check"):
+        if not args.file:
+            parser.error(f"{args.command} needs an answers file")
+        with open(args.file, encoding="utf-8") as handle:
+            typed = read_answers(handle.read())
+        a = {key: value for key, value in typed.items() if key in ONCE or re.fullmatch(r"NET[0-9]*_[A-Z_]+", key)}
+        ports = host.interfaces(wake=args.command == "apply")
+        if split(a)[0] and not a.get("NET_IFACE") and ports:
+            # One network and no port named: the first port with a link, as before there were several.
+            a["NET_IFACE"] = next((port for port in ports if port["link"]), ports[0])["name"]
+        checked = check(a)
+        for text in checked.errors + [f"Warning: {text}" for text in checked.warnings]:
+            io.say(text)
+        if checked.errors or args.command == "check":
+            return 1 if checked.errors else 0
+        return 0 if all(change(step, host, io, auto=args.yes) for step in stages(a, current())) else 1
+    if args.command == "menu":
+        return menu(io, host)
+    if args.command == "wizard":
+        return wizard(io, host)
+    if args.command == "routes":
+        return routes_menu(io, host)
+    if args.command in ("list", "test"):
+        done = show(io, host, current(), test=args.command == "test")
+        if args.file and args.command == "test" and done == 0:
+            try:
+                leaves(io, host, current(), args.file)
+            except Bad as error:
+                io.say(str(error))
+                return 1
+        return done
+    if args.command == "restore":
+        good = read_answers(_read(GOOD) or "")
+        if not good:
+            io.say("No settings have been kept yet.")
+            return 1
+        return 0 if change(good, host, io) else 1
+    if args.command == "compose":
+        problem = host.compose(_read(COMPOSE) or "")
+        io.say(problem or "The Compose variables are in place.")
+        return 1 if problem else 0
+    if args.command == "revert":
+        if revert(host):
+            io.say("Went back: the settings from before are in force again.")
+        return 0
+    plan = check(current()).plan  # web: the first network for users; its address may still be on its way
+    for net in plan["nets"] if plan else []:
+        if "users" in net["roles"]:
+            address = net["address"] or host.address(net["dev"])
+            io.say(f"{net['dev']} {address.ip if address else ''}".rstrip())
+            return 0
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

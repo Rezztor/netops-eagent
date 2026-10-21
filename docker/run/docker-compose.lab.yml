@@ -1,0 +1,11 @@
+# Optional: attach the Ansible executor to the local lab network (scripts/lab/sonic-vs.sh up).
+# Activate with COMPOSE_FILE=docker-compose.yml:docker-compose.lab.yml in the git-ignored .env.
+# Only the executor joins; the application and the runner stay off the lab.
+services:
+  ansible:
+    networks: [ansible_net, lab]
+
+networks:
+  lab:
+    external: true
+    name: eagent-lab

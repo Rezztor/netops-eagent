@@ -1,0 +1,77 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.13.1",
+  "variables": {
+    "resource_group": {
+      "value": "rg-payments-prod-uaen"
+    },
+    "name": {
+      "value": "pip-payments-prod-uaen-001"
+    },
+    "region": {
+      "value": "uaenorth"
+    },
+    "tags": {
+      "value": {
+        "env": "prod",
+        "owner": "netops",
+        "costcentre": "cc-1001",
+        "project": "payments"
+      }
+    }
+  },
+  "resource_changes": [
+    {
+      "address": "azurerm_public_ip.this",
+      "mode": "managed",
+      "type": "azurerm_public_ip",
+      "name": "this",
+      "provider_name": "registry.opentofu.org/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "update"
+        ],
+        "before": {
+          "name": "pip-payments-prod-uaen-001",
+          "resource_group_name": "rg-payments-prod-uaen",
+          "location": "uaenorth",
+          "allocation_method": "Static",
+          "sku": "Standard",
+          "ip_version": "IPv4",
+          "tags": {
+            "env": "prod",
+            "owner": "netops",
+            "costcentre": "cc-1001"
+          },
+          "id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.Fixture/azurerm_public_ip/pip-payments-prod-uaen-001"
+        },
+        "after": {
+          "name": "pip-payments-prod-uaen-001",
+          "resource_group_name": "rg-payments-prod-uaen",
+          "location": "uaenorth",
+          "allocation_method": "Static",
+          "sku": "Standard",
+          "ip_version": "IPv4",
+          "tags": {
+            "env": "prod",
+            "owner": "netops",
+            "costcentre": "cc-1001",
+            "project": "payments"
+          },
+          "id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.Fixture/azurerm_public_ip/pip-payments-prod-uaen-001"
+        },
+        "after_unknown": {},
+        "before_sensitive": {},
+        "after_sensitive": {}
+      }
+    }
+  ],
+  "configuration": {
+    "provider_config": {
+      "azurerm": {
+        "name": "azurerm",
+        "full_name": "registry.opentofu.org/hashicorp/azurerm"
+      }
+    }
+  }
+}

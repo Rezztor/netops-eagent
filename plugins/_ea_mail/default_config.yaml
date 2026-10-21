@@ -1,0 +1,13 @@
+# How many messages one account may send in an hour.
+#
+# The agent writes these, and it writes them from whatever is in its context --
+# including documents and web pages it was asked to read. A limit does not stop a
+# bad message; it stops a loop, and it caps what one poisoned instruction can do
+# before somebody notices.
+max_per_hour: 20
+
+# Whether an administrator's agent may email accounts other than its own.
+#
+# Turning this off makes the tool self-only for everybody, including
+# administrators. The rate limit still applies.
+allow_admin_to_email_others: true

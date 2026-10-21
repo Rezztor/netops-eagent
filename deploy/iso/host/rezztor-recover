@@ -1,0 +1,7 @@
+#!/bin/sh
+# rezztor-recover: the login shell of the account rezrecover on a machine whose
+# console is closed. It signs in on a local console only (pam_access; SSH
+# denies it). Whatever it is started with, it runs the console password
+# recovery of rezztor-support and ends there. The one sudo rule of the account
+# allows exactly this command.
+exec sudo -n /usr/local/sbin/rezztor-support recover

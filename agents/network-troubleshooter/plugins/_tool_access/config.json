@@ -1,0 +1,23 @@
+{
+  "mode": "custom",
+  "default": "block",
+  "mcp_default": "block",
+  "allowed": [
+    "local:refused",
+    "plugin:_ea_ansible:net_read",
+    "plugin:_ea_inventory:inventory_lookup",
+    "plugin:_ea_inventory:inventory_ports",
+    "plugin:_ea_azure:azure_inventory",
+    "plugin:_ea_azure:azure_advise",
+    "plugin:_ea_azure:azure_cost",
+    "plugin:_ea_azure:azure_read",
+    "plugin:_ea_solarwinds:solarwinds_lookup",
+    "local:search_engine",
+    "local:skills_tool",
+    "local:notify_user",
+    "local:wait",
+    "plugin:_document_query:document_query",
+    "plugin:_ea_interaction:ask_user"
+  ],
+  "blocked": []
+}

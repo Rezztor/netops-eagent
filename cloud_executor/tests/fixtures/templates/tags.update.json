@@ -1,0 +1,64 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.13.1",
+  "variables": {
+    "subscription_id": {
+      "value": "11111111-2222-3333-4444-555555555555"
+    },
+    "resource_group": {
+      "value": "rg-payments-prod-uaen"
+    },
+    "tags": {
+      "value": {
+        "owner": "netops",
+        "costcentre": "cc-1001"
+      }
+    }
+  },
+  "resource_changes": [
+    {
+      "address": "azapi_update_resource.this",
+      "mode": "managed",
+      "type": "azapi_update_resource",
+      "name": "this",
+      "provider_name": "registry.opentofu.org/azure/azapi",
+      "change": {
+        "actions": [
+          "update"
+        ],
+        "before": {
+          "type": "Microsoft.Resources/resourceGroups@2024-03-01",
+          "resource_id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen",
+          "body": {
+            "tags": {
+              "owner": "netops"
+            }
+          },
+          "id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.Fixture/azapi_update_resource/x"
+        },
+        "after": {
+          "type": "Microsoft.Resources/resourceGroups@2024-03-01",
+          "resource_id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen",
+          "body": {
+            "tags": {
+              "owner": "netops",
+              "costcentre": "cc-1001"
+            }
+          },
+          "id": "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-payments-prod-uaen/providers/Microsoft.Fixture/azapi_update_resource/x"
+        },
+        "after_unknown": {},
+        "before_sensitive": {},
+        "after_sensitive": {}
+      }
+    }
+  ],
+  "configuration": {
+    "provider_config": {
+      "azapi": {
+        "name": "azapi",
+        "full_name": "registry.opentofu.org/azure/azapi"
+      }
+    }
+  }
+}

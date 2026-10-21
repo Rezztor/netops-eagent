@@ -1,0 +1,13 @@
+[Unit]
+Description=Check and load the Rezztor container images from the install payload
+After=docker.service
+Requires=docker.service
+ConditionPathExists=!/var/lib/rezztor/images-loaded
+
+[Service]
+Type=oneshot
+TimeoutStartSec=0
+ExecStart=/usr/local/sbin/rezztor-setup load-images
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,154 @@
+# Feeds the inventory (plugins/_ea_inventory/helpers/facts/collect.py): same
+# dispatch as device_facts.yml, but the last task prints one machine-readable
+# line per host for the refresh pipeline to parse:
+#
+#   EAGENT_FACTS <inventory_hostname> <compact JSON>
+#
+# The JSON is {"platform": ..., "facts": {...}} where facts holds only the
+# module's `net_*` keys (Ansible drops the `ansible_` prefix inside `ansible_facts`;
+# the hand-built sonic_community and Junos dicts keep it, so both spellings pass). Nothing else leaves the device: no config text
+# (dropped even if a subset pulled it in), no credentials. Output comes back
+# through the job's stdout, so the debug callback JSON-escapes the quotes inside
+# the line; the parser has to undo that.
+- name: Collect inventory facts
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Establish which platform this host is
+      ansible.builtin.set_fact:
+        eagent_platform: >-
+          {{ (ansible_network_os | default('')) | regex_replace('^.*\.', '') }}
+
+    - name: Refuse a platform this entry does not cover
+      ansible.builtin.fail:
+        msg: >-
+          {{ inventory_hostname }} is '{{ eagent_platform }}' (from
+          ansible_network_os), which reads/inventory_facts does not cover. It is
+          written for ios, nxos, eos, junos, sonic, sonic_community, fortios and panos.
+      when: eagent_platform not in ['ios', 'nxos', 'eos', 'junos', 'sonic', 'sonic_community', 'fortios', 'panos']
+
+    - name: Collect facts from a Cisco IOS device
+      cisco.ios.ios_facts:
+        gather_subset: min
+      when: eagent_platform == 'ios'
+
+    - name: Collect facts from a Cisco NX-OS device
+      # nxos, eos and junos have not met a device. All three go over network_cli.
+      cisco.nxos.nxos_facts:
+        gather_subset: min
+      when: eagent_platform == 'nxos'
+
+    - name: Collect facts from an Arista EOS device
+      arista.eos.eos_facts:
+        gather_subset: min
+      when: eagent_platform == 'eos'
+
+    - name: Read facts from a Junos device
+      # junos_facts needs netconf or PyEZ; the CLI is the one mechanism here, so the
+      # facts are parsed from `show` output below. In check mode junos_command sends
+      # only commands that begin with `show`.
+      juniper.device.junos_command:
+        commands:
+          - show version
+          - show chassis hardware
+      when: eagent_platform == 'junos'
+      register: junos_raw
+
+    - name: Turn the Junos output into the facts the inventory reads
+      # Same `ansible_net_*` keys as the other platforms; a value the device did not
+      # print is left out, never guessed. `show version` prints `Hostname:`, `Model:`
+      # and `Junos:`; the serial is the `Chassis` line of `show chassis hardware`.
+      ansible.builtin.set_fact:
+        eagent_junos_facts: >-
+          {{ {
+            'ansible_net_hostname': hostname,
+            'ansible_net_model': model,
+            'ansible_net_version': version,
+            'ansible_net_serialnum': serialnum
+          } | dict2items | rejectattr('value', 'equalto', '') | items2dict }}
+      vars:
+        version_text: "{{ junos_raw.stdout[0] }}"
+        hostname: "{{ version_text | regex_findall('(?m)^Hostname: (\\S+)') | first | default('') }}"
+        model: "{{ version_text | regex_findall('(?m)^Model: (\\S+)') | first | default('') }}"
+        version: "{{ version_text | regex_findall('(?m)^Junos: (\\S+)') | first | default('') }}"
+        serialnum: "{{ junos_raw.stdout[1] | regex_findall('(?m)^Chassis\\s+(\\S+)') | first | default('') }}"
+      when: eagent_platform == 'junos'
+
+    - name: Collect facts from a SONiC device
+      dellemc.enterprise_sonic.sonic_facts:
+        gather_subset: min
+      when: eagent_platform == 'sonic'
+
+    - name: Read facts from a sonic_community device
+      # Plain SSH and `show` (see interfaces.yml). `raw` is skipped in check mode,
+      # so this task opts out; it runs only the fixed read-only commands below.
+      # `show version` crashes in networkop/sonic-vs after its first line, so a
+      # non-zero exit is not a failure and the line below keeps only what parses.
+      ansible.builtin.raw: "{{ item }}"
+      loop:
+        - hostname
+        - show version
+        - show platform summary
+      check_mode: false
+      changed_when: false
+      failed_when: false
+      register: sonic_community_raw
+      when: eagent_platform == 'sonic_community'
+
+    - name: Turn the sonic_community output into the facts the inventory reads
+      # Same `ansible_net_*` keys as the other platforms. A value the device did
+      # not print -- or printed as N/A, or empty -- is left out, never guessed:
+      # this image prints `SONiC Software Version: SONiC.` with no build after
+      # it and `N/A` for serial and model, so only the hostname and HwSKU come
+      # back. Model is `Model Number` when it is real, else `HwSKU`.
+      ansible.builtin.set_fact:
+        eagent_sonic_facts: >-
+          {{ {
+            'ansible_net_hostname': out['hostname'] | trim,
+            'ansible_net_version': version,
+            'ansible_net_serialnum': serialnum,
+            'ansible_net_model': hwsku if model_number in ['', 'N/A'] else model_number
+          } | dict2items | rejectattr('value', 'in', ['', 'N/A']) | items2dict }}
+      vars:
+        out: "{{ sonic_community_raw.results | items2dict(key_name='item', value_name='stdout') }}"
+        summary: "{{ out['show platform summary'] }}"
+        version: >-
+          {{ out['show version'] | regex_findall('SONiC Software Version: SONiC[.](\S+)')
+             | first | default('') }}
+        serialnum: >-
+          {{ summary | regex_findall('Serial Number: (\S+)') | first | default('') }}
+        hwsku: >-
+          {{ summary | regex_findall('HwSKU: (\S+)') | first | default('') }}
+        model_number: >-
+          {{ summary | regex_findall('Model Number: (\S+)') | first | default('') }}
+      when: eagent_platform == 'sonic_community'
+
+
+    - name: Ask the firewall
+      # FortiGate and Palo Alto: their management API over HTTPS with the stored API token, GET
+      # only (reads/fw/read.yml). Written from the vendors' documented output, not run against a device.
+      ansible.builtin.include_tasks: fw/read.yml
+      vars:
+        fw_read: facts
+        fw_requests:
+          fortios:
+            - "/api/v2/monitor/system/status"
+            - "/api/v2/cmdb/system/ha?format=mode%7Cgroup-name"
+            - "/api/v2/monitor/system/ha-peer"
+          panos:
+            - "<show><system><info></info></system></show>"
+            - "<show><high-availability><state></state></high-availability></show>"
+      when: eagent_platform in ['fortios', 'panos']
+
+    - name: Print the facts line
+      ansible.builtin.debug:
+        msg: >-
+          EAGENT_FACTS {{ inventory_hostname }} {{ {
+            'platform': eagent_platform,
+            'facts': eagent_fw if eagent_platform in ['fortios', 'panos'] else
+              (eagent_sonic_facts if eagent_platform == 'sonic_community'
+               else eagent_junos_facts if eagent_platform == 'junos' else ansible_facts) | dict2items
+              | selectattr('key', 'match', '^(ansible_)?net_')
+              | rejectattr('key', 'in', ['ansible_net_config', 'net_config'])
+              | items2dict
+          } | to_json(separators=(',', ':')) }}

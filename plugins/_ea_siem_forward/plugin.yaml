@@ -1,0 +1,7 @@
+name: _ea_siem_forward
+title: SIEM Forwarding
+description: Forwards this instance's audit trail to an external Syslog server or SIEM collector as CEF over UDP. Read-only with respect to the audit record — it observes events on their way out and can never change what was logged. Off until an administrator configures a destination.
+version: 1.0.0
+settings_sections: []
+per_project_config: false
+per_agent_config: false

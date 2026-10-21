@@ -1,0 +1,11 @@
+name: _ea_auto_skills
+title: Auto Skills
+description: Turns a user's successfully completed tasks into reusable skills, private to them until an administrator promotes one.
+version: 1.0.0
+# settings_sections is deliberately empty. The field is inert in this fork --
+# nothing in the React frontend reads it -- so claiming a section would promise
+# a settings panel that never renders. This plugin's controls live on the
+# Skills screen instead.
+settings_sections: []
+per_project_config: false
+per_agent_config: false

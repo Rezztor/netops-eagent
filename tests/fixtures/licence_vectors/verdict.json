@@ -1,0 +1,967 @@
+{
+ "description": "What the product concludes: verdict.verdict(licence, lease, now, mark).",
+ "cases": [
+  {
+   "name": "row 1: no licence",
+   "op": "verdict",
+   "licence": null,
+   "lease": null,
+   "now": 1790864000,
+   "mark": 0,
+   "expect": {
+    "state": "restricted",
+    "reason": "no_licence",
+    "end": null,
+    "clock_behind": false
+   }
+  },
+  {
+   "name": "row 1: no licence, even with a lease",
+   "op": "verdict",
+   "licence": null,
+   "lease": {
+    "status": "ok",
+    "exp": 1795184000,
+    "notice_until": 0
+   },
+   "now": 1790864000,
+   "mark": 0,
+   "expect": {
+    "state": "restricted",
+    "reason": "no_licence",
+    "end": null,
+    "clock_behind": false
+   }
+  },
+  {
+   "name": "row 2: not yet valid",
+   "op": "verdict",
+   "licence": {
+    "kind": "subscription",
+    "nbf": 1790000000,
+    "exp": 1798640000,
+    "grace_days": 30,
+    "offline": false
+   },
+   "lease": null,
+   "now": 1789996399,
+   "mark": 0,
+   "expect": {
+    "state": "restricted",
+    "reason": "not_yet_valid",
+    "end": null,
+    "clock_behind": false
+   }
+  },
+  {
+   "name": "row 2: inside the tolerance of nbf",
+   "op": "verdict",
+   "licence": {
+    "kind": "subscription",
+    "nbf": 1790000000,
+    "exp": 1798640000,
+    "grace_days": 30,
+    "offline": false
+   },
+   "lease": {
+    "status": "ok",
+    "exp": 1795184000,
+    "notice_until": 0
+   },
+   "now": 1789996400,
+   "mark": 0,
+   "expect": {
+    "state": "licensed",
+    "reason": "ok",
+    "end": 1795184000,
+    "clock_behind": false
+   }
+  },
+  {
+   "name": "row 2 comes before row 3: not yet valid and no lease",
+   "op": "verdict",
+   "licence": {
+    "kind": "subscription",
+    "nbf": 1790000000,
+    "exp": 1798640000,
+    "grace_days": 30,
+    "offline": false
+   },
+   "lease": null,
+   "now": 1789996399,
+   "mark": 0,
+   "expect": {
+    "state": "restricted",
+    "reason": "not_yet_valid",
+    "end": null,
+    "clock_behind": false
+   }
+  },
+  {
+   "name": "row 3: online licence, no lease",
+   "op": "verdict",
+   "licence": {
+    "kind": "subscription",
+    "nbf": 1790000000,
+    "exp": 1798640000,
+    "grace_days": 30,
+    "offline": false
+   },
+   "lease": null,
+   "now": 1790864000,
+   "mark": 0,
+   "expect": {
+    "state": "restricted",
+    "reason": "no_lease",
+    "end": null,
+    "clock_behind": false
+   }
+  },
+  {
+   "name": "row 3: online licence, no lease, on the first day",
+   "op": "verdict",
+   "licence": {
+    "kind": "subscription",
+    "nbf": 1790000000,
+    "exp": 1798640000,
+    "grace_days": 30,
+    "offline": false
+   },
+   "lease": null,
+   "now": 1790000000,
+   "mark": 0,
+   "expect": {
+    "state": "restricted",
+    "reason": "no_lease",
+    "end": null,
+    "clock_behind": false
+   }
+  },
+  {
+   "name": "row 3: online licence, no lease, a day before the contract ends",
+   "op": "verdict",
+   "licence": {
+    "kind": "subscription",
+    "nbf": 1790000000,
+    "exp": 1798640000,
+    "grace_days": 30,
+    "offline": false
+   },
+   "lease": null,
+   "now": 1798553600,
+   "mark": 0,
+   "expect": {
+    "state": "restricted",
+    "reason": "no_lease",
+    "end": null,
+    "clock_behind": false
+   }
+  },
+  {
+   "name": "row 3: online licence, no lease, in what would be grace",
+   "op": "verdict",
+   "licence": {
+    "kind": "subscription",
+    "nbf": 1790000000,
+    "exp": 1798640000,
+    "grace_days": 30,
+    "offline": false
+   },
+   "lease": null,
+   "now": 1798726400,
+   "mark": 0,
+   "expect": {
+    "state": "restricted",
+    "reason": "no_lease",
+    "end": null,
+    "clock_behind": false
+   }
+  },
+  {
+   "name": "row 3: a trial is online too",
+   "op": "verdict",
+   "licence": {
+    "kind": "trial",
+    "nbf": 1790000000,
+    "exp": 1798640000,
+    "grace_days": 30,
+    "offline": false
+   },
+   "lease": null,
+   "now": 1790864000,
+   "mark": 0,
+   "expect": {
+    "state": "restricted",
+    "reason": "no_lease",
+    "end": null,
+    "clock_behind": false
+   }
+  },
+  {
+   "name": "row 4: lease released",
+   "op": "verdict",
+   "licence": {
+    "kind": "subscription",
+    "nbf": 1790000000,
+    "exp": 1798640000,
+    "grace_days": 30,
+    "offline": false
+   },
+   "lease": {
+    "status": "released",
+    "exp": 1795184000,
+    "notice_until": 0
+   },
+   "now": 1790864000,
+   "mark": 0,
+   "expect": {
+    "state": "restricted",
+    "reason": "released",
+    "end": null,
+    "clock_behind": false
+   }
+  },
+  {
+   "name": "row 5: revoked, past the notice",
+   "op": "verdict",
+   "licence": {
+    "kind": "subscription",
+    "nbf": 1790000000,
+    "exp": 1798640000,
+    "grace_days": 30,
+    "offline": false
+   },
+   "lease": {
+    "status": "revoked",
+    "exp": 1795184000,
+    "notice_until": 1790864000
+   },
+   "now": 1790864001,
+   "mark": 0,
+   "expect": {
+    "state": "restricted",
+    "reason": "revoked",
+    "end": null,
+    "clock_behind": false
+   }
+  },
+  {
+   "name": "row 5: revoked, notice ends now",
+   "op": "verdict",
+   "licence": {
+    "kind": "subscription",
+    "nbf": 1790000000,
+    "exp": 1798640000,
+    "grace_days": 30,
+    "offline": false
+   },
+   "lease": {
+    "status": "revoked",
+    "exp": 1795184000,
+    "notice_until": 1790864000
+   },
+   "now": 1790864000,
+   "mark": 0,
+   "expect": {
+    "state": "licensed",
+    "reason": "revoked_notice",
+    "end": 1795184000,
+    "clock_behind": false
+   }
+  },
+  {
+   "name": "row 5: revoked, inside the notice",
+   "op": "verdict",
+   "licence": {
+    "kind": "subscription",
+    "nbf": 1790000000,
+    "exp": 1798640000,
+    "grace_days": 30,
+    "offline": false
+   },
+   "lease": {
+    "status": "revoked",
+    "exp": 1795184000,
+    "notice_until": 1790864000
+   },
+   "now": 1790777600,
+   "mark": 0,
+   "expect": {
+    "state": "licensed",
+    "reason": "revoked_notice",
+    "end": 1795184000,
+    "clock_behind": false
+   }
+  },
+  {
+   "name": "row 6: trial past its end",
+   "op": "verdict",
+   "licence": {
+    "kind": "trial",
+    "nbf": 1790000000,
+    "exp": 1798640000,
+    "grace_days": 30,
+    "offline": false
+   },
+   "lease": {
+    "status": "ok",
+    "exp": 1798640000,
+    "notice_until": 0
+   },
+   "now": 1798643601,
+   "mark": 0,
+   "expect": {
+    "state": "restricted",
+    "reason": "trial_ended",
+    "end": null,
+    "clock_behind": false
+   }
+  },
+  {
+   "name": "row 6: trial at its end plus the tolerance",
+   "op": "verdict",
+   "licence": {
+    "kind": "trial",
+    "nbf": 1790000000,
+    "exp": 1798640000,
+    "grace_days": 30,
+    "offline": false
+   },
+   "lease": {
+    "status": "ok",
+    "exp": 1798640000,
+    "notice_until": 0
+   },
+   "now": 1798643600,
+   "mark": 0,
+   "expect": {
+    "state": "licensed",
+    "reason": "ok",
+    "end": 1798640000,
+    "clock_behind": false
+   }
+  },
+  {
+   "name": "row 6: subscription at the same time is in grace",
+   "op": "verdict",
+   "licence": {
+    "kind": "subscription",
+    "nbf": 1790000000,
+    "exp": 1798640000,
+    "grace_days": 30,
+    "offline": false
+   },
+   "lease": {
+    "status": "ok",
+    "exp": 1798640000,
+    "notice_until": 0
+   },
+   "now": 1798643601,
+   "mark": 0,
+   "expect": {
+    "state": "grace1",
+    "reason": "ended",
+    "end": 1798640000,
+    "clock_behind": false
+   }
+  },
+  {
+   "name": "row 7: online, inside the lease",
+   "op": "verdict",
+   "licence": {
+    "kind": "subscription",
+    "nbf": 1790000000,
+    "exp": 1798640000,
+    "grace_days": 30,
+    "offline": false
+   },
+   "lease": {
+    "status": "ok",
+    "exp": 1795184000,
+    "notice_until": 0
+   },
+   "now": 1790864000,
+   "mark": 0,
+   "expect": {
+    "state": "licensed",
+    "reason": "ok",
+    "end": 1795184000,
+    "clock_behind": false
+   }
+  },
+  {
+   "name": "row 7: online, lease end plus tolerance",
+   "op": "verdict",
+   "licence": {
+    "kind": "subscription",
+    "nbf": 1790000000,
+    "exp": 1798640000,
+    "grace_days": 30,
+    "offline": false
+   },
+   "lease": {
+    "status": "ok",
+    "exp": 1795184000,
+    "notice_until": 0
+   },
+   "now": 1795187600,
+   "mark": 0,
+   "expect": {
+    "state": "licensed",
+    "reason": "ok",
+    "end": 1795184000,
+    "clock_behind": false
+   }
+  },
+  {
+   "name": "row 7: offline is judged by the licence alone",
+   "op": "verdict",
+   "licence": {
+    "kind": "subscription",
+    "nbf": 1790000000,
+    "exp": 1798640000,
+    "grace_days": 30,
+    "offline": true
+   },
+   "lease": null,
+   "now": 1790864000,
+   "mark": 0,
+   "expect": {
+    "state": "licensed",
+    "reason": "ok",
+    "end": 1798640000,
+    "clock_behind": false
+   }
+  },
+  {
+   "name": "row 7: offline ignores a lease",
+   "op": "verdict",
+   "licence": {
+    "kind": "subscription",
+    "nbf": 1790000000,
+    "exp": 1798640000,
+    "grace_days": 30,
+    "offline": true
+   },
+   "lease": {
+    "status": "ok",
+    "exp": 1795184000,
+    "notice_until": 0
+   },
+   "now": 1795616000,
+   "mark": 0,
+   "expect": {
+    "state": "licensed",
+    "reason": "ok",
+    "end": 1798640000,
+    "clock_behind": false
+   }
+  },
+  {
+   "name": "row 7: offline ignores a released lease",
+   "op": "verdict",
+   "licence": {
+    "kind": "subscription",
+    "nbf": 1790000000,
+    "exp": 1798640000,
+    "grace_days": 30,
+    "offline": true
+   },
+   "lease": {
+    "status": "released",
+    "exp": 1795184000,
+    "notice_until": 0
+   },
+   "now": 1790864000,
+   "mark": 0,
+   "expect": {
+    "state": "licensed",
+    "reason": "ok",
+    "end": 1798640000,
+    "clock_behind": false
+   }
+  },
+  {
+   "name": "row 7: offline, licence end plus tolerance",
+   "op": "verdict",
+   "licence": {
+    "kind": "subscription",
+    "nbf": 1790000000,
+    "exp": 1798640000,
+    "grace_days": 30,
+    "offline": true
+   },
+   "lease": null,
+   "now": 1798643600,
+   "mark": 0,
+   "expect": {
+    "state": "licensed",
+    "reason": "ok",
+    "end": 1798640000,
+    "clock_behind": false
+   }
+  },
+  {
+   "name": "row 8: lease ended, grace 1 begins",
+   "op": "verdict",
+   "licence": {
+    "kind": "subscription",
+    "nbf": 1790000000,
+    "exp": 1798640000,
+    "grace_days": 30,
+    "offline": false
+   },
+   "lease": {
+    "status": "ok",
+    "exp": 1795184000,
+    "notice_until": 0
+   },
+   "now": 1795187601,
+   "mark": 0,
+   "expect": {
+    "state": "grace1",
+    "reason": "ended",
+    "end": 1795184000,
+    "clock_behind": false
+   }
+  },
+  {
+   "name": "row 8: grace 1 lasts 14 days",
+   "op": "verdict",
+   "licence": {
+    "kind": "subscription",
+    "nbf": 1790000000,
+    "exp": 1798640000,
+    "grace_days": 30,
+    "offline": false
+   },
+   "lease": {
+    "status": "ok",
+    "exp": 1795184000,
+    "notice_until": 0
+   },
+   "now": 1796393600,
+   "mark": 0,
+   "expect": {
+    "state": "grace1",
+    "reason": "ended",
+    "end": 1795184000,
+    "clock_behind": false
+   }
+  },
+  {
+   "name": "row 9: grace 2 begins",
+   "op": "verdict",
+   "licence": {
+    "kind": "subscription",
+    "nbf": 1790000000,
+    "exp": 1798640000,
+    "grace_days": 30,
+    "offline": false
+   },
+   "lease": {
+    "status": "ok",
+    "exp": 1795184000,
+    "notice_until": 0
+   },
+   "now": 1796393601,
+   "mark": 0,
+   "expect": {
+    "state": "grace2",
+    "reason": "ended",
+    "end": 1795184000,
+    "clock_behind": false
+   }
+  },
+  {
+   "name": "row 9: grace 2 lasts grace_days",
+   "op": "verdict",
+   "licence": {
+    "kind": "subscription",
+    "nbf": 1790000000,
+    "exp": 1798640000,
+    "grace_days": 30,
+    "offline": false
+   },
+   "lease": {
+    "status": "ok",
+    "exp": 1795184000,
+    "notice_until": 0
+   },
+   "now": 1797776000,
+   "mark": 0,
+   "expect": {
+    "state": "grace2",
+    "reason": "ended",
+    "end": 1795184000,
+    "clock_behind": false
+   }
+  },
+  {
+   "name": "row 10: past grace",
+   "op": "verdict",
+   "licence": {
+    "kind": "subscription",
+    "nbf": 1790000000,
+    "exp": 1798640000,
+    "grace_days": 30,
+    "offline": false
+   },
+   "lease": {
+    "status": "ok",
+    "exp": 1795184000,
+    "notice_until": 0
+   },
+   "now": 1797776001,
+   "mark": 0,
+   "expect": {
+    "state": "restricted",
+    "reason": "grace_over",
+    "end": 1795184000,
+    "clock_behind": false
+   }
+  },
+  {
+   "name": "grace 7: grace 1 lasts 7 days",
+   "op": "verdict",
+   "licence": {
+    "kind": "subscription",
+    "nbf": 1790000000,
+    "exp": 1798640000,
+    "grace_days": 7,
+    "offline": false
+   },
+   "lease": {
+    "status": "ok",
+    "exp": 1795184000,
+    "notice_until": 0
+   },
+   "now": 1795788800,
+   "mark": 0,
+   "expect": {
+    "state": "grace1",
+    "reason": "ended",
+    "end": 1795184000,
+    "clock_behind": false
+   }
+  },
+  {
+   "name": "grace 7: nothing after 7 days",
+   "op": "verdict",
+   "licence": {
+    "kind": "subscription",
+    "nbf": 1790000000,
+    "exp": 1798640000,
+    "grace_days": 7,
+    "offline": false
+   },
+   "lease": {
+    "status": "ok",
+    "exp": 1795184000,
+    "notice_until": 0
+   },
+   "now": 1795788801,
+   "mark": 0,
+   "expect": {
+    "state": "restricted",
+    "reason": "grace_over",
+    "end": 1795184000,
+    "clock_behind": false
+   }
+  },
+  {
+   "name": "grace 0: restricted just past the tolerance",
+   "op": "verdict",
+   "licence": {
+    "kind": "subscription",
+    "nbf": 1790000000,
+    "exp": 1798640000,
+    "grace_days": 0,
+    "offline": false
+   },
+   "lease": {
+    "status": "ok",
+    "exp": 1795184000,
+    "notice_until": 0
+   },
+   "now": 1795187601,
+   "mark": 0,
+   "expect": {
+    "state": "restricted",
+    "reason": "grace_over",
+    "end": 1795184000,
+    "clock_behind": false
+   }
+  },
+  {
+   "name": "grace 0: licensed inside the tolerance",
+   "op": "verdict",
+   "licence": {
+    "kind": "subscription",
+    "nbf": 1790000000,
+    "exp": 1798640000,
+    "grace_days": 0,
+    "offline": false
+   },
+   "lease": {
+    "status": "ok",
+    "exp": 1795184000,
+    "notice_until": 0
+   },
+   "now": 1795187600,
+   "mark": 0,
+   "expect": {
+    "state": "licensed",
+    "reason": "ok",
+    "end": 1795184000,
+    "clock_behind": false
+   }
+  },
+  {
+   "name": "offline, grace 1",
+   "op": "verdict",
+   "licence": {
+    "kind": "subscription",
+    "nbf": 1790000000,
+    "exp": 1798640000,
+    "grace_days": 30,
+    "offline": true
+   },
+   "lease": null,
+   "now": 1799072000,
+   "mark": 0,
+   "expect": {
+    "state": "grace1",
+    "reason": "ended",
+    "end": 1798640000,
+    "clock_behind": false
+   }
+  },
+  {
+   "name": "offline, past grace",
+   "op": "verdict",
+   "licence": {
+    "kind": "subscription",
+    "nbf": 1790000000,
+    "exp": 1798640000,
+    "grace_days": 30,
+    "offline": true
+   },
+   "lease": null,
+   "now": 1801318400,
+   "mark": 0,
+   "expect": {
+    "state": "restricted",
+    "reason": "grace_over",
+    "end": 1798640000,
+    "clock_behind": false
+   }
+  },
+  {
+   "name": "revoked lease inside notice but past its end, grace applies",
+   "op": "verdict",
+   "licence": {
+    "kind": "subscription",
+    "nbf": 1790000000,
+    "exp": 1798640000,
+    "grace_days": 30,
+    "offline": false
+   },
+   "lease": {
+    "status": "revoked",
+    "exp": 1795184000,
+    "notice_until": 1796048000
+   },
+   "now": 1795616000,
+   "mark": 0,
+   "expect": {
+    "state": "grace1",
+    "reason": "ended",
+    "end": 1795184000,
+    "clock_behind": false
+   }
+  },
+  {
+   "name": "clock: behind the mark by more than an hour, the mark is used",
+   "op": "verdict",
+   "licence": {
+    "kind": "subscription",
+    "nbf": 1790000000,
+    "exp": 1798640000,
+    "grace_days": 30,
+    "offline": false
+   },
+   "lease": {
+    "status": "ok",
+    "exp": 1795184000,
+    "notice_until": 0
+   },
+   "now": 1790864000,
+   "mark": 1798640000,
+   "expect": {
+    "state": "restricted",
+    "reason": "grace_over",
+    "end": 1795184000,
+    "clock_behind": true
+   }
+  },
+  {
+   "name": "clock: the mark ends a not-yet-valid state",
+   "op": "verdict",
+   "licence": {
+    "kind": "subscription",
+    "nbf": 1790000000,
+    "exp": 1798640000,
+    "grace_days": 30,
+    "offline": false
+   },
+   "lease": {
+    "status": "ok",
+    "exp": 1795184000,
+    "notice_until": 0
+   },
+   "now": 1789913600,
+   "mark": 1790864000,
+   "expect": {
+    "state": "licensed",
+    "reason": "ok",
+    "end": 1795184000,
+    "clock_behind": true
+   }
+  },
+  {
+   "name": "clock: behind by exactly an hour is trusted",
+   "op": "verdict",
+   "licence": {
+    "kind": "subscription",
+    "nbf": 1790000000,
+    "exp": 1798640000,
+    "grace_days": 30,
+    "offline": false
+   },
+   "lease": {
+    "status": "ok",
+    "exp": 1795184000,
+    "notice_until": 0
+   },
+   "now": 1790864000,
+   "mark": 1790867600,
+   "expect": {
+    "state": "licensed",
+    "reason": "ok",
+    "end": 1795184000,
+    "clock_behind": false
+   }
+  },
+  {
+   "name": "clock: behind by an hour and a second is not",
+   "op": "verdict",
+   "licence": {
+    "kind": "subscription",
+    "nbf": 1790000000,
+    "exp": 1798640000,
+    "grace_days": 30,
+    "offline": false
+   },
+   "lease": {
+    "status": "ok",
+    "exp": 1795184000,
+    "notice_until": 0
+   },
+   "now": 1790864000,
+   "mark": 1790867601,
+   "expect": {
+    "state": "licensed",
+    "reason": "ok",
+    "end": 1795184000,
+    "clock_behind": true
+   }
+  },
+  {
+   "name": "clock: ahead of the mark",
+   "op": "verdict",
+   "licence": {
+    "kind": "subscription",
+    "nbf": 1790000000,
+    "exp": 1798640000,
+    "grace_days": 30,
+    "offline": false
+   },
+   "lease": {
+    "status": "ok",
+    "exp": 1795184000,
+    "notice_until": 0
+   },
+   "now": 1790864000,
+   "mark": 1790000000,
+   "expect": {
+    "state": "licensed",
+    "reason": "ok",
+    "end": 1795184000,
+    "clock_behind": false
+   }
+  },
+  {
+   "name": "clock: behind the mark, no licence",
+   "op": "verdict",
+   "licence": null,
+   "lease": null,
+   "now": 1790864000,
+   "mark": 1790950400,
+   "expect": {
+    "state": "restricted",
+    "reason": "no_licence",
+    "end": null,
+    "clock_behind": true
+   }
+  },
+  {
+   "name": "clock: a mark far ahead restricts a product that holds a fresh lease",
+   "op": "verdict",
+   "licence": {
+    "kind": "subscription",
+    "nbf": 1790000000,
+    "exp": 1798640000,
+    "grace_days": 30,
+    "offline": false
+   },
+   "lease": {
+    "status": "ok",
+    "exp": 1793456000,
+    "notice_until": 0
+   },
+   "now": 1790864000,
+   "mark": 1797776000,
+   "expect": {
+    "state": "restricted",
+    "reason": "grace_over",
+    "end": 1793456000,
+    "clock_behind": true
+   }
+  },
+  {
+   "name": "clock: the same product once the fresh lease has set the mark",
+   "op": "verdict",
+   "licence": {
+    "kind": "subscription",
+    "nbf": 1790000000,
+    "exp": 1798640000,
+    "grace_days": 30,
+    "offline": false
+   },
+   "lease": {
+    "status": "ok",
+    "exp": 1793456000,
+    "notice_until": 0
+   },
+   "now": 1790864000,
+   "mark": 1790864000,
+   "expect": {
+    "state": "licensed",
+    "reason": "ok",
+    "end": 1793456000,
+    "clock_behind": false
+   }
+  }
+ ]
+}
