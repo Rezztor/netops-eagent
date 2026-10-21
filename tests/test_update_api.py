@@ -33,7 +33,7 @@ def spool(tmp_path, monkeypatch):
     monkeypatch.setattr(login, "current_user", lambda: {"username": "alice"})
     # A release image unless a test says otherwise; the daily-check switch on, as it is by default.
     monkeypatch.setattr(license_client, "uat_trust", lambda: None)
-    monkeypatch.setattr(license_client, "lab_build", lambda: False)
+    monkeypatch.setattr(license_client, "community_build", lambda: False)
     monkeypatch.setattr(update_spool, "daily_check_enabled", lambda: True)
     monkeypatch.setattr(update_spool, "_last_asked", None)
     (tmp_path / "state").mkdir()
@@ -265,12 +265,12 @@ def test_update_all_is_one_request_and_nothing_is_handed_over_while_the_host_dow
     assert call(UpdateApply, {"action": "refresh"}) == {"ok": False, "error": "An update is being downloaded. Wait until it has finished."}
 
 
-def test_a_lab_image_never_asks_the_update_service(spool, monkeypatch):
+def test_a_community_build_never_asks_the_update_service(spool, monkeypatch):
     from helpers import license_client
 
-    monkeypatch.setattr(license_client, "lab_build", lambda: True)
+    monkeypatch.setattr(license_client, "community_build", lambda: True)
     for action in ("refresh", "update_all"):
-        assert call(UpdateApply, {"action": action})["error"] == "A lab build takes no update packages."
+        assert call(UpdateApply, {"action": action})["error"] == "A Community build takes no paid update packages."
     assert update_spool.daily_refresh() is False
     assert not list((spool / "inbox").iterdir())
 

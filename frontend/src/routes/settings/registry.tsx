@@ -292,6 +292,7 @@ export const SECTIONS: SettingsSection[] = [
     chip: (ctx) => {
       const licence = ctx.session.licence;
       if (!licence) return null;
+      if (licence.state === "community") return { tone: "ok", text: "Community" };
       const tone = LICENCE_STATE_TONE[licence.state];
       if (licence.grace_days_remaining !== null) {
         return { tone, text: `grace ${licence.grace_days_remaining}d` };
@@ -300,7 +301,7 @@ export const SECTIONS: SettingsSection[] = [
     },
     attention: (ctx) => {
       const licence = ctx.session.licence;
-      if (!licence) return null;
+      if (!licence || licence.state === "community") return null;
       if (licence.grace_days_remaining !== null) {
         const days = licence.grace_days_remaining;
         return `The licence could not be renewed: nothing new starts in ${days} ${days === 1 ? "day" : "days"}.`;

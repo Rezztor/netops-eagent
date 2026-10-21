@@ -147,8 +147,26 @@ class _Handler(BaseHTTPRequestHandler):
     do_GET = do_POST = _serve
 
 
+def _stamp_enterprise(monkeypatch, tmp_path) -> None:
+    """Point the product at an Enterprise stamp, so today's licence path is what the test exercises."""
+    from helpers import files
+
+    path = tmp_path / "build_info.json"
+    path.write_text(json.dumps({"version": "2026.10.21", "licence": "enterprise"}))
+    real = files.get_abs_path
+
+    def routed(*parts):
+        if parts == ("build_info.json",):
+            return str(path)
+        return real(*parts)
+
+    monkeypatch.setattr(files, "get_abs_path", routed)
+    license_client.enterprise_build.cache_clear()
+    license_client.uat_trust.cache_clear()
+
+
 @pytest.fixture
-def server(database, monkeypatch):
+def server(database, monkeypatch, tmp_path):
     fake = FakeServer()
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
     httpd.fake = fake  # type: ignore[attr-defined]
@@ -161,6 +179,7 @@ def server(database, monkeypatch):
     monkeypatch.setattr(license_client, "seats_used", lambda: 7)
     monkeypatch.setattr(license_client, "devices_used", lambda: 3)
     monkeypatch.setattr(license_client, "_devices_refused_at", 0)
+    _stamp_enterprise(monkeypatch, tmp_path)
     yield fake
     httpd.shutdown()
     httpd.server_close()
@@ -559,7 +578,7 @@ def _verdict(state="licensed", kind="subscription", edition="free", **licence) -
     (_verdict(state="grace2", edition="pro"), 500),
     (_verdict(edition="standard"), None),                   # editions from before the plans: no limit
     (_verdict(edition="plus"), None),
-    (_verdict(kind="lab", edition="lab"), None),            # a lab build
+    (_verdict(kind="subscription", edition="lab"), None),   # an edition that is not in the table
     (_verdict(kind="trial", edition="free"), None),         # a trial: no limit
     (_verdict(kind="trial", edition="trial"), None),
     (_verdict(edition="free", devices=250), 250),           # the signed field wins over the edition
@@ -754,20 +773,19 @@ def test_the_summary_for_every_user_carries_no_commercial_terms(active):
     assert summary == {"state": "licensed", "agent_runs_allowed": True, "grace_days_remaining": None, "reason": None}
 
 
-# --- a lab build (ADR 0082) ---------------------------------------------------------------------------------------
+# --- Community is the default; Enterprise is a stamp -------------------------------------------------------------
 
 
-@pytest.mark.parametrize("stamp, lab", [
-    (None, False),                                                          # a development checkout: no stamp
-    ({"version": "2026.10.11"}, False),                                     # a release
-    ({"version": "2026.10.11", "licence": "open"}, False),                  # open without saying so in its version
-    ({"version": "2026.10.11-lab"}, False),
-    ({"version": "2026.10.11-lab", "licence": "yes"}, False),
-    ({"version": "2026.10.11-lab", "licence": "open"}, True),
+@pytest.mark.parametrize("stamp, community", [
+    (None, True),                                                            # a source checkout: no stamp
+    ({"version": "2026.10.11"}, True),                                       # a self-built image
+    ({"version": "2026.10.11-lab", "licence": "open"}, True),                # the old lab stamp
+    ({"version": "2026.10.11", "licence": "enterprise"}, False),
+    ({"version": "2026.10.11-lab", "licence": "enterprise"}, False),         # the field is the whole test
 ])
-def test_only_the_stamp_of_a_lab_image_switches_the_licence_check_off(tmp_path, monkeypatch, stamp, lab):
-    """The owner's own test lab runs an image built with the licence check off. Nothing but the stamp the image
-    build wrote says so: no variable, no setting, and never a stamp whose version does not end in -lab."""
+def test_only_an_enterprise_stamp_is_not_community(tmp_path, monkeypatch, stamp, community):
+    """Nothing but the stamp the image build wrote says Enterprise: no variable, no setting, and the old
+    open lab stamp is Community like a checkout with no stamp at all."""
     from helpers import files
 
     path = tmp_path / "build_info.json"
@@ -776,22 +794,44 @@ def test_only_the_stamp_of_a_lab_image_switches_the_licence_check_off(tmp_path, 
     monkeypatch.setattr(files, "get_abs_path", lambda *parts: str(path))
     for name in ("BUILD_LICENCE", "REZZTOR_LICENCE", "REZZTOR_LAB"):
         monkeypatch.setenv(name, "open")
-    license_client.lab_build.cache_clear()
+    license_client.enterprise_build.cache_clear()
+    license_client.uat_trust.cache_clear()
     try:
-        assert license_client.lab_build() is lab
-        if lab:
-            state = REAL_STATE(1_800_000_000)   # no database in this test: a lab build reads none
-            assert (state["state"], state["reason"], state["now"]) == ("licensed", "lab_build", 1_800_000_000)
-            assert state["licence"]["customer"] == "Lab build, not for a customer" and state["licence"]["kind"] == "lab"
-            assert "never handed to a customer" in state["message"]
+        assert license_client.community_build() is community
+        assert license_client.enterprise_build() is not community
+        if community:
+            state = REAL_STATE(1_800_000_000)   # no database in this test: a Community build reads none
+            assert (state["state"], state["reason"], state["now"]) == ("community", "community", 1_800_000_000)
+            assert state["licence"] is None and state["message"] == "Community build: free, no limits."
             monkeypatch.setattr(license_client, "state", REAL_STATE)
             assert license_entitlements.agent_runs_allowed() and license_entitlements.restricted_refusal() is None
             assert license_entitlements.feature_enabled("network_automation")
+            assert license_entitlements.feature_enabled("not-a-named-feature")
+            assert license_entitlements.devices_allowed() is None and license_entitlements.seats_allowed() is None
+            assert license_entitlements.devices_warning(10_000, license_entitlements.devices_allowed()) is None
+            summary = license_entitlements.licence_summary()
+            assert summary == {"state": "community", "agent_runs_allowed": True, "grace_days_remaining": None,
+                               "reason": None}
+            called = []
+            monkeypatch.setattr(license_client, "_call", lambda *args, **kwargs: called.append(args))
+            license_client.tick(1_800_000_000)
+            with pytest.raises(license_client.LicenceError, match="Community build"):
+                license_client.activate("REZ-AAAAA-BBBBB-CCCCC-DDDDD-EEEEN", now=1_800_000_000)
+            assert called == [], "a Community build never calls the licence server"
     finally:
-        license_client.lab_build.cache_clear()
+        license_client.enterprise_build.cache_clear()
+        license_client.uat_trust.cache_clear()
 
 
-def test_the_build_writes_the_lab_line_only_for_a_version_that_says_lab(tmp_path):
+def test_an_enterprise_stamp_with_no_licence_is_restricted(server):
+    """The same installation, stamped Enterprise, is restricted until a licence is stored. `server` writes that stamp."""
+    assert license_client.enterprise_build() is True
+    assert license_client.community_build() is False
+    assert at(T0)["state"] == "restricted" and at(T0)["reason"] == "no_licence"
+    assert license_entitlements.restricted_refusal()
+
+
+def test_the_build_writes_the_enterprise_line_for_a_release_and_refuses_open(tmp_path):
     import subprocess
     from pathlib import Path
 
@@ -804,17 +844,16 @@ def test_the_build_writes_the_lab_line_only_for_a_version_that_says_lab(tmp_path
                               capture_output=True, text=True)
         return done.returncode, json.loads(target.read_text()) if target.exists() else None
 
-    assert stamp(BUILD_VERSION="2026.10.11") == (0, stamp(BUILD_VERSION="2026.10.11")[1])
-    assert "licence" not in stamp(BUILD_VERSION="2026.10.11")[1]
-    assert "licence" not in stamp(BUILD_VERSION="2026.10.11-lab")[1], "the version alone opens nothing"
-    assert stamp(BUILD_VERSION="2026.10.11-lab", BUILD_LICENCE="open")[1]["licence"] == "open"
-    assert stamp(BUILD_VERSION="2026.10.11", BUILD_LICENCE="open") == (1, None), "a release cannot be built open"
-    assert stamp(BUILD_VERSION="2026.10.11-lab", BUILD_LICENCE="1") == (1, None)
-    # And what carries it onward: the ISO build names such an ISO LAB or writes nothing, and no update package is
-    # ever made from such an image.
+    assert "licence" not in stamp(BUILD_VERSION="2026.10.11")[1], "unset is Community: no licence line"
+    assert stamp(BUILD_VERSION="2026.10.21", BUILD_LICENCE="enterprise")[1]["licence"] == "enterprise"
+    assert stamp(BUILD_VERSION="2026.10.11-lab", BUILD_LICENCE="open") == (1, None), "open is no longer a build"
+    assert stamp(BUILD_VERSION="2026.10.11-lab", BUILD_LICENCE="enterprise") == (1, None)
+    assert stamp(BUILD_VERSION="2026.10.11-uat", BUILD_LICENCE="enterprise") == (1, None)
+    # And what carries it onward: a release build passes enterprise, and a Community image is never packaged.
     root = Path(__file__).resolve().parents[1]
-    assert 'is a $is_lab image and this is a $KIND build. Nothing was written.' in (root / "scripts" / "build_iso.sh").read_text()
-    assert "A lab build is never packaged (ADR 0082)" in (root / "scripts" / "sign_release.py").read_text()
+    assert "BUILD_LICENCE=enterprise" in (root / "scripts" / "build_release.sh").read_text()
+    assert "is a $is_lab image and this is a $KIND build. Nothing was written." in (root / "scripts" / "build_iso.sh").read_text()
+    assert "A Community image is never packaged" in (root / "scripts" / "sign_release.py").read_text()
     assert "ENV BUILD_LICENCE" not in (root / "Dockerfile").read_text() and "BUILD_LICENCE" not in (
         root / "deploy" / "customer" / "docker-compose.yml").read_text()
 
@@ -841,11 +880,13 @@ def build(tmp_path, monkeypatch):
             if content is not None:
                 (tmp_path / name).write_text(content if isinstance(content, str) else json.dumps(content))
         license_client.uat_trust.cache_clear()
-        license_client.lab_build.cache_clear()
+        license_client.enterprise_build.cache_clear()
+        monkeypatch.setattr(files, "get_abs_path",
+                            lambda *parts: str(tmp_path / parts[0]) if len(parts) == 1 and parts[0] in names else real(*parts))
 
     yield make
     license_client.uat_trust.cache_clear()
-    license_client.lab_build.cache_clear()
+    license_client.enterprise_build.cache_clear()
 
 
 def _dummy_trust(server: str = "https://license.uat.rezztor.test", ca_pem: str = "-----BEGIN CERTIFICATE-----x") -> dict:
@@ -1008,8 +1049,8 @@ def test_a_uat_image_trusts_its_baked_ca_and_no_other(tls_server, build, monkeyp
     build(UAT, {"root_keys": tls_server.roots, "server": tls_server.url, "ca_pem": _pem(_ca("Another CA")[0])})
     with pytest.raises(license_client.LicenceError, match="could not be reached"):
         license_client.activate(tls_server.key, now=T0)
-    # And an ordinary build, which checks TLS with the system's CAs, does not know the UAT CA either.
-    build(None, None)
+    # And an Enterprise image, which checks TLS with the system's CAs, does not know the UAT CA either.
+    build({"version": "2026.10.18", "licence": "enterprise"}, None)
     monkeypatch.setenv(license_client.ENV_SERVER, tls_server.url)
     monkeypatch.setattr(license_client, "ROOT_KEYS", tls_server.roots)
     with pytest.raises(license_client.LicenceError, match="could not be reached"):

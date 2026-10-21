@@ -9,7 +9,7 @@
 
 - `ROOT_KEYS` — the whole list of root public keys this build trusts, `{"root-2026a": ...}`. A constant. No setting, environment variable or file adds or replaces a key. A UAT image replaces it whole with its baked roots (`uat_trust()`, ADR 0085).
 - `DEFAULT_SERVER` (`https://license.rezztor.com`) and `ENV_SERVER` (`REZZTOR_LICENCE_SERVER_URL`, development and tests only).
-- `state(now=None) -> dict` — the verdict (`licensed`, `grace1`, `grace2`, `restricted`), its `reason` code and plain `message`, the verified licence and lease payloads, the time used, when the installation becomes restricted, and how the last call went. Holds no secret.
+- `state(now=None) -> dict` — the verdict (`community`, `licensed`, `grace1`, `grace2`, `restricted`), its `reason` code and plain `message`, the verified licence and lease payloads, the time used, when the installation becomes restricted, and how the last call went. Holds no secret. A Community build answers without reading the database.
 - `activate(key_text)`, `checkin()`, `deactivate()`, `load_licence_file(text)`, `request_code(deployment_name)` — the administrator's actions. Each raises `LicenceError(reason)` when it does not complete.
 - `tick(now=None)` — the background half, called once a minute by `extensions/python/job_loop/_30_license_heartbeat.py`.
 - `installation_id()`, `product_version()`, `seats_used()`, `server_url()`.
@@ -26,6 +26,7 @@
 - **Replacement** follows the reference client: a licence in an answer must be a replacement of the one held (same id, same or higher version, same class of signer) unless it arrives with an activation; an offline file for the id held must be a replacement too.
 - **Deactivation** acts on the one unsigned answer, `{"ok": true}`, and only against itself: the lease and the token are discarded and the installation is then restricted (no lease).
 - **An offline licence** (`load_licence_file`) must be an offline licence bound to this installation id. Loading one discards the lease, the token and any pending request. An offline installation makes no call: `tick` finds nothing to check in with.
+- **Community.** `community_build()` is true unless `enterprise_build()` is (the stamp says `"licence": "enterprise"`) or `uat_trust()` is not None. `state()` then answers `community` and reads no database. `tick`, `activate`, `checkin`, `deactivate`, `load_licence_file` and `request_code` return or raise before any call and before any write. No setting, environment variable, row or request switches it.
 - **The clock.** `tick` raises the mark to the clock when the clock has passed it by ten minutes; an accepted lease sets the mark to the lease's `now`. `state()` passes the mark to `rezlic.verdict`, which uses it as the time when the clock reads more than an hour behind it and reports `clock_behind`.
 - **The schedule.** After a success the next call is due a day later; after failures the waits are 1, 5, 30 minutes, then hourly (`RETRY_WAITS`). A clock set back before the last attempt does not hold a call back. A check-in sends the number of enabled accounts as `seats` and `devices_used()` as `devices`.
 - **A server that does not know `devices`** (ADR 0093). A licence server from before it answers a check-in with an extra field with 400 (422 is treated the same). Then, in the same attempt, the check-in is sent once more without `devices`, under a new nonce, and is the pending request from then on; `devices` is left out of new check-ins for `DEVICES_RETRY` (seven days) after the refusal (`_devices_refused_at`, in this process only). Any other failure repeats the body unchanged.
@@ -49,13 +50,19 @@
 
 No child DOX files.
 
-## Lab build (ADR 0082)
+## Community and Enterprise
 
-`lab_build()` is true only in an image whose build stamp (`build_info.json`) has `"licence": "open"` and a version
-that ends in `-lab`. `state()` then answers "licensed" with a made-up licence that names no customer, and reads no
-database. Nothing at run time switches it on: no variable, setting, row or request. `scripts/build_iso.sh` names
-such an ISO LAB and `scripts/sign_release.py` never packages such an image. Verified by the two lab tests in
-`tests/test_licence_client.py`.
+`enterprise_build()` (cached) is true only when `build_info.json` has `"licence": "enterprise"`. A release build passes
+`BUILD_LICENCE=enterprise`. A source checkout has no stamp. A self-built image and the old open lab stamp
+(`"licence": "open"`) do not say enterprise.
+
+`community_build()` is true unless that stamp is enterprise or the image is UAT (`uat_trust()` is not None, including a
+broken UAT image that trusts nothing). `state()` then answers `community` with no licence document and reads no
+database. `tick` does nothing. The administrator's actions raise `LicenceError` before any call. Verified by the
+Community section of `tests/test_licence_client.py`.
+
+Enterprise is today's verdict: licence, lease, grace, restricted, device counts. The licence tests set an enterprise
+stamp so that path stays what it was.
 
 ## UAT build (ADR 0085)
 

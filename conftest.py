@@ -104,9 +104,9 @@ LICENSED_FOR_TESTS = {
 def licensed_installation(monkeypatch):
     """Every test runs on a licensed installation unless it puts the real verdict back.
 
-    An installation with no licence is Restricted and starts no agent run, and the real verdict reads the
-    database. Without this, every test that starts a run would need a database and a licence it is not about.
-    The licence tests (tests/test_licence_client.py) restore the real function and prove the rest.
+    The real verdict of a source checkout is Community and starts runs with no licence stored. This stub keeps a
+    test that starts a run from depending on the build stamp or the database. The licence tests restore the real
+    function and prove the rest.
     """
     from helpers import license_client
 
@@ -134,10 +134,10 @@ def no_dev_licence_stamp(monkeypatch):
                         lambda *parts: (path + ".hidden-from-tests")
                         if os.path.realpath(path := real(*parts)) in stamped else path)
     license_client.uat_trust.cache_clear()
-    license_client.lab_build.cache_clear()
+    license_client.enterprise_build.cache_clear()
     yield
     license_client.uat_trust.cache_clear()
-    license_client.lab_build.cache_clear()
+    license_client.enterprise_build.cache_clear()
 
 
 @pytest.hookimpl(hookwrapper=True)

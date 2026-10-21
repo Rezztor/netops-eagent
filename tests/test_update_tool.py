@@ -374,14 +374,16 @@ def test_a_manifest_takes_no_suffix_but_uat(version):
 
 
 @pytest.mark.parametrize("stamp, version, packaged", [
-    ({"version": "2026.10.12"}, "2026.10.12", True),
+    ({"version": "2026.10.12", "licence": "enterprise"}, "2026.10.12", True),
     ({"version": "2026.10.12-uat", "licence": "uat"}, "2026.10.12-uat", True),
-    ({"version": "2026.10.12", "licence": "uat"}, "2026.10.12", False),       # a UAT image as a release
-    ({"version": "2026.10.12-uat"}, "2026.10.12-uat", False),                 # a release image as UAT
+    ({"version": "2026.10.12"}, "2026.10.12", False),                        # a Community image is not a release package
+    ({"version": "2026.10.12", "licence": "uat"}, "2026.10.12", False),     # a UAT image as a release
+    ({"version": "2026.10.12-uat"}, "2026.10.12-uat", False),               # a release image as UAT
     ({"version": "2026.10.12-lab", "licence": "open"}, "2026.10.12-lab", False),
     ({"version": "2026.10.12-uat", "licence": "open"}, "2026.10.12-uat", False),
+    ({"version": "2026.10.12-uat", "licence": "enterprise"}, "2026.10.12-uat", False),
 ])
-def test_the_builder_packages_a_uat_image_only_as_a_uat_version_and_a_lab_image_never(stamp, version, packaged):
+def test_the_builder_packages_an_enterprise_image_as_a_release_and_a_uat_image_only_as_uat(stamp, version, packaged):
     if packaged:
         builder.refuse_stamp(stamp, version)
     else:

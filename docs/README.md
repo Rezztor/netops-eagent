@@ -32,7 +32,7 @@ not work.
 
 ## Licensing
 
-- **[Activate your licence](guides/licence-activation.md)** — online, offline, the states, and moving to another server.
+- **[Activate your licence](guides/licence-activation.md)** — Community needs none; Enterprise, online or offline.
 - **[Update the appliance](guides/update-the-appliance.md)** — a fix from Rezztor as one signed file: in the browser, on the console, and what happens when it does not start.
 - **[What licensing sends, and to whom](guides/licensing-data-we-send.md)** — the exhaustive data-minimisation answer for a customer security review.
 

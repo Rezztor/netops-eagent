@@ -414,7 +414,8 @@ function Shell() {
  * Grace 1 is shown to administrators only: everything works and they are the
  * ones who can act. Grace 2 and Restricted are shown to everybody, with what
  * still works, so nobody is left guessing why a run did not start. A licensed
- * installation is quiet unless its licence was revoked with notice.
+ * installation is quiet unless its licence was revoked with notice. A Community
+ * build is quiet: there is nothing to activate.
  *
  * The data comes from the session's bootstrap payload, so the banner needs no
  * extra request and loads in the restricted state too.
@@ -423,7 +424,7 @@ function LicenceBanner() {
   const session = useSession();
   const licence = session.licence;
   const administrator = session.permissions.includes(PERMISSIONS.settingsManage);
-  if (!licence) return null;
+  if (!licence || licence.state === "community") return null;
 
   if (licence.state === "restricted") {
     return (

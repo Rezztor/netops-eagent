@@ -309,7 +309,7 @@ def test_a_release_is_built_from_a_tag_and_never_from_a_working_folder(tmp_path)
     here = _script("build_iso.sh", REZZTOR_ISO_RELEASE="1", REZZTOR_ISO_VERSION="0.0.0.none", REZZTOR_ISO_WORK=str(work))
     assert here.returncode == 1 and "clean checkout of the tag v0.0.0.none" in here.stderr, here.stderr
     lab = _script("build_iso.sh", REZZTOR_ISO_RELEASE="1", REZZTOR_ISO_LAB="1", REZZTOR_ISO_WORK=str(work))
-    assert lab.returncode == 1 and "a release is not a LAB build" in lab.stderr, lab.stderr
+    assert lab.returncode == 1 and "a lab ISO is no longer built" in lab.stderr, lab.stderr
     assert not work.exists(), "a refused build wrote something"
     for not_a_tag in ("", "v", "main", "2026.10.13", "v2026.10.13;id", "v1.2.3", "v2026.10.13-lab"):
         assert _script("build_release.sh", not_a_tag, REZZTOR_ISO_WORK=str(work)).returncode == 1, not_a_tag
@@ -317,7 +317,8 @@ def test_a_release_is_built_from_a_tag_and_never_from_a_working_folder(tmp_path)
 
     release = read(ROOT / "scripts" / "build_release.sh")
     assert 'clone --quiet --depth 1 --branch "$TAG" "$REMOTE" "$SRC"' in release
-    assert "unset BUILD_LICENCE REZZTOR_ISO_LAB REZZTOR_ISO_STANDIN" in release
+    assert "unset REZZTOR_ISO_LAB REZZTOR_ISO_STANDIN" in release
+    assert "BUILD_LICENCE=enterprise" in release
     iso = read(ROOT / "scripts" / "build_iso.sh")
     # The image must be the one built from the tag, and an open console is asked for, never fallen into.
     assert "was not built from the tag" in iso
@@ -365,14 +366,15 @@ def test_a_uat_build_never_becomes_a_release(tmp_path):
     into a release, whatever the shell has set, and an image with the UAT trust file goes into a UAT ISO only."""
     work = tmp_path / "work"
     for env, said in (({"REZZTOR_ISO_RELEASE": "1", "REZZTOR_ISO_UAT": "1"}, "a release is not a UAT build"),
-                      ({"REZZTOR_ISO_LAB": "1", "REZZTOR_ISO_UAT": "1"}, "a UAT build is not a LAB build"),
+                      ({"REZZTOR_ISO_LAB": "1", "REZZTOR_ISO_UAT": "1"}, "a lab ISO is no longer built"),
                       ({"REZZTOR_ISO_RELEASE": "1", "REZZTOR_ISO_RELEASE_KEYS": str(tmp_path)}, "not REZZTOR_ISO_RELEASE_KEYS")):
         done = _script("build_iso.sh", REZZTOR_ISO_WORK=str(work), **env)
         assert done.returncode == 1 and said in done.stderr, done.stderr
     assert not work.exists(), "a refused build wrote something"
     assert _script("build_release.sh", "v2026.10.18-uat", REZZTOR_ISO_WORK=str(work)).returncode == 1
     release = read(ROOT / "scripts" / "build_release.sh")
-    assert "unset BUILD_LICENCE REZZTOR_ISO_LAB REZZTOR_ISO_STANDIN REZZTOR_UAT_TRUST REZZTOR_ISO_UAT REZZTOR_ISO_RELEASE_KEYS" in release
+    assert "unset REZZTOR_ISO_LAB REZZTOR_ISO_STANDIN REZZTOR_UAT_TRUST REZZTOR_ISO_UAT REZZTOR_ISO_RELEASE_KEYS" in release
+    assert "BUILD_LICENCE=enterprise" in release
     iso = read(ROOT / "scripts" / "build_iso.sh")
     assert "*UAT_TRUST_FILE | *'\"licence\": \"uat\"'*) is_lab=\"half-UAT\"" in iso
     assert 'VERSION="${VERSION%-uat}-uat"' in iso

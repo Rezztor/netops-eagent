@@ -13,7 +13,7 @@
 ## Runtime Contracts
 
 - Administrator-only: `required_permission()` returns `rbac.PERM_SETTINGS_MANAGE`, and the endpoint is listed in `helpers/api_policy.py` under licence administration.
-- **The one place a licence-server call is made from an HTTP request.** It is an administrator's button; a user's request (a chat send, a page load) never waits for the licence server. The call runs with `asyncio.to_thread`.
+- **The one place a licence-server call is made from an HTTP request**, and only on an Enterprise or UAT image. A Community build raises before any call. It is an administrator's button; a user's request (a chat send, a page load) never waits for the licence server. The call runs with `asyncio.to_thread`.
 - The activation key is checked locally (length, alphabet, check character) before any call, and a mistyped key makes none.
 - `request_code` makes no network call and stores nothing. `install` verifies the file for this installation before anything is stored.
 - A failure returns HTTP 200 with `{"ok": false, "error": <one plain sentence>, "licence": <status>}`; a success `{"ok": true, "licence": <status>}`. `licence` is the payload of `helpers.license_entitlements.licence_status()`, the same shape `license_status` returns.

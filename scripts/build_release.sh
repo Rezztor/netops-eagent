@@ -137,10 +137,10 @@ if [[ "$MODE" != package ]]; then
     fi
 fi
 
-# A release is never a lab build, a UAT build or a stand-in, and carries the release keys of its tag,
-# whatever this shell has set (ADR 0082, 0085).
-unset BUILD_LICENCE REZZTOR_ISO_LAB REZZTOR_ISO_STANDIN REZZTOR_UAT_TRUST REZZTOR_ISO_UAT REZZTOR_ISO_RELEASE_KEYS
-REZZTOR_IMAGE_TAG="$VERSION" BUILD_VERSION="$VERSION" scripts/build_local.sh base app runner ansible cloud
+# A release is an Enterprise image, never a UAT build or a stand-in, and carries the release keys of its tag,
+# whatever this shell has set. Community is everything that was not built this way.
+unset REZZTOR_ISO_LAB REZZTOR_ISO_STANDIN REZZTOR_UAT_TRUST REZZTOR_ISO_UAT REZZTOR_ISO_RELEASE_KEYS
+BUILD_LICENCE=enterprise REZZTOR_IMAGE_TAG="$VERSION" BUILD_VERSION="$VERSION" scripts/build_local.sh base app runner ansible cloud
 if [[ "$MODE" != package ]]; then
     REZZTOR_ISO_RELEASE=1 REZZTOR_ISO_VERSION="$VERSION" REZZTOR_ISO_WORK="$WORK" scripts/build_iso.sh --refresh-payload
 fi

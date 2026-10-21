@@ -1,6 +1,12 @@
 # Activate your licence
 
-For administrators. You need the activation key Rezztor sent you: `REZ-` followed by five groups of five
+A Community build — a source checkout, an image you built yourself, or the old open lab image — needs no
+licence. Settings, Licence says **Community build: free, no limits.** Nothing is sent to a licence server.
+Rezztor Enterprise (signed images, the update channel and support) is at <https://rezztor.com>.
+
+The rest of this page is for a Rezztor Enterprise image, whose build stamp says it is one.
+
+For administrators of an Enterprise image. You need the activation key Rezztor sent you: `REZ-` followed by five groups of five
 characters, for example `REZ-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX`.
 
 ## Online
@@ -42,7 +48,7 @@ installation never calls the licence server.
 | Grace, final period | Everything works. Every user sees a warning. It lasts up to the licence's grace days (30 by default). |
 | Restricted | Sign-in, reading, export, settings and the licence page work. New agent runs, new device or cloud changes and scheduled tasks do not start. Nothing is deleted. |
 
-An installation with no licence is Restricted. If the server cannot be reached, the product keeps working on
+An Enterprise image with no licence is Restricted. If the server cannot be reached, the product keeps working on
 the lease it holds and then through the grace period: with the defaults, about 60 days from the last
 successful check-in.
 

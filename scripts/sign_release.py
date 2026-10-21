@@ -567,15 +567,18 @@ def min_from_of(base: str, version: str, min_from: str | None, first: bool) -> s
 def refuse_stamp(stamp: dict, version: str) -> None:
     """Exit unless an image with this build stamp may be packaged as `version`.
 
-    A lab image (licence check off) never is (ADR 0082). A UAT image is only as a -uat version, which only a UAT
-    machine takes (ADR 0085), and a -uat version only from a UAT image."""
+    A release package is an Enterprise image (`licence`: enterprise). A UAT image is only as a -uat version,
+    which only a UAT machine takes (ADR 0085), and a -uat version only from a UAT image. A Community image
+    (no such line, or the old open lab stamp) is never packaged.
+    """
     licence = stamp.get("licence")
-    if licence is None and not version.endswith("-uat"):
+    if licence == "enterprise" and not version.endswith("-uat"):
         return
     if licence == "uat" and version.endswith("-uat"):
         return
-    sys.exit(f"rezztor/eagent:{version} is a lab build, or a UAT build and version that disagree (ADR 0085). "
-             "A lab build is never packaged (ADR 0082); a UAT build is packaged only as a version that ends in -uat.")
+    sys.exit(f"rezztor/eagent:{version} is not an Enterprise image, or a UAT build and version that disagree (ADR 0085). "
+             "A release package is an Enterprise image. A Community image is never packaged. "
+             "A UAT image is packaged only as a version that ends in -uat.")
 
 
 def build_package(args: argparse.Namespace, private_pem: bytes, passphrase: bytes | None) -> Path:

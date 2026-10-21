@@ -18,10 +18,8 @@ BUILD_VERSION="${BUILD_VERSION:-unknown}"
 BUILD_COMMIT="${BUILD_COMMIT:-}"
 BUILD_TIME="${BUILD_TIME:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
 
-# A lab build has the licence check off, for the owner's own test lab (ADR 0082).
-# It says so in its version, so that it cannot pass for a release: the image
-# tag, the bundle, the ISO's name and every screen that shows the version carry it.
-#
+# A release image is Enterprise: the stamp says so, and the licence check stays on.
+# A source checkout and a self-built image write no such line and are Community.
 # A UAT build trusts the dummy licence root, server and CA certificate it is
 # given in BUILD_UAT_TRUST, and no other (ADR 0085). It says so in its version
 # the same way, with -uat, and the trust is written beside the stamp.
@@ -39,12 +37,15 @@ if [[ "${BUILD_LICENCE:-}" == uat ]]; then
     fi
     printf '%s\n' "$BUILD_UAT_TRUST" > "$TRUST_FILE"
     LICENCE_LINE='"licence": "uat",'
-elif [[ -n "${BUILD_LICENCE:-}" ]]; then
-    if [[ "$BUILD_LICENCE" != open || "$BUILD_VERSION" != *-lab ]]; then
-        echo "error: BUILD_LICENCE can only be 'open', and only with a BUILD_VERSION that ends in -lab (or uat, ADR 0085)" >&2
+elif [[ "${BUILD_LICENCE:-}" == enterprise ]]; then
+    if [[ "$BUILD_VERSION" == *-lab || "$BUILD_VERSION" == *-uat ]]; then
+        echo "error: BUILD_LICENCE=enterprise is a release build; the version must not end in -lab or -uat" >&2
         exit 1
     fi
-    LICENCE_LINE='"licence": "open",'
+    LICENCE_LINE='"licence": "enterprise",'
+elif [[ -n "${BUILD_LICENCE:-}" ]]; then
+    echo "error: BUILD_LICENCE is 'enterprise' or 'uat', or unset for a Community image" >&2
+    exit 1
 fi
 
 cat > "$TARGET" <<EOF
@@ -60,7 +61,7 @@ cat > "$TARGET" <<EOF
 EOF
 
 case "${BUILD_LICENCE:-}" in
-    open) NOTE=" LAB BUILD, licence check off" ;;
+    enterprise) NOTE=" ENTERPRISE BUILD, licence check on" ;;
     uat) NOTE=" UAT BUILD, trusts the dummy licence root in $TRUST_FILE only" ;;
     *) NOTE="" ;;
 esac

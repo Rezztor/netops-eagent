@@ -20,6 +20,7 @@
 - Preserve exposed ports for SSH, HTTP, and tunneled services unless docs and workflows are updated together.
 - Keep the two-runtime Python model aligned with the root contract.
 - Do not bake secrets, local `.env` values, or user data into the image.
+- The image stamp is written by `fs/ins/write_build_info.sh`. `BUILD_LICENCE=enterprise` writes `"licence": "enterprise"` (a release). `BUILD_LICENCE=uat` with a `-uat` version and `BUILD_UAT_TRUST` writes the UAT stamp and `licence_trust.json`. Unset is a Community image: no licence line. `open` is refused.
 - Runtime startup must ensure `/eagent/usr/uploads` exists before the application starts.
 - Runtime startup raises the soft open-file limit toward `REZZTOR_NOFILE_LIMIT` (default `65535`) before the application starts, bounded by the container hard limit.
 - **The application never serves as root** (ADR 0022, amended 2026-10-16). Started as root, `fs/exe/initialize.sh` only chowns the `usr` volume and the update inbox to uid 1000 and re-executes itself through `setpriv`; supervisord is not started. It listens on 8080 (`WEB_UI_PORT`). Anything added to that root branch must work with the four capabilities the compose files grant (`CHOWN`, `DAC_READ_SEARCH`, `SETUID`, `SETGID`) and no `DAC_OVERRIDE`.

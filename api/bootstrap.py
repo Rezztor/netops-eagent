@@ -81,7 +81,7 @@ class BootstrapLicence(BaseModel):
     restricted state, which is exactly when the banner matters.
     """
 
-    state: str = Field(description="One of: licensed, grace1, grace2, restricted.")
+    state: str = Field(description="One of: community, licensed, grace1, grace2, restricted.")
     agent_runs_allowed: bool = Field(description="False when state is 'restricted'.")
     grace_days_remaining: int | None = Field(
         default=None,

@@ -20,6 +20,8 @@ It is the open-source core of Rezztor EAgent, made by Rezztor Technologies. Ever
 
 Enterprise support: <https://rezztor.com>.
 
+A source checkout and an image you build yourself are the Community build: no licence server is contacted, and there is no device or user limit. A release image from Rezztor is Enterprise and uses the licence.
+
 ---
 
 ## Running it locally

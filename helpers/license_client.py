@@ -230,17 +230,37 @@ _MESSAGES = {
 
 
 @functools.lru_cache(maxsize=1)
-def lab_build() -> bool:
-    """True in an image built with the licence check off, for the owner's own test lab (ADR 0082).
+def enterprise_build() -> bool:
+    """True only when this image was built as Enterprise: the stamp says ``"licence": "enterprise"``.
 
-    Read once from the stamp the image build writes (`BUILD_LICENCE=open`, and a version that ends in -lab so
-    that every screen showing the version says what it is). No setting, environment variable, database row or
-    request switches it on: a development checkout has no stamp, and a release image's stamp has no such line.
+    Read once from the stamp the image build writes (`BUILD_LICENCE=enterprise`, which a release build passes
+    and a self-built image does not). No setting, environment variable, database row or request switches it on.
+    A source checkout has no stamp. The old open lab stamp is not Enterprise.
     """
     try:
-        return _stamp_says("open", "-lab")
+        return _stamp_licence() == "enterprise"
     except (OSError, ValueError, AttributeError):
         return False
+
+
+def community_build() -> bool:
+    """True unless this image was built as Enterprise or UAT.
+
+    A source checkout, a self-built image and the old open lab stamp are Community: every feature, no licence
+    server. A UAT image is not Community. A broken UAT image (the trust file present, the stamp unreadable)
+    is not either: it stays on the licence path and trusts nothing, rather than becoming a free build.
+    """
+    return not enterprise_build() and uat_trust() is None
+
+
+def _stamp_licence() -> str:
+    from helpers import files
+
+    with open(files.get_abs_path("build_info.json"), encoding="utf-8") as handle:
+        stamp = json.load(handle)
+    if not isinstance(stamp, dict):
+        raise ValueError("stamp is not an object")
+    return str(stamp.get("licence") or "")
 
 
 def _stamp_says(licence: str, suffix: str) -> bool:
@@ -248,6 +268,8 @@ def _stamp_says(licence: str, suffix: str) -> bool:
 
     with open(files.get_abs_path("build_info.json"), encoding="utf-8") as handle:
         stamp = json.load(handle)
+    if not isinstance(stamp, dict):
+        raise AttributeError("stamp is not an object")
     return stamp.get("licence") == licence and str(stamp.get("version", "")).endswith(suffix)
 
 
@@ -291,30 +313,25 @@ def _roots() -> dict[str, str]:
     return uat["root_keys"] if uat else ROOT_KEYS
 
 
-#: What a lab build answers instead of a verdict. It names no customer and no licence anybody issued.
-_LAB_STATE: dict[str, Any] = {
-    "state": "licensed", "reason": "lab_build", "problem": "", "clock_behind": False,
-    "message": "Lab build: the licence check is off. This build is for testing and is never handed to a customer.",
+#: What a Community build answers instead of a verdict. It names no customer and no licence anybody issued.
+_COMMUNITY_STATE: dict[str, Any] = {
+    "state": "community", "reason": "community", "problem": "", "clock_behind": False,
+    "message": "Community build: free, no limits.",
     "end": None, "restricted_at": None, "days_left": None, "lease": None, "has_token": False, "pending": None,
-    "last_attempt_at": 0, "last_success_at": 0, "last_result": "", "next_attempt_at": 0,
-    "licence": {
-        "lic": "LAB-BUILD", "ver": 1, "customer": "Lab build, not for a customer", "kind": "lab", "edition": "lab",
-        "features": ["network_automation", "azure", "azure_change", "solarwinds", "siem_forward", "mail",
-                     "auto_skills", "attachments"],
-        "seats": 1000, "instances": 1, "offline": True, "exp": 4102444800, "grace_days": 0,
-    },
+    "last_attempt_at": 0, "last_success_at": 0, "last_result": "", "next_attempt_at": 0, "licence": None,
 }
 
 
 def state(now: int | None = None) -> dict[str, Any]:
     """The verdict of "What the product concludes", from the stored documents, verified again now.
 
-    `state` is licensed, grace1, grace2 or restricted. Holds no secret: neither the token nor a pending body.
-    A lab build answers "licensed" without reading anything (ADR 0082).
+    `state` is community, licensed, grace1, grace2 or restricted. Holds no secret: neither the token nor a
+    pending body. A Community build answers "community" without reading anything. Enterprise and UAT read the
+    stored documents, as before.
     """
     clock = int(time.time() if now is None else now)
-    if lab_build():
-        return {**_LAB_STATE, "now": clock, "licence": dict(_LAB_STATE["licence"])}
+    if community_build():
+        return {**_COMMUNITY_STATE, "now": clock}
     held = _held(_load())
     row, licence, lease = held.row, held.licence, held.lease
     v = verdict(licence, lease, clock, row["mark"])
@@ -507,8 +524,15 @@ _KEY_PROBLEMS = {
 }
 
 
+def _not_on_community() -> None:
+    """A Community build never calls the licence server, and stores nothing of a licence exchange."""
+    if community_build():
+        raise LicenceError("This is a Community build. It does not use a licence server.", final=True)
+
+
 def activate(key_text: str, now: int | None = None) -> None:
     """Exchange an activation key for a licence, a first lease and the installation token."""
+    _not_on_community()
     try:
         key = keys.normalise(key_text)  # refused here, before any network call
     except keys.ActivationKeyError as exc:
@@ -552,6 +576,7 @@ def _new_checkin(row: dict[str, Any], now: int) -> bool:
 
 def checkin(now: int | None = None) -> None:
     """Ask for a new lease now, or repeat the request that is still waiting for its answer."""
+    _not_on_community()
     clock = int(time.time() if now is None else now)
     with _lock:
         row = _load()
@@ -562,6 +587,7 @@ def checkin(now: int | None = None) -> None:
 
 def deactivate(now: int | None = None) -> None:
     """Free this installation's slot. On the server's yes the lease and the token are discarded."""
+    _not_on_community()
     with _lock:
         row = _load()
         held = _held(row)
@@ -584,6 +610,7 @@ _FILE_PROBLEMS = {
 
 def load_licence_file(text: Any) -> None:
     """Install an offline licence: verified for this installation before anything is stored."""
+    _not_on_community()
     with _lock:
         row = _load()
         held = _held(row)
@@ -607,6 +634,7 @@ def load_licence_file(text: Any) -> None:
 
 def request_code(deployment_name: str) -> str:
     """The offline request code: names this installation to the vendor. No network call, nothing stored."""
+    _not_on_community()
     return build_request_code(instance_id=installation_id(), deployment_name=deployment_name,
                               product_version=product_version())
 
@@ -631,7 +659,12 @@ def _refresh_keys(held: Held) -> None:
 
 def tick(now: int | None = None) -> None:
     """The background half, called every minute by the job loop: keep the mark, repeat a pending request and
-    make the daily check-in, with the protocol's waits after a failure. Never raises for a failed call."""
+    make the daily check-in, with the protocol's waits after a failure. Never raises for a failed call.
+
+    A Community build does nothing: no row is read and the licence server is not called.
+    """
+    if community_build():
+        return
     clock = int(time.time() if now is None else now)
     with _lock:
         row = _load()

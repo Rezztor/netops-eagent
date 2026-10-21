@@ -1,7 +1,8 @@
 """The background half of the licence: once a minute, let the licence client do what is due.
 
 `helpers.license_client.tick` keeps the clock mark, repeats a request that has had no verified answer, and
-makes the daily check-in, waiting 1, 5 and 30 minutes and then an hour after failures. The schedule is in the
+makes the daily check-in, waiting 1, 5 and 30 minutes and then an hour after failures. On a Community build it
+returns without reading a row or calling the server. The schedule is in the
 database, so a restart neither forgets a pending request nor sends an extra check-in.
 
 This is the only scheduled call to the licence server. A failure is quiet by design: the client records it for
