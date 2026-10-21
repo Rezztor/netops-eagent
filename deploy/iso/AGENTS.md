@@ -121,6 +121,11 @@
     left, and stops at the first failure with `state.error` saying how many were installed. The tool runs on the
     host, so the application's restart does not stop it. After an update that replaced `rezztor-update` itself it
     puts the same request back into the inbox and ends, and the path unit runs the new tool, which goes on.
+  - **`state.error` is the last refusal, and a later success takes it away.** The page shows it, so a refusal that
+    no longer held stayed on the page: in UAT on 2026-10-21 a `too_old` error from an abandoned download was still
+    there after Check now had brought the list back fine. A `refresh` that brings the list clears it; the error of
+    an update that still waits for the administrator (the phase is then `checked` or `staged`) stays, and so does
+    the error of a `refresh` that failed (that one is in `state.updates.error`).
   - `.env` of the stack gets one changed line (`REZZTOR_VERSION`), never a new file. The database is dumped before
     the switch, with the application stopped, and nothing changes when the dump fails.
   - After the switch the product must answer `/api/health` with the new version; otherwise the files, `.env` and,

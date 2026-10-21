@@ -30,6 +30,7 @@
 - `store` and `request` refuse while the host says `downloading`, `installing` or `restarting` (`BUSY`), and while an earlier request has not been taken.
 - The update server's address and CA travel only from the image's own UAT trust file, never from the browser.
 - The state file is written by root on the host and is trusted as far as showing it goes; only the keys in `PUBLIC` leave this module.
+- `error` is the host's last refusal, read as it is: this module keeps no error of its own and never clears one. The host does (`deploy/iso/host/rezztor-update`, `serve`): a `refresh` that brings the list clears it, so a refusal that no longer held does not stay on the page.
 - No secret is read or written here. The update key in the state is the public half; the UAT CA is public material.
 
 ## Verification

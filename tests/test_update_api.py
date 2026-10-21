@@ -74,6 +74,16 @@ def test_the_status_is_the_hosts_state_without_its_working_fields(spool):
     assert call(UpdateStatus) == {"available": False}
 
 
+def test_the_page_shows_no_error_once_the_host_has_cleared_it(spool):
+    """The error on the page is the host's `state.error`, read as it is. When the host clears it after a
+    successful check, the page has nothing to show: the "too_old" error of an abandoned attempt stayed on the
+    page in UAT on 2026-10-21, long after the list came back fine."""
+    write_state(spool, error={"code": "too_old", "text": "This update needs at least 2026.10.12."})
+    assert call(UpdateStatus)["error"]["code"] == "too_old"
+    write_state(spool, error=None)
+    assert call(UpdateStatus)["error"] is None
+
+
 def test_an_upload_is_stored_under_one_fixed_name_and_the_host_is_asked_to_check_it(spool):
     answer = call(UpdateApply, form={"action": "upload"}, files={"package": Upload(b"the file", filename="../../etc/cron.d/x")})
     assert answer["ok"] is True

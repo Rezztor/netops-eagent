@@ -1002,6 +1002,43 @@ def test_a_refusal_reaches_the_page_as_a_sentence(machine, tmp_path):
     assert not (inbox / "package.rezupd").exists()
 
 
+@needs_tools
+def test_a_later_check_clears_the_error_the_last_one_left(uat, tmp_path):
+    """Found in UAT on 2026-10-21: a "too_old" error stayed in `update_status` (and so on the page) after the
+    administrator pressed Check now and the list came back fine. The last error was only ever written, never
+    cleared, so the page kept showing a refusal that no longer held."""
+    uat.service.offer(uat_package(uat, tmp_path, min_from="2026.10.12-uat"))
+    # An upload that does not fit this machine: the tool refuses it and the page shows why.
+    inbox = _request(uat, id="a1b2c3d4", action="check", by="admin")
+    shutil.copy(uat_package(uat, tmp_path, min_from="2026.10.12-uat"), inbox / "package.rezupd")
+    run(uat, "serve")
+    state = state_of(uat)
+    assert state["error"]["code"] == "too_old" and "2026.10.12-uat" in state["error"]["text"]
+
+    # Check now: the service answers with a list, and the page must not show the old refusal any more.
+    uat.service.packages.clear()
+    uat.service.offer(uat_package(uat, tmp_path))
+    state = ask(uat, "refresh")
+    assert state["updates"]["error"] is None and state["updates"]["available"]
+    assert state["error"] is None, state["error"]
+
+
+@needs_tools
+def test_a_check_that_fails_leaves_the_error_it_wrote(uat, tmp_path):
+    """The other half of the rule: only a success takes the error away. A refresh that could not reach the
+    service says so in `state.updates.error`, and the error of the update itself is not its to clear."""
+    state_file = uat.root / "var/lib/rezztor/updates/state/state.json"
+    run(uat, "status")
+    state = json.loads(state_file.read_text())
+    state["error"] = {"code": "too_old", "text": "This update needs at least 2026.10.12-uat."}
+    state_file.write_text(json.dumps(state))
+
+    uat.service.httpd.shutdown()  # the service is not there any more
+    state = ask(uat, "refresh")
+    assert state["updates"]["error"]["code"] == "unreachable"
+    assert state["error"]["code"] == "too_old", state["error"]
+
+
 def test_a_request_that_is_not_one_of_the_four_words_does_nothing(machine):
     for request in ({"id": "a1b2c3d4", "action": "shell", "by": "x"}, {"id": "../../x", "action": "restart"}, ["list"], "text"):
         inbox = _request(machine, **request) if isinstance(request, dict) else _request(machine)

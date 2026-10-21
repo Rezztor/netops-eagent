@@ -1768,6 +1768,15 @@ def serve(host, state):
                 refresh(host, state, *server_for(state, request))
             except Refused:
                 pass  # in state.updates.error; the phase and its error belong to the update, not to the list
+            else:
+                # The list came back, so what an earlier attempt refused is no longer what the page should say.
+                # Seen in UAT on 2026-10-21: a "too_old" error from an abandoned download stayed on the page
+                # after Check now had brought the list back fine.
+                # The error of an update that still waits for the administrator is not stale and stays: the
+                # phase says "checked" or "staged" then, and the page shows that error with that package.
+                if state["phase"] == "idle" and state["error"] is not None:
+                    _log("the list came back; the last error is cleared")
+                    state["error"] = None
         elif action == "download":
             download(host, state, str(request.get("version") or "")[:40], *server_for(state, request))
         elif action == "update_all":
