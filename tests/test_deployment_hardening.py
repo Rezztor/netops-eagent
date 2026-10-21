@@ -494,8 +494,9 @@ def test_every_slot_session_starts_with_limits_of_its_own(tmp_path):
     lines = read("docker", "runner", "slot-shell").splitlines()
     assert next(i for i, line in enumerate(lines) if line.startswith("prlimit ")) < lines.index('if [ "$#" -eq 0 ]; then')
     # Two accounts at their limit must not fill the container (security review, 2026-10-19).
+    # dev/ is the maintainers' local stack and is not in every checkout.
     for parts in (("deploy", "customer", "docker-compose.yml"), ("docker", "run", "docker-compose.yml"),
-                  ("dev", "docker-compose.yml")):
+                  *([("dev", "docker-compose.yml")] if (ROOT / "dev").is_dir() else [])):
         assert yaml.safe_load(read(*parts))["services"]["runner"]["pids_limit"] >= 16 * 256, "/".join(parts)
 
 
