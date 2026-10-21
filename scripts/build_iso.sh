@@ -48,10 +48,8 @@ if [[ -n "${REZZTOR_ISO_STANDIN:-}" ]]; then
     PATH="$REPO/deploy/iso/test/standin:$PATH"
 fi
 if [[ -n "${REZZTOR_ISO_LAB:-}" ]]; then
-    # The owner's own test lab: the licence check is off (ADR 0082). The application image is
-    # rezztor/eagent:lab, the other three are as they are, and the version ends in -lab.
-    KIND=LAB
-    VERSION="${VERSION%-lab}-lab"
+    echo "error: a lab ISO is no longer built. A source checkout and a self-built image are the Community build." >&2
+    exit 1
 fi
 if [[ -n "${REZZTOR_ISO_UAT:-}" ]]; then
     # A production-shaped UAT environment (ADR 0085): the application image is rezztor/eagent:uat, which
@@ -167,7 +165,7 @@ step "Offline bundle $VERSION (scripts/build_offline_bundle.sh)"
 BUNDLE="$WORK/work/bundle-$KIND/rezztor-eagent-${VERSION}-offline"
 if (( REFRESH )) || [[ ! -f "$BUNDLE/SHA256SUMS" ]]; then
     rm -rf "$WORK/work/bundle-$KIND"
-    if [[ "$KIND" == LAB || "$KIND" == UAT ]]; then
+    if [[ "$KIND" == UAT ]]; then
         docker tag "rezztor/eagent:${KIND,,}" "rezztor/eagent:$VERSION"
         for name in eagent-runner eagent-ansible eagent-cloud; do
             docker tag "rezztor/$name:$IMAGE_TAG" "rezztor/$name:$VERSION"
@@ -177,19 +175,25 @@ if (( REFRESH )) || [[ ! -f "$BUNDLE/SHA256SUMS" ]]; then
             docker tag "rezztor/$name:$IMAGE_TAG" "rezztor/$name:$VERSION"
         done
     fi
-    # The name of the ISO and what is in it must agree: an image with the licence check off goes
-    # into a LAB ISO and into nothing else, and an image with the UAT trust file (ADR 0085) into a
-    # UAT ISO and into nothing else; a release or a TEST ISO that carries that file is not written.
+    # The name of the ISO and what is in it must agree. A release is an Enterprise image
+    # (the stamp says "licence": "enterprise"). A UAT image, with its trust file (ADR 0085),
+    # goes into a UAT ISO and nothing else. A self-built image has no licence line and goes
+    # into a TEST ISO. An old open stamp goes into none of them.
     if [[ "$KIND" != STANDIN ]]; then
         stamp="$(docker run --rm --network none --entrypoint sh "rezztor/eagent:$VERSION" -c \
             'cat /eagent/build_info.json; if [ -e /eagent/licence_trust.json ]; then echo UAT_TRUST_FILE; fi')"
         case "$stamp" in
             *'"licence": "uat"'*UAT_TRUST_FILE) is_lab=UAT ;;
             *UAT_TRUST_FILE | *'"licence": "uat"'*) is_lab="half-UAT" ;;
-            *'"licence"'*) is_lab=LAB ;;
-            *) is_lab=TEST ;;
+            *'"licence": "enterprise"'*) is_lab=ENTERPRISE ;;
+            *'"licence"'*) is_lab=OTHER ;;
+            *) is_lab=COMMUNITY ;;
         esac
-        if [[ "$is_lab" != "${KIND/RELEASE/TEST}" ]]; then
+        want=$KIND
+        [[ "$KIND" == RELEASE ]] && want=ENTERPRISE
+        [[ "$KIND" == TEST ]] && want=COMMUNITY
+        # A TEST ISO may also carry an enterprise image, so a local release-shaped build can be tried.
+        if [[ "$is_lab" != "$want" && ! ( "$KIND" == TEST && "$is_lab" == ENTERPRISE ) ]]; then
             echo "error: rezztor/eagent:$VERSION is a $is_lab image and this is a $KIND build. Nothing was written." >&2
             exit 1
         fi
@@ -210,12 +214,11 @@ rm -rf "$STAGE" && mkdir -p "$STAGE"
 cp -r deploy/iso/host deploy/iso/keys deploy/iso/install-target.sh deploy/iso/packages.txt "$STAGE/"
 # A support key on the ISO closes the console of the machines it installs (ADR 0083). The owner's keys
 # are deploy/iso/keys/support/*.pub; REZZTOR_ISO_SUPPORT_KEYS names a folder of others, for a test build
-# with a throwaway key. A lab machine's console stays open.
+# with a throwaway key.
 if [[ -n "${REZZTOR_ISO_SUPPORT_KEYS:-}" ]]; then
     mkdir -p "$STAGE/keys/support"
     cp "$REZZTOR_ISO_SUPPORT_KEYS"/*.pub "$STAGE/keys/support/"
 fi
-if [[ "$KIND" == LAB ]]; then rm -rf "$STAGE/keys/support"; fi
 # REZZTOR_ISO_RELEASE_KEYS names a folder of release keys that replace deploy/iso/keys/*.pub, for a UAT or
 # test build with dummy keys (ADR 0085): its machines then take no update signed with a real release key.
 # A release refuses it above.
@@ -297,7 +300,6 @@ if [[ "$KIND" == RELEASE ]]; then
     echo "RELEASE $VERSION from the tag v$VERSION ($(git rev-parse --short HEAD)), console $console, release keys ${keys:-NONE}${MARK:+, marked $MARK}."
 fi
 if [[ "$KIND" == STANDIN ]]; then echo "STAND-IN images: this ISO is for the QEMU test only, it is not the product."; fi
-if [[ "$KIND" == LAB ]]; then echo "LAB BUILD: the licence check is off. For the owner's own test lab. Never hand this ISO to a customer."; fi
 if [[ "$KIND" == UAT ]]; then
     keys=$(cd "$STAGE/keys" && ls -- *.pub 2>/dev/null | sed 's/\.pub$//' | paste -sd, -)
     echo "UAT BUILD: trusts a dummy licence root and the UAT licence server only, release keys ${keys:-NONE}. Never hand this ISO to a customer."

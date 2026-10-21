@@ -349,6 +349,12 @@ describe("AppShell licence banner", () => {
     withLicence({ state: "licensed", agent_runs_allowed: true, grace_days_remaining: null, reason: null });
     expect(screen.queryByText(/licence/i)).toBeNull();
   });
+
+  it("is quiet for a community build", () => {
+    withLicence({ state: "community", agent_runs_allowed: true, grace_days_remaining: null, reason: null });
+    expect(screen.queryByText(/restricted/i)).toBeNull();
+    expect(screen.queryByText(/could not be renewed/)).toBeNull();
+  });
 });
 
 describe("AppShell update banner", () => {

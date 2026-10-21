@@ -154,8 +154,8 @@
     it, so with no dump there is nothing to put back, whatever the package says it changes.
   - A request that cannot be read (a full disk included) is removed like one that was read: the path unit starts the tool
     for as long as the file exists.
-  - A machine whose `.env` does not name a release version (a lab build's ends in `-lab`, ADR 0082; a hand-installed
-    stack may say `latest`) is refused in words (`not_a_release`), not compared: `fits` checks the running version
+  - A machine whose `.env` does not name a release version (one that ends in `-lab`, or a hand-installed
+    stack that says `latest`) is refused in words (`not_a_release`), not compared: `fits` checks the running version
     against `VERSION` before it turns it into numbers.
   - A UAT machine (ADR 0085) runs `<release>-uat`. A manifest's versions may end in `-uat`, and `fits` requires
     `version`, `base` and `min_from` to carry it exactly when the running version does (`other_kind`), then
@@ -170,8 +170,8 @@
   `rezztor-console`, it leaves the `sudo` group, its one sudo rule is `rezztor-setup` with no argument, SSH forwards
   nothing, and the boot loader's entries cannot be edited (a password made there and kept nowhere, `--unrestricted`
   on the entries, no recovery entries). Rules that must hold whoever edits it:
-  - With no support key the installed machine is exactly what it was before this existed. `scripts/build_iso.sh`
-    removes the keys from a LAB ISO: a lab console stays open.
+  - With no support key the installed machine is exactly what it was before this existed. A lab ISO is no longer
+    built, so nothing strips the support keys for that kind.
   - The menu runs as root, so **nothing on it may hand over a shell**: no pager, no editor, no command typed by the
     person. The one entry that opens a shell is "Support access", after `rezztor-support verify` said yes.
   - The door is said out loud: the status screen has a line for a closed console, the menu entry is named for what
@@ -225,10 +225,9 @@
   tag and any application image not built from it. The file is `rezztor-eagent-<version>.iso`. A release with no
   support key stops unless `REZZTOR_ISO_OPEN_CONSOLE=1` says the console is meant to be open. A TEST ISO is a
   development build: do not hand one over, and do not add a way to make a RELEASE from a working folder.
-- **A LAB ISO is for the owner's own test lab and is never handed over** (ADR 0082). `REZZTOR_ISO_LAB=1
-  scripts/build_iso.sh` takes the image `rezztor/eagent:lab` (built with `BUILD_LICENCE=open` and a version that ends
-  in `-lab`) and writes `rezztor-eagent-LAB-<date>.iso`; the licence check is off in it. The build writes nothing
-  when the image's stamp and the kind of ISO disagree. The ordinary build is unchanged and enforces the licence.
+- **A release ISO is an Enterprise image** (`scripts/build_release.sh` passes `BUILD_LICENCE=enterprise`). The stamp
+  check refuses a release whose image does not say `"licence": "enterprise"`. `REZZTOR_ISO_LAB` is refused: a lab ISO
+  is no longer built. A source checkout and a self-built image are the Community build.
 - **A UAT ISO is for the owner's production-shaped UAT environment and is never handed over** (ADR 0085).
   `REZZTOR_ISO_UAT=1 scripts/build_iso.sh` takes `rezztor/eagent:uat` (built with `BUILD_LICENCE=uat`, a version
   that ends in `-uat` and `REZZTOR_UAT_TRUST`) and writes `rezztor-eagent-UAT-<date>.iso`; it trusts only the dummy

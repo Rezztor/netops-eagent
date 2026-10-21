@@ -14,7 +14,7 @@
 
 import { apiRequest } from "./client";
 
-export type LicenceState = "licensed" | "grace1" | "grace2" | "restricted";
+export type LicenceState = "community" | "licensed" | "grace1" | "grace2" | "restricted";
 
 /** What was bought, from the signed licence. */
 export interface LicenceDocument {

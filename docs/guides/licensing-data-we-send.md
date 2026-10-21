@@ -1,12 +1,17 @@
 # What licensing and updates send, and to whom
 
-For a customer security review. The product talks to two Rezztor hosts, over HTTPS only:
+For a customer security review.
+
+A Community build sends nothing. A source checkout, an image you built yourself and the old open lab image never
+contact a licence server and never make the daily check-in. There is no seat, device or feature report to send.
+
+A Rezztor Enterprise image is the one whose build stamp says it is Enterprise. It talks to two Rezztor hosts, over HTTPS only:
 `https://license.rezztor.com` for the licence, and, on an appliance installed from the ISO,
 `https://update.rezztor.com` for updates ([below](#updates-appliance-only)). There is no setting to change either
 host. They receive the fields below and nothing else: no user names, no chat or file content, no inventory (a
 count of devices, not the devices), no host name, no device addresses, no usage analytics.
 
-An installation that has never been activated sends nothing. An offline installation never calls the server.
+An Enterprise image that has never been activated sends nothing. An offline Enterprise installation never calls the server.
 
 ## Activation (once per installation)
 
@@ -78,7 +83,9 @@ and for one year at most. The product never contacts the server for it.
 
 ## Updates (appliance only)
 
-An appliance installed from the ISO asks Rezztor's update service which update packages follow the version it runs.
+The paid download path is for an Enterprise image. A Community build does not ask for update packages.
+
+An Enterprise appliance installed from the ISO asks Rezztor's update service which update packages follow the version it runs.
 The appliance's host makes the call (not the application), through the proxy named in its `.env` if there is one.
 A Compose deployment you installed by hand never calls it.
 

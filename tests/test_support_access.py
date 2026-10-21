@@ -109,7 +109,8 @@ def test_the_installer_closes_the_console_only_for_an_iso_with_a_support_key():
     commands = [line for line in console.splitlines() if line and not line.startswith("#")]
     assert commands == ["exec sudo -n /usr/local/sbin/rezztor-setup"]
     build = (ROOT / "scripts" / "build_iso.sh").read_text()
-    assert 'if [[ "$KIND" == LAB ]]; then rm -rf "$STAGE/keys/support"; fi' in build, "a lab machine's console stays open"
+    assert "a lab ISO is no longer built" in build, "a lab ISO is refused; it no longer strips support keys as its own kind"
+    assert 'if [[ "$KIND" == LAB ]]; then rm -rf "$STAGE/keys/support"; fi' not in build
     assert "^[A-Z0-9]{4,16}$" in build, "a build is marked with a code, never a name"
 
 

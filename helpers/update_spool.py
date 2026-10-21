@@ -156,8 +156,8 @@ def _fields(action: str, version: str | None) -> dict[str, str]:
         raise UpdateRefused("The appliance does not need a restart.")
     if action not in ("refresh", "download", "update_all"):
         return {}
-    if license_client.lab_build():
-        raise UpdateRefused("A lab build takes no update packages.")
+    if license_client.community_build():
+        raise UpdateRefused("A Community build takes no paid update packages.")
     # Every call to the service: a UAT image names its server and CA each time (the host keeps the last ones).
     trust = license_client.uat_trust()
     service = {"server": UAT_SERVER, **({"ca_pem": trust["ca_pem"]} if trust["ca_pem"] else {})} if trust else {}

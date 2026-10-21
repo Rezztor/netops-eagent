@@ -96,6 +96,27 @@ afterEach(() => {
 });
 
 describe("the licence page", () => {
+  it("shows a community build as free, with no activation form", async () => {
+    api.getLicenceStatus.mockResolvedValue({
+      ...NO_LICENCE,
+      state: "community",
+      reason: "community",
+      message: "Community build: free, no limits.",
+      agent_runs_allowed: true,
+    });
+    render(
+      <ConfirmProvider>
+        <LicenceSection />
+      </ConfirmProvider>,
+    );
+    expect(await screen.findByText("Community build: free, no limits.")).toBeTruthy();
+    const link = screen.getByRole("link", { name: "rezztor.com" });
+    expect(link.getAttribute("href")).toBe("https://rezztor.com");
+    expect(screen.getByText(/Rezztor Enterprise adds signed images/)).toBeTruthy();
+    expect(screen.queryByLabelText("Activation key")).toBeNull();
+    expect(screen.queryByText("This installation")).toBeNull();
+  });
+
   it("shows what the administrator needs to see", async () => {
     await open(LICENSED);
     expect(screen.getByText("Licensed")).toBeTruthy();

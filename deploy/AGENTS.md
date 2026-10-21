@@ -58,8 +58,8 @@
   tool that writes inside it uses `docker exec -u` (root there has no `DAC_OVERRIDE`). The update inbox is
   `root:1000 0770`. `tests/test_deployment_hardening.py` holds all of it.
 
-- Do not bake licence keys into images. The operator pastes the key after first
-  sign-in.
+- Do not bake licence keys into images. An Enterprise image asks the operator to paste the key after first
+  sign-in. A Community build has no key.
 
 - **The guard is the one boundary that is not in the compose file, and there is
   one of it** (ADR 0079). `customer/rezztor-guard` generates and loads a single

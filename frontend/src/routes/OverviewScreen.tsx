@@ -109,7 +109,7 @@ async function check(test: () => Promise<boolean>): Promise<boolean | null> {
   }
 }
 
-export async function loadSetupSteps(licensed: boolean): Promise<SetupStep[]> {
+export async function loadSetupSteps(licensed: boolean, community = false): Promise<SetupStep[]> {
   const [model, executor, devices, mail, engineer] = await Promise.all([
     check(async () => {
       const config = await getModelConfig();
@@ -129,7 +129,7 @@ export async function loadSetupSteps(licensed: boolean): Promise<SetupStep[]> {
   ]);
   return [
     { label: "Choose a chat model and give its provider a key", to: "/models", done: model },
-    { label: "Activate the licence", to: "/settings/licence", done: licensed },
+    { label: community ? "Community build: no licence to activate" : "Activate the licence", to: "/settings/licence", done: licensed },
     { label: "Connect network automation (executor address and token)", to: "/settings/network-automation", done: executor },
     { label: "Import your devices", to: "/inventory", done: devices },
     { label: "Set up email for reminders and password resets", to: "/settings/email", done: mail },
@@ -139,8 +139,9 @@ export async function loadSetupSteps(licensed: boolean): Promise<SetupStep[]> {
 
 function GetStarted() {
   const session = useSession();
-  const licensed = session.licence?.state === "licensed";
-  const { state } = useAsync(() => loadSetupSteps(licensed), [licensed]);
+  const community = session.licence?.state === "community";
+  const licensed = session.licence?.state === "licensed" || community;
+  const { state } = useAsync(() => loadSetupSteps(licensed, community), [licensed, community]);
   if (state.status !== "ready") {
     return <Card title="Get started" description={state.status === "loading" ? "Checking…" : "Could not check."} />;
   }

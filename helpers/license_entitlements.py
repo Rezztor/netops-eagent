@@ -9,7 +9,9 @@ Everything here is derived from `helpers.license_client.state()`, the verdict of
   restricted  sign-in, reading, export, settings and the licence page work. New agent runs, new device or
               cloud changes and scheduled tasks do not start. Nothing is deleted, nothing in flight is killed.
 
-An installation with no licence is Restricted, and so is one whose stored licence does not verify.
+An installation with no licence is Restricted when it was built as Enterprise (or UAT), and so is one whose stored
+licence does not verify. A Community build — a source checkout, a self-built image, the old open lab stamp — is
+not Restricted: every feature works, and there is no seat, device or feature limit.
 
 Where Restricted is applied, so the list can be read in one place:
 
@@ -81,7 +83,8 @@ def agent_runs_allowed() -> bool:
 
 
 def is_licensed() -> bool:
-    return license_client.state()["state"] in HONOURED_STATES
+    state = license_client.state()["state"]
+    return state in HONOURED_STATES or state == "community"
 
 
 def seats_used() -> int:
@@ -90,9 +93,9 @@ def seats_used() -> int:
 
 
 def seats_allowed(state: Optional[Dict[str, Any]] = None) -> Optional[int]:
-    """Seats the licence permits, or None without an honoured licence."""
+    """Seats the licence permits, or None when there is no limit: a Community build, or no honoured licence."""
     state = state or license_client.state()
-    if state["state"] not in HONOURED_STATES:
+    if state["state"] == "community" or state["state"] not in HONOURED_STATES:
         return None
     return state["licence"]["seats"]
 
@@ -105,10 +108,10 @@ def devices_used() -> int:
 def devices_allowed(state: Optional[Dict[str, Any]] = None) -> Optional[int]:
     """Network devices the licence allows, or None for no limit: the signed `devices` field when the licence has
     one (rezlic verified it is an int >= 1), else its edition's entry in rezlic's `EDITION_DEVICES` (free 100, pro
-    and ultra 500); any other edition, a lab build and a trial without the field have none. Nothing is refused at
+    and ultra 500); any other edition, a Community build and a trial without the field have none. Nothing is refused at
     the limit; it is shown (ADR 0093)."""
     state = state or license_client.state()
-    if state["state"] not in HONOURED_STATES:
+    if state["state"] == "community" or state["state"] not in HONOURED_STATES:
         return None
     licence = state["licence"]
     if "devices" in licence:
@@ -128,19 +131,25 @@ def devices_warning(used: int, allowed: Optional[int]) -> Optional[str]:
 
 
 def feature_enabled(name: str) -> bool:
-    """Whether the licence names this feature. Grace counts: it is full function."""
+    """Whether this feature is available. A Community build has every feature. Grace counts: it is full function."""
     state = license_client.state()
+    if state["state"] == "community":
+        return True
     return state["state"] in HONOURED_STATES and name in state["licence"]["features"]
 
 
 def licence_summary() -> Dict[str, Any]:
-    """What every signed-in user may know: the state and whether runs start. No commercial terms."""
+    """What every signed-in user may know: the state and whether runs start. No commercial terms.
+
+    A Community build reports ``community`` and no sentence: the app-wide banner stays down. The one line
+    about Rezztor Enterprise lives on the administrator's licence page.
+    """
     state = license_client.state()
     return {
         "state": state["state"],
         "agent_runs_allowed": state["state"] != "restricted",
         "grace_days_remaining": state["days_left"] if state["state"] in ("grace1", "grace2") else None,
-        "reason": state["message"],
+        "reason": None if state["state"] == "community" else state["message"],
     }
 
 

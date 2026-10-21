@@ -7,6 +7,8 @@
 #   NO_CACHE=1 ./scripts/build_local.sh      # rebuild from scratch
 #   BUILD_VERSION=2026.10.12 ./scripts/build_local.sh app   # the version the product reports (default: local);
 #                                            # an update package needs the real one (scripts/sign_release.py)
+#   BUILD_LICENCE=enterprise BUILD_VERSION=2026.10.21 ./scripts/build_local.sh app
+#                                            # an Enterprise image: the stamp says so, tagged as REZZTOR_IMAGE_TAG
 #   BUILD_LICENCE=uat BUILD_VERSION=2026.10.18-uat REZZTOR_UAT_TRUST=uat-trust.json ./scripts/build_local.sh app
 #                                            # a UAT image, rezztor/eagent:uat, that trusts only the dummy licence
 #                                            # root, server and CA in that file (ADR 0085)
@@ -54,10 +56,10 @@ print(json.dumps({"root_keys": roots, "server": server, "ca_pem": ca}, separator
 build() {
     case "$1" in
         base)    docker build "${OPTS[@]}" -t rezztor/eagent-base:latest docker/base/ ;;
-        # A lab build (BUILD_LICENCE=open, ADR 0082) is tagged lab, a UAT build (BUILD_LICENCE=uat, ADR 0085)
-        # uat, and neither ever becomes rezztor/eagent:latest.
+        # A UAT build (BUILD_LICENCE=uat, ADR 0085) is tagged uat and never becomes rezztor/eagent:latest.
+        # An Enterprise build (BUILD_LICENCE=enterprise) keeps the tag it was given: the version, for a release.
         app)     build_inputs
-                 app_tag="$TAG"; [[ -n "${BUILD_LICENCE:-}" ]] && app_tag=lab
+                 app_tag="$TAG"
                  [[ "${BUILD_LICENCE:-}" == uat ]] && app_tag=uat
                  trust="$(uat_trust)"
                  docker build "${OPTS[@]}" -t "rezztor/eagent:$app_tag" \

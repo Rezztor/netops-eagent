@@ -65,7 +65,7 @@ export interface BootstrapPreferences {
  * licence_status endpoint; this carries only state and the run gate.
  */
 export interface BootstrapLicence {
-  state: "licensed" | "grace1" | "grace2" | "restricted";
+  state: "community" | "licensed" | "grace1" | "grace2" | "restricted";
   /** False when the installation is restricted. */
   agent_runs_allowed: boolean;
   /** Days until the installation is restricted, in grace1 and grace2 only. */

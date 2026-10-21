@@ -39,6 +39,7 @@ import { useAsync } from "@/lib/useAsync";
 import { SectionError, SectionLoading } from "../parts";
 
 export const LICENCE_STATE_TONE: Record<LicenceState, TagTone> = {
+  community: "ok",
   licensed: "ok",
   // Grace is full function with a countdown: warn, not crit.
   grace1: "warn",
@@ -48,6 +49,7 @@ export const LICENCE_STATE_TONE: Record<LicenceState, TagTone> = {
 };
 
 export const LICENCE_STATE_LABEL: Record<LicenceState, string> = {
+  community: "Community",
   licensed: "Licensed",
   grace1: "Grace",
   grace2: "Grace, final period",
@@ -97,6 +99,18 @@ function LicenceDetails({ initial }: { initial: LicenceStatus }) {
   const [notice, setNotice] = useState<string | null>(null);
 
   const licence = status.licence;
+  if (status.state === "community") {
+    return (
+      <Card title="Licence" description="Community build: free, no limits.">
+        <p style={{ margin: 0, maxWidth: 520 }}>
+          Rezztor Enterprise adds signed images, the update channel and support.{" "}
+          <a href="https://rezztor.com" target="_blank" rel="noreferrer">
+            rezztor.com
+          </a>
+        </p>
+      </Card>
+    );
+  }
   const overSeats = licence !== null && status.seats_used > licence.seats;
   const inGrace = status.state === "grace1" || status.state === "grace2";
 
