@@ -98,7 +98,8 @@ MAX_ANSWER = 1 << 20
 
 PRODUCT = "rezztor-eagent"
 # Format 4 (ADR 0092) may carry Debian's updates (`os`), the network guard and systemd units. A package without
-# them is still written as format 3, which a tool from before that also takes.
+# them is still written as format 3, which a tool from before that also takes. The update service is told this
+# list (`formats`, below) and never offers a package in a format that is not in it.
 FORMAT = 4
 FORMATS = (3, 4)
 IMAGES = ("eagent", "eagent-runner", "eagent-ansible", "eagent-cloud")
@@ -1356,7 +1357,10 @@ def recover(host, state):
 
 # --- the update service --------------------------------------------------------
 # The machine asks Rezztor's update service which packages come after the running version, and downloads the
-# first one. A download ends where an uploaded file starts: check. Trust is unchanged: the signature, the
+# first one. It names the formats it reads (`formats`, from FORMATS) on the list and on the file, so the service
+# never offers one it cannot read. A list may say the next package is in a format this tool cannot read
+# (`blocked`); that is kept and shown. A file the service refuses for format is said like any other refusal.
+# A download ends where an uploaded file starts: check. Trust is unchanged: the signature, the
 # release keys and fits() decide, whatever the service says; the service's list only decides what to fetch.
 
 SERVICE_TEXTS = {
@@ -1368,7 +1372,18 @@ SERVICE_TEXTS = {
     "not_yet_available": "This update is not available to this installation yet. Check again later.",
     "not_next": "Updates are installed in order, and this one is not next. Check for updates again.",
     "chain_gap": "An update this installation needs first is missing from the update service. Ask Rezztor.",
+    "format": "This update needs a newer update tool. Install the bridge package by hand, or contact support.",
 }  # fmt: skip
+
+
+def format_text(version):
+    """The sentence for a package in a format this tool cannot read. The Updates page says the same."""
+    return f"Update {version} needs a newer update tool. Install the bridge package by hand, or contact support."
+
+
+def _formats():
+    """The formats this tool reads, as the update service's query wants them. FORMATS, not a second list."""
+    return ",".join(str(number) for number in FORMATS)
 
 
 def server_for(state, request):
@@ -1537,8 +1552,22 @@ def read_listing(answer):
         "licence": _word(answer.get("licence")),
         "core": answer.get("core") if isinstance(answer.get("core"), str) and VERSION.fullmatch(answer["core"].removesuffix(UAT)) else None,
         "available": available,
+        "blocked": _blocked(answer),
         "error": None if error is None else {"code": error, "text": SERVICE_TEXTS.get(error, f"The update service said: {error}.")},
     }
+
+
+def _blocked(answer):
+    """The next package this tool cannot read, or None when the list does not say. A wrong shape is not a list."""
+    raw = answer.get("blocked", None)
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        raise Refused("bad_service_answer", "The update service sent a list this version cannot read. Try again later.")
+    version, needs = raw.get("version"), raw.get("needs")
+    if not isinstance(version, str) or not VERSION.fullmatch(version.removesuffix(UAT)) or raw.get("reason") != "format" or type(needs) is not int or not 1 <= needs <= 99:
+        raise Refused("bad_service_answer", "The update service sent a list this version cannot read. Try again later.")
+    return {"version": version, "reason": "format", "needs": needs}
 
 
 def refresh(host, state, server, ca):
@@ -1548,12 +1577,13 @@ def refresh(host, state, server, ca):
         release_of(state["installed"].get("version"))
         token = _session(host, server, ca)
         query = urllib.parse.urlencode({"from": state["installed"]["version"],
-                                        "base": state["installed"].get("base") or state["installed"]["version"]})  # fmt: skip
+                                        "base": state["installed"].get("base") or state["installed"]["version"],
+                                        "formats": _formats()})  # fmt: skip
         listing = read_listing(_answer(_call(host, server, ca, "/v1/updates?" + query, token=token)))
     except Refused as refused:
         _log(f"refresh from {server} refused ({refused.code}): {refused.text}")
         state["updates"] = {"checked_at": now(), "server": server, "plan": None, "licence": None, "core": None,
-                            "available": [], "error": {"code": refused.code, "text": refused.text}}  # fmt: skip
+                            "available": [], "blocked": None, "error": {"code": refused.code, "text": refused.text}}  # fmt: skip
         raise
     state["updates"] = {"checked_at": now(), "server": server, **listing}
     _log(f"refresh from {server}: {len(listing['available'])} update(s) after {state['installed']['version']}")
@@ -1566,6 +1596,9 @@ def _first(state, version=None):
     if updates["error"]:
         raise Refused(updates["error"]["code"], updates["error"]["text"])
     if not updates["available"]:
+        blocked = updates.get("blocked")
+        if isinstance(blocked, dict) and blocked.get("reason") == "format" and blocked.get("version"):
+            raise Refused("format", format_text(blocked["version"]))
         raise Refused("up_to_date", "There is no update to download. This installation is up to date.")
     first = updates["available"][0]
     if version is not None and version != first["version"]:
@@ -1597,8 +1630,14 @@ def _fetch(host, state, entry, token, server, ca):
     save_state(host, state)
     try:
         if have < size:
-            answer = _call(host, server, ca, f"/v1/updates/{urllib.parse.quote(version)}/file", token=token,
-                           headers={"Range": f"bytes={have}-"} if have else None)  # fmt: skip
+            file_path = f"/v1/updates/{urllib.parse.quote(version)}/file?" + urllib.parse.urlencode({"formats": _formats()})
+            try:
+                answer = _call(host, server, ca, file_path, token=token,
+                               headers={"Range": f"bytes={have}-"} if have else None)  # fmt: skip
+            except Refused as refused:
+                if refused.code == "format":
+                    raise Refused("format", format_text(version)) from None
+                raise
             with answer:
                 if have and answer.status != 206:
                     have = 0  # the service sent the whole file

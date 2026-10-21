@@ -113,7 +113,10 @@
     (never a decryption oracle); the token is kept in memory only. The service's list (`state.updates`) only says
     what to fetch: a download is size- and SHA-256-checked against it and then goes through `check` like an
     upload, so trust is still the signature, the keys and `fits`. Only `updates.available[0]` is downloaded, only
-    when `downloadable`; an interrupted download is continued with `Range`.
+    when `downloadable`; an interrupted download is continued with `Range`. The list and the file request name the
+    formats this tool reads (`formats`, from `FORMATS`, not a second list). The list may carry `blocked` (version,
+    reason `format`, the format it needs) when the next package is one this tool cannot read; that is kept in the
+    state and shown, and a file the service refuses for format is said like any other refusal.
   - `update_all` loops refresh, download, check, install, restart (which waits for `/api/health`) until nothing is
     left, and stops at the first failure with `state.error` saying how many were installed. The tool runs on the
     host, so the application's restart does not stop it. After an update that replaced `rezztor-update` itself it
@@ -132,8 +135,9 @@
     the old version. After the switch `daemon-reload` when a unit changed, and the guard's two units load the new
     rules (`reload-or-restart rezztor-guard`, `restart rezztor-guard-runner`) before a container starts; a guard that
     does not load takes the update back.
-  - **Format.** The tool reads format 3 and 4. A package with Debian's updates, the guard or a unit is format 4, any
-    other is written as 3; a tool from before ADR 0092 refuses 4 before it reads anything else. Do not put a new
+  - **Format.** The tool reads format 3 and 4 (`FORMATS`). A package with Debian's updates, the guard or a unit is format 4, any
+    other is written as 3; a tool from before ADR 0092 refuses 4 before it reads anything else. The same list is sent to the
+    update service as `formats`, so a later format is not offered to a tool that cannot read it. Do not put a new
     kind of content into a format a tool on a machine already reads: such a tool ignores unknown fields.
   - **Debian's updates** (`os` in the manifest, `.debs` and a `Packages` index under `os/`) go in only after the new
     version answered, never before, and from the payload alone: a temporary sources list with

@@ -57,7 +57,9 @@ key there. Until you do, the Updates page says that Rezztor's update service doe
 Sign in as an administrator and open **Settings, Updates**. **Available updates** lists every update that follows
 the version you run, oldest first: version, release date, size, a **security** mark when it fixes one, what changes,
 and from when your plan may download it. **Last checked** says when the appliance last asked; **Check now** asks
-again.
+again. When the next update is in a format this appliance's update tool cannot read, the page does not show an
+empty list. It says: "Update <version> needs a newer update tool. Install the bridge package by hand, or contact
+support."
 
 1. **Download and install** on the first update. The page shows the download, checks the file as it would an
    uploaded one, and installs it beside the running version. Nobody is interrupted. Then, as for a file (below),
@@ -160,6 +162,7 @@ update key, and how the last update ended.
 | "Rezztor's update service could not be reached" | The appliance cannot reach `update.rezztor.com` over HTTPS. Check the firewall and the proxy. Files still work. |
 | "The database could not be backed up, so nothing was changed" | Nothing was switched. Send the message to Rezztor. |
 | "This update was made for a newer update tool than this machine has" | Install the update that comes before it first: it brings the newer update tool. |
+| "Update … needs a newer update tool" | The next update is in a format this appliance's update tool cannot read. Install the bridge package by hand, or contact support. |
 | "The Debian updates could not be installed" | The new version runs; only Debian's fixes are missing. The next update brings them again. Send the message to Rezztor. |
 
 ## Before a large update

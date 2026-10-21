@@ -108,10 +108,17 @@ export interface ListedUpdate {
   os?: { packages: number; reboot: boolean } | null;
 }
 
+/** The next package, when it is in a format this appliance's update tool cannot read. */
+export interface BlockedUpdate {
+  version: string;
+  reason: string;
+  needs: number;
+}
+
 /**
  * What the host last heard from the update service. Null until it has asked once.
  * After a failed question `plan`, `licence` and `core` are null, `available` is
- * empty and `error` says why.
+ * empty and `error` says why. `blocked` is absent until a host that asks has heard one.
  */
 export interface UpdatesList {
   checked_at: string | null;
@@ -122,8 +129,14 @@ export interface UpdatesList {
   /** Oldest first, without what is installed. */
   available: ListedUpdate[];
   /**
+   * The next package, when this tool cannot read its format. Absent on a host that
+   * has not heard one, null when the last list did not name one.
+   */
+  blocked?: BlockedUpdate | null;
+  /**
    * `not_a_release`, `not_installed`, `no_key`, `unreachable`, `unknown_installation`,
-   * `bad_answer`, `bad_challenge`, `bad_service_answer`, `service_busy`, `service`, `chain_gap`.
+   * `bad_answer`, `bad_challenge`, `bad_service_answer`, `service_busy`, `service`, `chain_gap`,
+   * `format`.
    */
   error: UpdateError | null;
 }

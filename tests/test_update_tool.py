@@ -1212,7 +1212,7 @@ class Service:
         self.key, self.packages, self.calls, self.challenges, self.tokens = key, [], [], {}, set()
         self.plain = None  # what the challenge holds; None: 32 random bytes in hex, as the real service
         self.cut = None  # stop the first answer of a file after this many bytes
-        self.downloadable, self.error = True, None
+        self.downloadable, self.error, self.blocked, self.file_error = True, None, None, None
         cert, private = tmp_path / "service.pem", tmp_path / "service.key"
         subprocess.run(["openssl", "req", "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:prime256v1", "-nodes",
                         "-keyout", str(private), "-out", str(cert), "-days", "1", "-subj", "/CN=127.0.0.1",
@@ -1251,7 +1251,10 @@ class Service:
 
             def do_GET(self):
                 url = urllib.parse.urlsplit(self.path)
-                service.calls.append(("GET", url.path, dict(urllib.parse.parse_qsl(url.query)) or self.headers.get("Range")))
+                recorded = dict(urllib.parse.parse_qsl(url.query))
+                if self.headers.get("Range"):
+                    recorded["Range"] = self.headers["Range"]
+                service.calls.append(("GET", url.path, recorded or None))
                 if self.headers.get("Authorization", "").removeprefix("Bearer ") not in service.tokens:
                     return self.reply(401, {"error": "no_session"})
                 if url.path == "/v1/updates":
@@ -1260,9 +1263,13 @@ class Service:
                     # As the portal does: only the first entry is made for this installation, so only it has a SHA-256.
                     left = [{**entry, "downloadable": index == 0 and service.downloadable, **({} if index == 0 else {"sha256": None})}
                             for index, entry in enumerate(left)]  # fmt: skip
-                    return self.reply(200, {"plan": "paid", "licence": "active", "core": "2026.10.08-uat", "updates": left,
-                                            "error": service.error})  # fmt: skip
+                    body = {"plan": "paid", "licence": "active", "core": "2026.10.08-uat", "updates": left, "error": service.error}
+                    if service.blocked is not None:
+                        body["blocked"] = service.blocked
+                    return self.reply(200, body)
                 version = url.path.removeprefix("/v1/updates/").removesuffix("/file")
+                if service.file_error:
+                    return self.reply(409, {"error": service.file_error})
                 data = next(data for entry, data in service.packages if entry["version"] == version)
                 start = int(re.fullmatch(r"bytes=(\d+)-", self.headers.get("Range") or "bytes=0-").group(1))
                 self.send_response(206 if start else 200)
@@ -1326,7 +1333,9 @@ def test_refresh_says_hello_answers_the_challenge_and_writes_the_list(uat, tmp_p
     assert entry["os"] is None  # the service says nothing of Debian: nothing is shown
     assert uat.service.paths() == [("POST", "/v1/hello"), ("POST", "/v1/session"), ("GET", "/v1/updates")]
     assert uat.service.calls[0][2] == {"update_key": uat.update_key()}
-    assert uat.service.calls[2][2] == {"from": "2026.10.08-uat", "base": "2026.10.08-uat"}
+    assert uat.service.calls[2][2] == {"from": "2026.10.08-uat", "base": "2026.10.08-uat",
+                                      "formats": ",".join(str(number) for number in tool.FORMATS)}  # fmt: skip
+    assert updates["blocked"] is None  # a list that does not name one still works
     # The list is not the update: nothing else in the state moved, and no secret of the session was kept.
     assert state["phase"] == "idle" and state["error"] is None and state["request"] == "a1b2c3d4"
     answer, token = uat.service.calls[1][2]["answer"], next(iter(uat.service.tokens))
@@ -1419,7 +1428,10 @@ def test_a_download_that_stopped_goes_on_where_it_stopped(uat, tmp_path):
     assert (uat.root / "var/lib/rezztor/updates/work/download/package.part").stat().st_size == 1000
     state = ask(uat, "download", version="2026.10.12-uat")
     assert state["phase"] == "checked" and state["error"] is None
-    assert [extra for _, path, extra in uat.service.calls if path.endswith("/file")] == [None, "bytes=1000-"]
+    assert [extra for _, path, extra in uat.service.calls if path.endswith("/file")] == [
+        {"formats": ",".join(str(number) for number in tool.FORMATS)},
+        {"formats": ",".join(str(number) for number in tool.FORMATS), "Range": "bytes=1000-"},
+    ]
 
 
 @needs_tools
@@ -1553,6 +1565,54 @@ def test_a_bad_list_from_the_service_is_not_believed(uat, tmp_path):
     assert updates["error"]["code"] == "chain_gap" and "missing" in updates["error"]["text"]
     state = ask(uat, "update_all")
     assert state["error"] is None and state["progress"] is None  # nothing listed: nothing to walk
+
+
+def _list_answer(**extra):
+    entry = {"version": "2026.10.12", "base": "2026.10.08", "min_from": "2026.10.08", "bridge": False, "security": False,
+             "downloadable": False, "size": 10, "sha256": None, "notes": [], "released_at": None, "available_at": None}
+    return {"updates": [entry], "plan": "paid", "licence": "active", "core": "2026.10.08", **extra}
+
+
+def test_read_listing_keeps_a_blocked_package_and_still_reads_a_list_without_one():
+    """The service may say the next package is in a format this tool cannot read. A list without that still works,
+    and the formats the tool sends are its own FORMATS, not a second copy of the numbers."""
+    assert tool._formats() == ",".join(str(number) for number in tool.FORMATS) == "3,4"
+    assert "3,4" not in (ROOT / "deploy/iso/host/rezztor-update").read_text()
+    plain = tool.read_listing(_list_answer())
+    assert plain["blocked"] is None and plain["available"][0]["version"] == "2026.10.12" and plain["error"] is None
+    blocked = {"version": "2026.11.02-uat", "reason": "format", "needs": 5}
+    heard = tool.read_listing(_list_answer(updates=[], blocked={**blocked, "note": "ignored"}))
+    assert heard["available"] == [] and heard["blocked"] == blocked
+    for bad in ({"version": "soon", "reason": "format", "needs": 5},
+                {"version": "2026.11.02", "reason": "other", "needs": 5},
+                {"version": "2026.11.02", "reason": "format", "needs": True},
+                {"version": "2026.11.02", "reason": "format", "needs": 0},
+                "format", []):
+        with pytest.raises(tool.Refused) as refused:
+            tool.read_listing(_list_answer(blocked=bad))
+        assert refused.value.code == "bad_service_answer"
+
+
+@needs_tools
+def test_a_next_package_this_tool_cannot_read_is_kept_and_not_fetched(uat):
+    uat.service.blocked = {"version": "2026.11.02-uat", "reason": "format", "needs": 5}
+    updates = ask(uat, "refresh")["updates"]
+    assert updates["available"] == [] and updates["error"] is None
+    assert updates["blocked"] == uat.service.blocked
+    assert uat.service.calls[2][2]["formats"] == tool._formats()
+    state = ask(uat, "download", version="2026.11.02-uat")
+    assert state["error"]["code"] == "format" and state["error"]["text"] == tool.format_text("2026.11.02-uat")
+    assert not any(path.endswith("/file") for _, path in uat.service.paths())
+
+
+@needs_tools
+def test_a_file_the_service_refuses_for_format_is_said_like_any_other_refusal(uat, tmp_path):
+    uat.service.offer(uat_package(uat, tmp_path))
+    uat.service.file_error = "format"
+    state = ask(uat, "download", version="2026.10.12-uat")
+    assert state["phase"] == "idle" and state["error"]["code"] == "format"
+    assert state["error"]["text"] == tool.format_text("2026.10.12-uat")
+    assert [extra for _, path, extra in uat.service.calls if path.endswith("/file")] == [{"formats": tool._formats()}]
 
 
 # --- the builder: the chain ----------------------------------------------------

@@ -503,6 +503,16 @@ describe("the list from Rezztor's update service", () => {
     expect(screen.getByText("not yet")).toBeTruthy();
   });
 
+  it("says when the next update needs a newer tool, instead of an empty list", async () => {
+    const said = "Update 2026.11.02 needs a newer update tool. Install the bridge package by hand, or contact support.";
+    await open(withList({ available: [], blocked: { version: "2026.11.02", reason: "format", needs: 5 } }));
+    expect(screen.getByText(said)).toBeTruthy();
+    expect(screen.queryByText(/runs the latest version/)).toBeNull();
+    cleanup();
+    await open(withList({}, { error: { code: "format", text: said } }));
+    expect(screen.getByText("Available updates").closest("section")!.textContent).toContain(said);
+  });
+
   it("checks now and says it is checking until the host has answered", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const start = withList();
