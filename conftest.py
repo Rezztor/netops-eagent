@@ -133,11 +133,13 @@ def no_dev_licence_stamp(monkeypatch):
     monkeypatch.setattr(files, "get_abs_path",
                         lambda *parts: (path + ".hidden-from-tests")
                         if os.path.realpath(path := real(*parts)) in stamped else path)
-    license_client.uat_trust.cache_clear()
-    license_client.enterprise_build.cache_clear()
+    # Kept now: a test may replace both with lambdas, and the lambdas have no cache to clear at teardown.
+    cached = (license_client.uat_trust, license_client.enterprise_build)
+    for function in cached:
+        function.cache_clear()
     yield
-    license_client.uat_trust.cache_clear()
-    license_client.enterprise_build.cache_clear()
+    for function in cached:
+        function.cache_clear()
 
 
 @pytest.hookimpl(hookwrapper=True)

@@ -11,6 +11,27 @@ from agent import AgentConfig, AgentContext, AgentContextType
 from helpers import runtime, settings, tokens
 
 
+@pytest.fixture(autouse=True)
+def default_content_only(monkeypatch, tmp_path):
+    """The budget is the product's default prompt, not what this working tree has under usr/.
+
+    A local skill or plugin under usr/ is listed in the system prompt too, so the same code measured 12028 tokens
+    on a clean checkout and 16601 on a developer's. Whatever resolves below usr/ is sent to an empty folder.
+    """
+    from helpers import files
+
+    real = files.get_abs_path
+    usr = real("usr")
+
+    def get_abs_path(*parts):
+        path = real(*parts)
+        if path == usr or path.startswith(usr + "/"):
+            return str(tmp_path / "usr" / path[len(usr):].lstrip("/"))
+        return path
+
+    monkeypatch.setattr(files, "get_abs_path", get_abs_path)
+
+
 def _iter_prompt_files():
     yield from (PROJECT_ROOT / "prompts").rglob("*.md")
     yield from (PROJECT_ROOT / "agents" / "primary" / "prompts").rglob("*.md")
