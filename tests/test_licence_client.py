@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import secrets
 import threading
 import time
@@ -180,6 +181,9 @@ def server(database, monkeypatch, tmp_path):
     monkeypatch.setattr(license_client, "devices_used", lambda: 3)
     monkeypatch.setattr(license_client, "_devices_refused_at", 0)
     _stamp_enterprise(monkeypatch, tmp_path)
+    # `raising=False`: the module without the fix has no such name, and the test then fails on what it asserts
+    # rather than on a missing attribute in the fixture.
+    monkeypatch.setattr(license_client, "_devices_sent_again_at", 0, raising=False)
     yield fake
     httpd.shutdown()
     httpd.server_close()
@@ -664,6 +668,44 @@ def test_only_a_refusal_of_the_body_drops_the_device_count(active):
     license_client.tick(day(server, 1))
     assert len(server.calls("/v1/checkin")) == 1
     assert license_client._load()["pending"]["body"]["devices"] == 3  # repeated unchanged, as any request
+
+
+def test_the_refusal_of_the_device_count_is_logged_with_the_status_and_the_day_it_comes_back(active, caplog):
+    """The fallback is quiet in the product's own words: the check-in goes again without the count and nothing
+    else changes. Without a line in the log the appliance looked as if it had never told the server how many
+    devices it has, and nobody could tell how long the count was left out."""
+    server = active
+    server.knows_devices = False
+    with caplog.at_level(logging.INFO, logger="helpers.license_client"):
+        license_client.tick(day(server, 1))
+
+    refused = [line for line in caplog.messages if "device count" in line]
+    assert len(refused) == 1, caplog.messages
+    assert "HTTP 400" in refused[0]
+    # Until when the count is left out: the week after the refusal, said in UTC.
+    until = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(day(server, 1) + license_client.DEVICES_RETRY))
+    assert until in refused[0]
+    # Nothing of the request itself reaches the line: the installation token is a secret.
+    assert server.acts[IID]["token"] not in refused[0]
+
+    # The count is sent again after the week, and that is said too.
+    caplog.clear()
+    server.knows_devices = True
+    with caplog.at_level(logging.INFO, logger="helpers.license_client"):
+        license_client.tick(day(server, 8))
+    again = [line for line in caplog.messages if "sent with the check-ins again" in line]
+    assert len(again) == 1, caplog.messages
+
+
+def test_a_refused_device_count_is_not_logged_again_on_every_check_in(active, caplog):
+    """One line when the fallback starts, not one a day for a week."""
+    server = active
+    server.knows_devices = False
+    with caplog.at_level(logging.INFO, logger="helpers.license_client"):
+        license_client.tick(day(server, 1))
+        license_client.tick(day(server, 2))
+        license_client.tick(day(server, 3))
+    assert len([line for line in caplog.messages if "device count" in line]) == 1, caplog.messages
 
 
 def test_restricted_refuses_change_tools_and_leaves_reads(server):

@@ -30,10 +30,11 @@
 - **The clock.** `tick` raises the mark to the clock when the clock has passed it by ten minutes; an accepted lease sets the mark to the lease's `now`. `state()` passes the mark to `rezlic.verdict`, which uses it as the time when the clock reads more than an hour behind it and reports `clock_behind`.
 - **The schedule.** After a success the next call is due a day later; after failures the waits are 1, 5, 30 minutes, then hourly (`RETRY_WAITS`). A clock set back before the last attempt does not hold a call back. A check-in sends the number of enabled accounts as `seats` and `devices_used()` as `devices`.
 - **A server that does not know `devices`** (ADR 0093). A licence server from before it answers a check-in with an extra field with 400 (422 is treated the same). Then, in the same attempt, the check-in is sent once more without `devices`, under a new nonce, and is the pending request from then on; `devices` is left out of new check-ins for `DEVICES_RETRY` (seven days) after the refusal (`_devices_refused_at`, in this process only). Any other failure repeats the body unchanged.
+  - **The fallback is said, once.** The refusal is quiet in the product's own words — the check-in goes again without the count and nothing else changes — so without a line in the log the appliance looked as if it had never told the server how many devices it has. Two lines at INFO on the module's logger (`helpers.license_client`, stdout, the stream ADR 0005 ships the audit events to): one when the fallback starts, naming the server's status code and the UTC moment until which the count is left out (`_log_devices_refused`), and one when the count is sent with the check-ins again after the week (`_log_devices_sent_again`). No request body, no installation token and no device count reach a line. The second line is written once per process (`_devices_sent_again_at`), not once a day.
 - **Server address.** `https`, or `http` to `localhost`, `127.0.0.1` or `::1`; anything else is refused. The installation token is therefore sent only over TLS, except to this machine in development.
 - **Secrets.** The installation token and the activation key are in the table and in request bodies and nowhere else. Nothing here logs a body; every `LicenceError.reason` is built without them.
 - One lock serialises the actions and `tick` inside the web process. The network call is blocking: callers on an event loop run it with `asyncio.to_thread`.
-- Imported dependency areas include: `rezlic`, `helpers.db`, `helpers.runtime`, `helpers.git`, `helpers.users`, `urllib`.
+- Imported dependency areas include: `rezlic`, `helpers.db`, `helpers.runtime`, `helpers.git`, `helpers.users`, `urllib`, `logging`.
 
 ## Work Guidance
 
@@ -43,7 +44,7 @@
 
 ## Verification
 
-- `pytest tests/test_licence_client.py` — a stand-in licence server over HTTP on 127.0.0.1, through a whole life: activation, forty days of check-ins, a lost answer, a renewal, revocation, grace, restriction, release, a clock set back, forged and misdirected answers, offline files, a server that answers 500, garbage or nothing, and a server that refuses `devices`; and the device count against real rows. Needs PostgreSQL.
+- `pytest tests/test_licence_client.py` — a stand-in licence server over HTTP on 127.0.0.1, through a whole life: activation, forty days of check-ins, a lost answer, a renewal, revocation, grace, restriction, release, a clock set back, forged and misdirected answers, offline files, a server that answers 500, garbage or nothing, and a server that refuses `devices` (and the two log lines the refusal and the week after it write); and the device count against real rows. Needs PostgreSQL.
 - `pytest tests/test_rezlic_vectors.py` — the formats.
 
 ## Child DOX Index

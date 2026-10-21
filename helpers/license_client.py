@@ -26,6 +26,7 @@ from __future__ import annotations
 import functools
 import http.client
 import json
+import logging
 import os
 import re
 import secrets
@@ -70,6 +71,10 @@ _JSON = ("licence", "certs", "lease", "pending")
 # ponytail: one lock for one web process. Two processes would only repeat a request with the same nonce, which
 # the server answers twice with the same stored answer; a row lock if the application ever runs as several.
 _lock = threading.Lock()
+
+#: Where this module says what it did. The application's own logger, at INFO: the same stdout ADR 0005 sends the
+#: audit events to, so a line here is in `docker logs` and nowhere else to look.
+log = logging.getLogger(__name__)
 
 
 class LicenceError(Exception):
@@ -472,6 +477,7 @@ def _attempt(row: dict[str, Any], now: int) -> None:
             if kind != "checkin" or "devices" not in body or exc.status not in (400, 422):
                 raise
             _devices_refused_at = now
+            _log_devices_refused(exc.status or 0, now)
             body = {**{k: v for k, v in body.items() if k != "devices"}, "nonce": _nonce()}
             _pend(row, kind, body)
             answer = _call("POST", "/v1/" + kind, body)
@@ -556,6 +562,35 @@ def activate(key_text: str, now: int | None = None) -> None:
 _devices_refused_at = 0
 DEVICES_RETRY = 7 * DAY
 
+#: When the count was sent again after the week, so that a second line is written once and not every day.
+_devices_sent_again_at = 0
+
+
+def _log_devices_refused(status: int, now: int) -> None:
+    """Say that the licence server refused the device count, and until when the count is left out.
+
+    The refusal is quiet in the product's own words -- the check-in is sent again without the count and nothing
+    else changes -- so without this line the appliance looked as if it had never told the server how many devices
+    it has. The status code and the day the count comes back are what an operator needs; no body, no token and
+    no device count are written.
+    """
+    until = now + DEVICES_RETRY
+    log.info(
+        "The licence server answered HTTP %s to a check-in that named the device count. "
+        "The count is left out of the check-ins until %s (UTC).",
+        status,
+        time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(until)),
+    )
+
+
+def _log_devices_sent_again(now: int) -> None:
+    """Say that the device count is sent again, after the week or after a restart."""
+    global _devices_sent_again_at
+    if _devices_sent_again_at:
+        return
+    _devices_sent_again_at = now
+    log.info("The device count is sent with the check-ins again.")
+
 
 def _new_checkin(row: dict[str, Any], now: int) -> bool:
     """Make the next check-in the pending request. False when there is nothing to check in with."""
@@ -570,6 +605,9 @@ def _new_checkin(row: dict[str, Any], now: int) -> bool:
     }
     if not _devices_refused_at or now >= _devices_refused_at + DEVICES_RETRY:
         body["devices"] = devices_used()
+        if _devices_refused_at:
+            # The week is over (or the process was restarted and the count is in again): say so once.
+            _log_devices_sent_again(now)
     _pend(row, "checkin", body)
     return True
 
