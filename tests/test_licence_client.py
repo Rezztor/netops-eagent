@@ -47,6 +47,8 @@ class FakeServer:
         self.tamper = None
         self.revoked_at = 0
         self.knows_devices = True  # False: a server from before ADR 0093, whose check-in forbids extra fields
+        self.retired: dict[str, dict] = {}  # tokens of activations this one replaced; still valid for deactivate
+        self.path_mode: dict[str, str] = {}  # a path's own mode, else `mode`
         self.issue()
 
     def licence_payload(self, **over) -> dict:
@@ -59,11 +61,23 @@ class FakeServer:
         self.payload = self.licence_payload(**over)
         self.licence = formats.sign("licence", "root-test", self.payload, self.root)
 
+    def issue_other(self, lic: str) -> str:
+        """Point the next activation at another licence. Returns its key. The token now held stays valid
+        for deactivate."""
+        key = keys.generate()
+        self.key = key
+        self.issue(lic=lic)
+        act = self.acts.get(IID)
+        if act:
+            act["nonce"] = None
+            act["answer"] = {}
+        return key
+
     def lease(self, act: dict, body: dict, key=None, **over) -> dict:
         act["seq"] += 1
         status = "released" if act["released"] else "revoked" if self.revoked_at else "ok"
         payload = {
-            "typ": "lease", "lic": LIC, "ver": self.payload["ver"], "iid": body["iid"], "seq": act["seq"],
+            "typ": "lease", "lic": self.payload["lic"], "ver": self.payload["ver"], "iid": body["iid"], "seq": act["seq"],
             "prev": act["prev"], "iat": self.now, "now": self.now, "nonce": body["nonce"], "status": status,
             "exp": min(self.now + self.payload["lease_days"] * DAY, self.payload["exp"]),
             "notice_until": self.revoked_at + 7 * DAY if status == "revoked" else 0,
@@ -86,16 +100,27 @@ class FakeServer:
             act = self.acts.setdefault(body["iid"], {"seq": 0, "prev": "", "nonce": None, "answer": {}})
             if act["nonce"] == body["nonce"] and "token" in act["answer"]:
                 return 200, act["answer"]
-            act.update(token=b64e(secrets.token_bytes(32)), released=False)
+            if act.get("token"):
+                self.retired.setdefault(act["token"], {"released": bool(act.get("released")), "lic": act.get("lic", LIC)})
+            act.update(token=b64e(secrets.token_bytes(32)), released=False, lic=self.payload["lic"])
             answer = {"licence": self.licence, "lease": self.lease(act, body), "certs": [self.cert],
                       "token": act["token"]}
         else:
             act = self.acts.get(body["iid"])
+            if path == "/v1/deactivate":
+                token = body.get("token")
+                if not isinstance(token, str):
+                    return refused
+                if act is not None and token == act.get("token"):
+                    act["released"] = True
+                    return 200, {"ok": True}
+                retired = self.retired.get(token)
+                if retired is not None:
+                    retired["released"] = True
+                    return 200, {"ok": True}
+                return refused
             if act is None or body.get("token") != act["token"]:
                 return refused
-            if path == "/v1/deactivate":
-                act["released"] = True
-                return 200, {"ok": True}
             assert path == "/v1/checkin"
             if not self.knows_devices and "devices" in body:
                 return 400, {"error": "bad_request"}
@@ -122,11 +147,13 @@ class _Handler(BaseHTTPRequestHandler):
         body = json.loads(raw) if raw else None
         fake.requests.append((self.command, self.path, body, self.headers.get("User-Agent", "")))
         fake.raw.append(raw)
-        mode = fake.mode
+        mode = fake.path_mode.get(self.path, fake.mode)
         if mode == "nothing":
             return  # the connection closes with no answer
         if mode == "500":
             status, raw = 500, b'{"error":"unavailable"}'
+        elif mode == "403":
+            status, raw = 403, b'{"error":"refused"}'
         elif mode == "redirect":
             self.send_response(307)
             self.send_header("Location", "http://127.0.0.1:1/elsewhere")
@@ -386,6 +413,129 @@ def test_a_refused_deactivation_keeps_the_lease_and_the_token(active):
     with pytest.raises(license_client.LicenceError, match="refused"):
         license_client.deactivate(now=T0 + 60)
     assert stored() == before and at(T0 + 60)["state"] == "licensed"
+
+
+OTHER = "REZ-TEST-0002"
+
+
+def _audit_events(monkeypatch):
+    from plugins._audit.helpers import audit
+
+    events = []
+    monkeypatch.setattr(audit, "emit", lambda event, **fields: events.append((event, fields)))
+    return events
+
+
+def test_reactivating_the_same_licence_releases_nothing(active):
+    server = active
+    before = license_client._load()["token"]
+    assert license_client.activate(server.key, now=T0 + 60) is None
+    assert server.calls("/v1/deactivate") == []
+    row = license_client._load()
+    assert row["pending"] is None and row["token"] != before and row["lease"] is not None
+    assert at(T0 + 60)["licence"]["lic"] == LIC and at(T0 + 60)["releasing"] is None
+
+
+def test_activating_another_licence_releases_the_old_one_with_its_token(active, monkeypatch):
+    server = active
+    events = _audit_events(monkeypatch)
+    old_token = license_client._load()["token"]
+    replaced = license_client.activate(server.issue_other(OTHER), now=T0 + 60)
+    assert replaced == LIC
+    [body] = server.calls("/v1/deactivate")
+    assert set(body) == {"lic", "iid", "token", "nonce"} and body["token"] == old_token and body["lic"] == LIC
+    assert server.retired[old_token]["released"] is True
+    paths = [path for _, path, _, _ in server.requests]
+    assert paths.index("/v1/activate", 1) < paths.index("/v1/deactivate")
+    row = license_client._load()
+    assert row["token"] not in (None, old_token) and row["lease"] is not None and row["pending"] is None
+    state = at(T0 + 60)
+    assert (state["licence"]["lic"], state["state"], state["releasing"]) == (OTHER, "licensed", None)
+    assert old_token not in json.dumps(state)
+    released = [fields for event, fields in events if event == "licence.deactivate"]
+    assert released == [{"outcome": "ok", "detail": "", "lic": LIC, "state": "licensed"}]
+    assert old_token not in json.dumps(released)
+
+
+def test_a_failed_release_of_the_previous_licence_is_retried_by_tick_and_survives_restart(active, monkeypatch):
+    """The old token lives in the pending row, which is the table, so a restart repeats the same request."""
+    server = active
+    events = _audit_events(monkeypatch)
+    old_token = license_client._load()["token"]
+    server.path_mode["/v1/deactivate"] = "nothing"
+    assert license_client.activate(server.issue_other(OTHER), now=T0 + 60) == LIC
+    row = license_client._load()
+    pending = row["pending"]
+    assert pending["kind"] == "deactivate" and pending["body"]["token"] == old_token and pending["body"]["lic"] == LIC
+    assert set(pending["body"]) == {"lic", "iid", "token", "nonce"}
+    assert row["token"] not in (None, old_token) and row["lease"] is not None
+    assert at(T0 + 60)["releasing"] == LIC and at(T0 + 60)["licence"]["lic"] == OTHER
+    assert old_token not in json.dumps(at(T0 + 60)) and events == []
+    saved = pending
+    server.path_mode.clear()
+    license_client.tick(T0 + 90)  # inside the one-minute wait: the stored request is not sent again
+    assert license_client._load()["pending"] == saved and len(server.calls("/v1/deactivate")) == 1
+    license_client.tick(T0 + 120)
+    assert server.calls("/v1/deactivate")[-1] == saved["body"] and server.retired[old_token]["released"] is True
+    row = license_client._load()
+    assert row["pending"] is None and row["token"] not in (None, old_token) and row["lease"] is not None
+    assert at(T0 + 120)["state"] == "licensed" and at(T0 + 120)["releasing"] is None
+    assert [fields for event, fields in events if event == "licence.deactivate"] == [
+        {"outcome": "ok", "detail": "", "lic": LIC, "state": "licensed"}]
+
+
+def test_a_refused_release_of_the_previous_licence_is_dropped(active, monkeypatch):
+    server = active
+    events = _audit_events(monkeypatch)
+    old_token = license_client._load()["token"]
+    server.path_mode["/v1/deactivate"] = "403"
+    assert license_client.activate(server.issue_other(OTHER), now=T0 + 60) is None
+    body = server.calls("/v1/deactivate")[-1]
+    assert body["token"] == old_token and body["lic"] == LIC
+    row = license_client._load()
+    assert row["pending"] is None and row["token"] not in (None, old_token) and row["lease"] is not None
+    assert at(T0 + 60)["licence"]["lic"] == OTHER and at(T0 + 60)["releasing"] is None
+    license_client.tick(T0 + 120)
+    assert len(server.calls("/v1/deactivate")) == 1
+    [refused] = [fields for event, fields in events if event == "licence.deactivate"]
+    assert refused["outcome"] == "failed" and refused["lic"] == LIC and "refused" in refused["detail"]
+    assert old_token not in json.dumps(refused)
+
+
+def test_releasing_this_installation_finishes_the_previous_release_first(active):
+    server = active
+    old_token = license_client._load()["token"]
+    server.path_mode["/v1/deactivate"] = "nothing"
+    license_client.activate(server.issue_other(OTHER), now=T0 + 60)
+    new_token = license_client._load()["token"]
+    server.path_mode.clear()
+    license_client.deactivate(now=T0 + 120)
+    assert [body["token"] for body in server.calls("/v1/deactivate")] == [old_token, old_token, new_token]
+    assert server.retired[old_token]["released"] is True and server.acts[IID]["released"] is True
+    row = license_client._load()
+    assert row["lease"] is None and row["token"] is None and row["pending"] is None
+
+
+def test_the_activate_answer_names_a_released_previous_licence(active, monkeypatch):
+    post = _client(monkeypatch)
+    old = license_client._load()["token"]
+    response = post("license_activate", {"action": "activate", "key": active.issue_other(OTHER)})
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["ok"] is True and body["licence"]["released_lic"] == LIC and body["licence"]["releasing"] is None
+    assert body["licence"]["licence"]["lic"] == OTHER
+    text = response.get_data(as_text=True)
+    assert old not in text and active.acts[IID]["token"] not in text
+
+
+def test_the_activate_answer_names_a_previous_licence_still_to_be_released(active, monkeypatch):
+    active.path_mode["/v1/deactivate"] = "nothing"
+    post = _client(monkeypatch)
+    old = license_client._load()["token"]
+    response = post("license_activate", {"action": "activate", "key": active.issue_other(OTHER)})
+    body = response.get_json()
+    assert body["ok"] is True and "released_lic" not in body["licence"] and body["licence"]["releasing"] == LIC
+    assert old not in response.get_data(as_text=True)
 
 
 def test_a_clock_set_back_extends_nothing(active):

@@ -60,6 +60,10 @@ export interface LicenceStatus {
   can_release: boolean;
   /** A request that has had no verified answer yet and is being repeated. */
   pending: "activate" | "checkin" | "deactivate" | null;
+  /** Previous licence id while its release from this installation is still being confirmed. */
+  releasing?: string | null;
+  /** Set on the activate answer when that previous licence was released. */
+  released_lic?: string | null;
   last_attempt_at: number | null;
   last_success_at: number | null;
   last_result: string | null;

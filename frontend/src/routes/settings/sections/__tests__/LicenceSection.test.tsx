@@ -205,6 +205,22 @@ describe("the licence page", () => {
     expect(reload).toHaveBeenCalledTimes(1);
   });
 
+  it("says the previous licence was released, or that it will be", async () => {
+    await open(LICENSED);
+    const field = screen.getByLabelText("Activation key") as HTMLInputElement;
+    fireEvent.change(field, { target: { value: "REZ-BBBBB-BBBBB-BBBBB-BBBBB-BBBBC" } });
+    api.activateLicence.mockResolvedValueOnce({
+      ok: true,
+      licence: { ...LICENSED, licence: { ...LICENSED.licence!, lic: "REZ-9C3B-0002" }, released_lic: "REZ-8F2A-0001" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Activate" }));
+    await screen.findByText("The previous licence REZ-8F2A-0001 was released from this installation.");
+    cleanup();
+
+    await open({ ...LICENSED, releasing: "REZ-8F2A-0001", pending: "deactivate" });
+    expect(screen.getByText("The previous licence REZ-8F2A-0001 will be released from this installation.")).toBeTruthy();
+  });
+
   it("releases the installation only after a confirmation", async () => {
     await open(LICENSED);
     fireEvent.click(screen.getByRole("button", { name: "Release this installation" }));

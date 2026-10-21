@@ -14,6 +14,10 @@ are `rezlic/`, copied from there and never edited here. This module adds only wh
   before any of it is stored, in one statement, so the licence and lease held stay until new ones verify.
   Anything else the server says (400, 403, 429, 5xx, nothing, a body that is not the protocol's) is recorded
   and changes nothing.
+- **A switch.** Activating a different licence, when this installation holds a token for the one it had, stores
+  the new licence first and then releases the old activation with the same deactivate request, using the old
+  token. The old token stays pending until the server confirms; `tick` repeats it. A refusal drops it. The new
+  licence is never discarded to make room for that release, and activating the same licence releases nothing.
 - **The clock.** The mark of "The clock" in the formats: a reading of this machine's clock only raises it, an
   accepted lease sets it.
 
@@ -323,15 +327,53 @@ _COMMUNITY_STATE: dict[str, Any] = {
     "state": "community", "reason": "community", "problem": "", "clock_behind": False,
     "message": "Community build: free, no limits.",
     "end": None, "restricted_at": None, "days_left": None, "lease": None, "has_token": False, "pending": None,
-    "last_attempt_at": 0, "last_success_at": 0, "last_result": "", "next_attempt_at": 0, "licence": None,
+    "releasing": None, "last_attempt_at": 0, "last_success_at": 0, "last_result": "", "next_attempt_at": 0,
+    "licence": None,
 }
+
+
+def _releasing_previous(row: dict[str, Any], body: Any) -> bool:
+    """A pending deactivation of an activation this installation no longer holds: its token is not the one stored."""
+    token = body.get("token") if isinstance(body, dict) else None
+    return bool(token) and token != row.get("token")
+
+
+def _pending_previous(row: dict[str, Any]) -> bool:
+    pending = row.get("pending")
+    return bool(pending and pending.get("kind") == "deactivate" and _releasing_previous(row, pending.get("body")))
+
+
+def _releasing_lic(row: dict[str, Any]) -> str | None:
+    """The id of a previous licence whose release is still pending. The token stays in the pending body."""
+    if not _pending_previous(row):
+        return None
+    lic = row["pending"]["body"].get("lic")
+    return lic if isinstance(lic, str) and lic else None
+
+
+def _audit_release(lic: str, error: str | None) -> None:
+    """The release of a licence this activation replaced. The same event a person's Release writes; the token
+    is not in it. A background retry has no signed-in account, and the event says so rather than inventing one."""
+    try:
+        from plugins._audit.helpers import audit
+
+        audit.emit(
+            "licence.deactivate",
+            outcome="failed" if error else "ok",
+            detail=error or "",
+            lic=lic,
+            state=state()["state"],
+        )
+    except Exception:  # noqa: BLE001 - an audit sink must not fail the release
+        pass
 
 
 def state(now: int | None = None) -> dict[str, Any]:
     """The verdict of "What the product concludes", from the stored documents, verified again now.
 
     `state` is community, licensed, grace1, grace2 or restricted. Holds no secret: neither the token nor a
-    pending body. A Community build answers "community" without reading anything. Enterprise and UAT read the
+    pending body. `releasing` is the id of a previous licence whose release is still pending, or None.
+    A Community build answers "community" without reading anything. Enterprise and UAT read the
     stored documents, as before.
     """
     clock = int(time.time() if now is None else now)
@@ -366,6 +408,7 @@ def state(now: int | None = None) -> dict[str, Any]:
         "lease": lease,
         "has_token": bool(row["token"]),
         "pending": row["pending"]["kind"] if row["pending"] else None,
+        "releasing": _releasing_lic(row),
         "last_attempt_at": row["last_attempt_at"],
         "last_success_at": row["last_success_at"],
         "last_result": row["last_result"],
@@ -467,6 +510,8 @@ def _attempt(row: dict[str, Any], now: int) -> None:
     request is no longer pending, or only the result of the attempt is recorded."""
     global _devices_refused_at
     kind, body = row["pending"]["kind"], row["pending"]["body"]
+    previous = kind == "deactivate" and _releasing_previous(row, body)
+    previous_lic = body.get("lic") if previous and isinstance(body, dict) else None
     try:
         try:
             answer = _call("POST", "/v1/" + kind, body)
@@ -485,7 +530,8 @@ def _attempt(row: dict[str, Any], now: int) -> None:
             # The one unsigned answer the product acts on, and only against itself.
             if answer.get("ok") is not True:
                 raise LicenceError("The licence server sent an answer that is not valid.")
-            fields: dict[str, Any] = {"lease": None, "token": None}
+            # Releasing the licence this one replaced must not discard the lease and token just stored.
+            fields: dict[str, Any] = {} if previous else {"lease": None, "token": None}
         else:
             try:
                 fields = _accept(_held(row), answer, body, kind == "activate")
@@ -496,7 +542,10 @@ def _attempt(row: dict[str, Any], now: int) -> None:
     except LicenceError as exc:
         if exc.final and kind != "checkin":
             # The server did not act on it, and a person is there to try again: the key is not kept waiting.
+            # A refused release of a previous licence is dropped the same way, so the old token is not either.
             _save(pending=None, last_attempt_at=now, last_result=exc.reason)
+            if isinstance(previous_lic, str):
+                _audit_release(previous_lic, exc.reason)
         else:
             failures = row["failures"] + 1
             _save(last_attempt_at=now, last_result=exc.reason, failures=failures,
@@ -504,6 +553,8 @@ def _attempt(row: dict[str, Any], now: int) -> None:
         raise
     _save(**fields, pending=None, last_attempt_at=now, last_success_at=now, last_result="ok", failures=0,
           next_attempt_at=now + CHECKIN_EVERY)
+    if isinstance(previous_lic, str):
+        _audit_release(previous_lic, None)
 
 
 def _pend(row: dict[str, Any], kind: str, body: dict[str, Any]) -> None:
@@ -536,8 +587,13 @@ def _not_on_community() -> None:
         raise LicenceError("This is a Community build. It does not use a licence server.", final=True)
 
 
-def activate(key_text: str, now: int | None = None) -> None:
-    """Exchange an activation key for a licence, a first lease and the installation token."""
+def activate(key_text: str, now: int | None = None) -> str | None:
+    """Exchange an activation key for a licence, a first lease and the installation token.
+
+    Returns the id of a different licence this activation replaced, when that one had a token and its release
+    was confirmed or is still pending. None when nothing was released: a first activation, the same licence
+    again, or a release the server refused.
+    """
     _not_on_community()
     try:
         key = keys.normalise(key_text)  # refused here, before any network call
@@ -546,6 +602,9 @@ def activate(key_text: str, now: int | None = None) -> None:
     iid = _own_iid()
     with _lock:
         row = _load()
+        held = _held(row)
+        old_lic = held.licence["lic"] if held.licence is not None else None
+        old_token = row["token"]
         pending = row["pending"]
         try:
             same = pending["kind"] == "activate" and keys.normalise(pending["body"]["key"]) == key  # type: ignore[index]
@@ -554,7 +613,11 @@ def activate(key_text: str, now: int | None = None) -> None:
         if not same:
             shown = "REZ-" + "-".join(key[i:i + 5] for i in range(0, 25, 5))
             _pend(row, "activate", {"key": shown, "iid": iid, "version": product_version(), "nonce": _nonce()})
-        _attempt(row, int(time.time() if now is None else now))
+        clock = int(time.time() if now is None else now)
+        _attempt(row, clock)
+        # The new licence is stored. Only then is the one it replaced released, so a failed release never
+        # leaves this installation with neither.
+        return _release_previous(old_lic, old_token, clock)
 
 
 #: When a licence server last refused a check-in that carried `devices`, and how long the count is then left out.
@@ -612,6 +675,26 @@ def _new_checkin(row: dict[str, Any], now: int) -> bool:
     return True
 
 
+def _release_previous(old_lic: str | None, old_token: str | None, now: int) -> str | None:
+    """Free the activation a stored new licence replaced. The new licence stays if this fails.
+
+    The request is the one `deactivate` sends, with the old token, and it is saved before it is sent. A
+    network failure leaves it pending for `tick`. A refusal (400, 403) drops it, as a refused deactivation does.
+    """
+    if not old_lic or not old_token:
+        return None
+    row = _load()
+    held = _held(row)
+    if held.licence is None or held.licence["lic"] == old_lic or row["token"] == old_token:
+        return None
+    _pend(row, "deactivate", {"lic": old_lic, "iid": _own_iid(), "token": old_token, "nonce": _nonce()})
+    try:
+        _attempt(row, now)
+    except LicenceError as exc:
+        return None if exc.final else old_lic
+    return old_lic
+
+
 def checkin(now: int | None = None) -> None:
     """Ask for a new lease now, or repeat the request that is still waiting for its answer."""
     _not_on_community()
@@ -627,14 +710,23 @@ def deactivate(now: int | None = None) -> None:
     """Free this installation's slot. On the server's yes the lease and the token are discarded."""
     _not_on_community()
     with _lock:
+        clock = int(time.time() if now is None else now)
         row = _load()
         held = _held(row)
         if held.licence is None or held.licence["offline"] or not row["token"]:
             raise LicenceError("This installation holds no activation to release.", final=True)
+        if _pending_previous(row):
+            # Finish releasing the licence this one replaced before releasing this one. A failure leaves that
+            # release pending; this installation's token is not lost with it.
+            _attempt(row, clock)
+            row = _load()
+            held = _held(row)
+            if held.licence is None or held.licence["offline"] or not row["token"]:
+                raise LicenceError("This installation holds no activation to release.", final=True)
         if not (row["pending"] and row["pending"]["kind"] == "deactivate"):
             _pend(row, "deactivate", {"lic": held.licence["lic"], "iid": _own_iid(), "token": row["token"],
                                       "nonce": _nonce()})
-        _attempt(row, int(time.time() if now is None else now))
+        _attempt(row, clock)
 
 
 _FILE_PROBLEMS = {
