@@ -216,3 +216,17 @@ def test_the_file_is_replaced_whole_and_kept_private(tmp_path, monkeypatch):
     assert env.stat().st_ino != before, "the file was rewritten in place"
     assert stat.S_IMODE(env.stat().st_mode) == 0o600
     assert not [name for name in tmp_path.iterdir() if name.name != ".env"], "a temporary file was left behind"
+
+
+def test_a_process_that_never_loaded_the_file_keeps_the_stored_persistent_id(env_file, monkeypatch):
+    """The appliance console asks the licence state with `python -c` in the container, a process that never ran
+    load_dotenv. It found no id in its environment, made a new one and wrote it over the stored one; the server's
+    next start, an update's restart, renamed the session cookie and signed everybody out."""
+    from helpers import runtime
+
+    env_file.write_text("REZZTOR_PERSISTENT_RUNTIME_ID=the-one-in-use\n", encoding="utf-8")
+    monkeypatch.setenv("REZZTOR_PERSISTENT_RUNTIME_ID", "")
+    monkeypatch.delenv("REZZTOR_PERSISTENT_RUNTIME_ID")
+
+    assert runtime.get_persistent_id() == "the-one-in-use"
+    assert env_file.read_text(encoding="utf-8") == "REZZTOR_PERSISTENT_RUNTIME_ID=the-one-in-use\n"

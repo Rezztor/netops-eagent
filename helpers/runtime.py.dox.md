@@ -18,7 +18,7 @@
 - `is_development() -> bool`
 - `get_local_url()`
 - `get_runtime_id() -> str`
-- `get_persistent_id() -> str`
+- `get_persistent_id() -> str`: `REZZTOR_PERSISTENT_RUNTIME_ID` from usr/.env, made once (`dotenv.get_or_create_dotenv_value`). It names the session cookie (`session_<id>`), is the licence's installation id and goes into the MCP token, so a new one signs everybody out at the server's next start; a process that never loaded usr/.env must read the file, never mint over it.
 - `async call_development_function(func: Callable[..., Awaitable[T]], *args, **kwargs) -> T`
 - `async call_development_function(func: Callable[..., T], *args, **kwargs) -> T`
 - `async call_development_function(func: Union[Callable[..., T], Callable[..., Awaitable[T]]], *args, **kwargs) -> T`: runs `func` here, awaiting a coroutine function. It once forwarded the call to a paired instance over RFC; that link (`helpers/rfc.py`, `api/rfc.py`) was removed on 2026-10-11 and the name is kept for the callers.

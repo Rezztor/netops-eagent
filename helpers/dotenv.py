@@ -3,7 +3,7 @@ import os
 import re
 import tempfile
 import threading
-from typing import Any
+from typing import Any, Callable
 
 from .files import get_abs_path
 from dotenv import load_dotenv as _load_dotenv
@@ -28,8 +28,26 @@ def get_dotenv_file_path():
     return get_abs_path("usr/.env")
 
 def get_dotenv_value(key: str, default: Any = None):
-    # load_dotenv()       
+    # load_dotenv()
     return os.getenv(key, default)
+
+
+def get_or_create_dotenv_value(key: str, create: Callable[[], str]) -> str:
+    """The value of `key` in usr/.env, made by `create` and saved only when the file has none.
+
+    The environment holds usr/.env only once load_dotenv() has run, and a process that never ran it -- the
+    appliance console's `python -c` in the container -- found nothing, made a new value and wrote it over the
+    stored one. The server kept its own until its next start. For the persistent id that start was an update's
+    restart: the session cookie was renamed and everybody was signed out, and the licence's installation id moved.
+    """
+    value = get_dotenv_value(key)
+    if not value:
+        load_dotenv()
+        value = get_dotenv_value(key)
+    if not value:
+        value = create()
+        save_dotenv_value(key, value)
+    return value
 
 
 # Where a value came from. `usr/.env` wins: load_dotenv() above is called with
