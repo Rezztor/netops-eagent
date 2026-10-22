@@ -312,7 +312,8 @@ def uat_trust() -> dict[str, Any] | None:
         if not roots or set(roots.values()) & set(ROOT_KEYS.values()) or "BEGIN CERTIFICATE" not in ca_pem:
             raise ValueError("not a UAT trust file")
         TrustStore(roots)  # every key must load
-        return {"root_keys": roots, "server": server, "ca_pem": ca_pem}
+        update = trust.get("update_server")  # optional: the update service of this UAT build, see update_spool
+        return {"root_keys": roots, "server": server, "ca_pem": ca_pem, **({"update_server": str(update)} if update else {})}
     except (OSError, ValueError, KeyError, AttributeError, TypeError, FormatError):
         return dict(_TRUST_NOTHING)
 

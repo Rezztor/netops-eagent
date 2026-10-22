@@ -1081,8 +1081,15 @@ def build(tmp_path, monkeypatch):
     license_client.enterprise_build.cache_clear()
 
 
-def _dummy_trust(server: str = "https://license.uat.rezztor.test", ca_pem: str = "-----BEGIN CERTIFICATE-----x") -> dict:
+def _dummy_trust(server: str = "https://license.uat.invalid", ca_pem: str = "-----BEGIN CERTIFICATE-----x") -> dict:
     return {"root_keys": {"root-uat-test": keys.export_public(keys.new_private_key())}, "server": server, "ca_pem": ca_pem}
+
+
+def test_a_uat_trust_file_may_name_the_update_server(build):
+    build(UAT, {**_dummy_trust(), "update_server": "https://update.uat.invalid:8443"})
+    assert license_client.uat_trust()["update_server"] == "https://update.uat.invalid:8443"
+    build(UAT, _dummy_trust())
+    assert "update_server" not in license_client.uat_trust()
 
 
 @pytest.mark.parametrize("stamp, uat", [
@@ -1102,7 +1109,7 @@ def test_only_the_stamp_of_a_uat_image_replaces_the_trust(build, monkeypatch, st
         monkeypatch.setenv(name, "uat")
     if uat:
         assert license_client._roots() == trust["root_keys"] and "root-2026a" not in license_client._roots()
-        assert license_client.server_url() == "https://license.uat.rezztor.test"
+        assert license_client.server_url() == "https://license.uat.invalid"
     else:
         assert license_client.uat_trust() is None
         assert license_client._roots() == PRODUCTION_ROOTS == license_client.ROOT_KEYS
@@ -1132,8 +1139,8 @@ def test_an_unreadable_stamp_beside_a_trust_file_trusts_nothing(build, monkeypat
 @pytest.mark.parametrize("trust", [
     None,                                                                   # the file is missing
     "not json",
-    {"root_keys": {}, "server": "https://license.uat.rezztor.test", "ca_pem": "-----BEGIN CERTIFICATE-----"},
-    {"root_keys": {"root-uat": "short"}, "server": "https://license.uat.rezztor.test", "ca_pem": "-----BEGIN CERTIFICATE-----"},
+    {"root_keys": {}, "server": "https://license.uat.invalid", "ca_pem": "-----BEGIN CERTIFICATE-----"},
+    {"root_keys": {"root-uat": "short"}, "server": "https://license.uat.invalid", "ca_pem": "-----BEGIN CERTIFICATE-----"},
     {**_dummy_trust(), "ca_pem": ""},
     {**_dummy_trust(), "root_keys": dict(PRODUCTION_ROOTS)},              # a UAT build never takes a production root
     {**_dummy_trust(), "root_keys": {"root-uat": PRODUCTION_ROOTS["root-2026a"]}},

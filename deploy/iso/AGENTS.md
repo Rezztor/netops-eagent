@@ -107,7 +107,7 @@
   - **The update service is the only address the tool calls** (spec of 2026-10-20). A release machine asks
     `https://update.rezztor.com` with the system's CAs, whatever the request says;
     a `-uat` machine takes the request's `server` and `ca_pem` (and keeps them in `work/uat-server.json` for a
-    request that names none), else `https://update.uat.rezztor.test`. The proxy is `HTTPS_PROXY`/`NO_PROXY` of the
+    request that names none), else the neutral `https://update.uat.invalid`. The proxy is `HTTPS_PROXY`/`NO_PROXY` of the
     stack's `.env`, never the process environment; no redirect is followed. The session is `hello` with the update
     key and the `age`-decrypted challenge, answered only when the plaintext is exactly 64 lowercase hex characters
     (never a decryption oracle); the token is kept in memory only. The service's list (`state.updates`) only says

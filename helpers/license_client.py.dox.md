@@ -71,7 +71,7 @@ stamp so that path stays what it was.
 `uat_trust()` (cached) is not None only in an image whose stamp has `"licence": "uat"` and a version that ends in
 `-uat`, or whose stamp cannot be read (missing, not JSON, not an object) while `licence_trust.json` lies beside it:
 that broken UAT image gets the trust-nothing result, never `ROOT_KEYS` and `license.rezztor.com`. It then reads `licence_trust.json` (`UAT_TRUST_FILE`, beside the stamp, written by the image build from
-`BUILD_UAT_TRUST`): `root_keys`, `server`, `ca_pem`. With it, `_roots()` is those keys and not `ROOT_KEYS`, the
+`BUILD_UAT_TRUST`): `root_keys`, `server`, `ca_pem` and, optionally, `update_server` (the update service of that build, which `helpers/update_spool.py` sends to the host). With it, `_roots()` is those keys and not `ROOT_KEYS`, the
 baked `server` is the default of `server_url()` (`REZZTOR_LICENCE_SERVER_URL` still overrides), and `_transport()`
 verifies TLS against `ca_pem` alone (a client context that starts with no CA). A missing or wrong file, a key that
 does not load, or a root equal to a production one gives empty roots and no server: the image trusts nothing and

@@ -40,8 +40,9 @@ VERSION = re.compile(r"\d{4}\.\d{2}\.\d{2}(\.\d{1,2})?(-uat)?")
 BUSY = {"downloading": "An update is being downloaded. Wait until it has finished.",
         "installing": "An update is being installed. Wait until it has finished.",
         "restarting": "An update is being installed. Wait until it has finished."}  # fmt: skip
-# The address a UAT build's host asks (ADR 0085, 0091). A release build sends none: its host asks update.rezztor.com.
-UAT_SERVER = "https://update.uat.rezztor.test"
+# The address a UAT build's host asks when its trust file names none (ADR 0085, 0091); the file's `update_server` wins.
+# A release build sends none: its host asks update.rezztor.com.
+UAT_SERVER = "https://update.uat.invalid"
 # The instance setting behind the daily check (helpers/settings.py), on by default.
 DAILY_SETTING = "update_daily_check"
 DAY = 86400
@@ -160,7 +161,7 @@ def _fields(action: str, version: str | None) -> dict[str, str]:
         raise UpdateRefused("A Community build takes no paid update packages.")
     # Every call to the service: a UAT image names its server and CA each time (the host keeps the last ones).
     trust = license_client.uat_trust()
-    service = {"server": UAT_SERVER, **({"ca_pem": trust["ca_pem"]} if trust["ca_pem"] else {})} if trust else {}
+    service = {"server": trust.get("update_server") or UAT_SERVER, **({"ca_pem": trust["ca_pem"]} if trust["ca_pem"] else {})} if trust else {}
     if action != "download":
         return service
     if not isinstance(version, str) or not VERSION.fullmatch(version):
