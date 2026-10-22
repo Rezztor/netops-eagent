@@ -1,7 +1,7 @@
 """The licence client: what this installation holds, what it concludes from it, and its calls to the licence server.
 
-The contract is the licence-server repository's `spec/formats.md` and `spec/protocol.md`; the formats themselves
-are `rezlic/`, copied from there and never edited here. This module adds only what a product needs around them:
+The contract is the licence server's formats and protocol; the formats themselves are `rezlic/` (see its
+`AGENTS.md`), copied from the licence server and never edited here. This module adds only what a product needs around them:
 
 - **Trust.** `ROOT_KEYS` is the whole list of root public keys. It is a constant of the build. No setting,
   environment variable or file adds or replaces one: whoever administers an installation is the customer, and a
@@ -474,7 +474,7 @@ def _nonce() -> str:
 
 def _accept(held: Held, answer: dict[str, Any], body: dict[str, Any], activation: bool) -> dict[str, Any]:
     """Verify an activation or check-in answer whole; return the columns to store. Raises FormatError and then
-    nothing is stored. Mirrors the reference client (licence-server tests/helpers.py, FakeProduct.accept)."""
+    nothing is stored. Mirrors the licence server's own reference client."""
     iid, trust, certs = body["iid"], held.trust, dict(held.certs)
     answer_certs = answer.get("certs", [])
     if not isinstance(answer_certs, list):

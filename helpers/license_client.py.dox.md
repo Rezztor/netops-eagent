@@ -3,7 +3,7 @@
 ## Purpose
 
 - Own the `license_client.py` helper module: what this installation holds of its licence, what it concludes from it, and its calls to the licence server.
-- Implements the product side of the licence contract (the licence-server repository's `spec/formats.md` and `spec/protocol.md`) on top of `rezlic/`, which holds the formats and is never edited here. ADR 0078 records the switch.
+- Implements the product side of the licence contract (the licence server's formats and protocol, in the code of `rezlic/` and of this module) on top of `rezlic/`, which holds the formats and is never edited here. ADR 0078 records the switch.
 
 ## Ownership
 
@@ -39,7 +39,7 @@
 
 ## Work Guidance
 
-- Change the formats in the licence-server repository and copy `rezlic/` again; do not work around them here.
+- Change the formats in the licence server and copy `rezlic/` again; do not work around them here.
 - Keep `state()` free of secrets: `helpers/license_entitlements.py` passes parts of it to every signed-in user.
 - A new stored field needs a migration, an entry in `_EMPTY`, and, if it is JSON, in `_JSON`.
 
