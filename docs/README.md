@@ -1,14 +1,9 @@
 # Rezztor EAgent Documentation
 
-Internal documentation for the Rezztor EAgent platform.
+Documentation for the Rezztor EAgent platform.
 
 **Deploying it: [setup/deployment.md](setup/deployment.md)** — Docker Compose on one host,
-or Kubernetes with the Helm chart, including OIDC, backups, and what to check when it does
-not work.
-
-## Fork decisions and conventions
-
-- **[Test baseline](internal/pytest-baseline.txt)** — the tests that were already failing at the fork point, and what each one turned out to be.
+including OIDC, backups, and what to check when it does not work.
 
 ## Using the platform
 

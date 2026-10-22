@@ -53,6 +53,5 @@ engineer asked for; `plugins.manage` (administrator) sets the guard rails, the n
 user has none of it. See `docs/guides/azure-changes.md`.
 
 The plan digest, not the plan file, is what is approved. See `AGENTS.md` for the contracts, ADRs 0061 to 0066 and 0070 to
-0075 for the reasons, the build contract `docs/plans/2026-10-03-azure-operations-build.md` for the whole design and
-`docs/plans/2026-10-04-azure-change-set-build.md` for change sets.
+0075 for the reasons. Change sets are the same gate over more than one plan.
 Tested against a stand-in executor only; the first real run is test session 2.

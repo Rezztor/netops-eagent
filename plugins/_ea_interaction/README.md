@@ -42,6 +42,5 @@ this one.
 
 ## Status
 
-Phases 1 and 2 of [the chat interaction plan](../../docs/internal/chat-interaction-plan.md):
-questions, and approvals that ask rather than authorise. Endpoint-backed
-approvals are Phase 3.
+Questions, and approvals that ask rather than authorise, are in this plugin.
+Endpoint-backed approvals are separate: a card cannot grant a permission.

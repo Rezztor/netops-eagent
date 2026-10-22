@@ -3,8 +3,7 @@
 Lets the agent inspect network devices and firewalls through Ansible, and — once
 an engineer has approved the exact commands — change them.
 
-**Status: built, not yet verified against hardware.** See
-[the plan](../../docs/internal/ansible-network-plan.md). The tools, the change
+**Status: built, not yet verified against hardware.** The tools, the change
 gate, the approval flow and the executor all exist and are tested; no playbook
 here has touched a real device.
 
@@ -53,7 +52,7 @@ management network.
 
 **Settings → Network automation → Keep device data on a local model** (`plugins.manage`, off by default) refuses the
 network, inventory and SolarWinds tools unless the chat and utility models have a loopback or private API base (or a
-bare host name such as `http://ollama:11434`). No API base counts as hosted. See ADR 0052 for what it does not cover.
+bare host name such as `http://ollama:11434`). No API base counts as hosted. A dotted name is never treated as local (ADR 0052).
 
 ## What is deferred
 

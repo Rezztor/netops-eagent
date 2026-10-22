@@ -1,7 +1,6 @@
 # Device credentials and the model
 
-How a device password is kept away from the LLM. Decision record:
-[ADR 0044](../internal/decisions/0044-what-the-model-can-see-of-a-device-credential.md).
+How a device password is kept away from the LLM (ADR 0044).
 
 ## Giving the agent a credential
 
@@ -43,7 +42,7 @@ and decrypted only into a job's own folder, which is deleted after the job.
 ## Configuration backups
 
 A backup of a device's running configuration is stored **encrypted on the executor** (same key as the
-credentials, [ADR 0047](../internal/decisions/0047-config-backups-stay-encrypted-on-the-executor.md)) and never
+credentials, ADR 0047) and never
 leaves it in the clear over HTTP. The application and the screen get dates, sizes, hashes, a **redacted** view and a
 redacted diff; the model gets nothing, because there is no agent tool for backups. A changed secret appears in a diff
 as a changed line without its value (a FortiGate or Palo Alto backup is masked the same way: FortiOS `ENC` values, pre-shared keys, SNMP communities, PAN-OS `phash` and key fields). To read a backup unredacted you need a shell on the executor host:
@@ -55,7 +54,7 @@ Set `REZZTOR_ANSIBLE_BACKUP_KEEP` (default 30 per host) and, for a scheduled rou
 
 The executor listens on a Unix socket (`REZZTOR_ANSIBLE_SOCKET`, mode 0660) in the `ansible_socket` volume and on no
 TCP port; the application connects with `REZZTOR_ANSIBLE_EXECUTOR_URL=unix:///run/ansible-socket/executor.sock`
-([ADR 0051](../internal/decisions/0051-the-executor-listens-on-a-socket.md)). Only those two containers mount the volume; the
+(ADR 0051). Only those two containers mount the volume; the
 runner does not. The bearer tokens still apply, so a process that can reach the socket still needs one.
 
 `REZZTOR_ANSIBLE_CREDENTIAL_KEY_FILE` (and `..._EXECUTOR_TOKEN_FILE`, `..._ADMIN_TOKEN_FILE`) read the value from a

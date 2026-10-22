@@ -7,9 +7,8 @@
 
 ## Ownership
 
-- `README.md`, `guides/`, and `setup/` cover user-facing workflows. `internal/` records fork decisions.
-- `developer/` covers compact developer references and source handoffs.
-- `plans/` covers implementation plans, migration notes, and staged technical roadmaps.
+- `README.md`, `guides/`, and `setup/` cover user-facing workflows.
+- `developer/` covers compact developer references.
 
 ## Local Contracts
 

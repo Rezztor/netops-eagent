@@ -6,8 +6,7 @@ code-execution runner, the Ansible executor, web search and PostgreSQL:
 
 Per-user isolation does not need an orchestrator any more. The runner carries one
 Linux account per user, with its own uid and a 0700 home, so two users are two
-users to the kernel — see
-[ADR 0038](../internal/decisions/0038-one-account-per-user-on-a-shared-runner.md).
+users to the kernel (ADR 0038).
 
 > **The customer delivery story is being redesigned.** The k3s appliance, the
 > bootable installer ISO and the Helm chart were retired on 2026-09-18: none had
@@ -146,7 +145,7 @@ pid limits, durable state in a named volume.
 
 **Also does:** per-user runner isolation. The runner carries a fixed pool of unprivileged
 Linux accounts and the application claims one per user, so two people running code are two
-uids with two `0700` homes ([ADR 0038](../internal/decisions/0038-one-account-per-user-on-a-shared-runner.md)).
+uids with two `0700` homes (ADR 0038).
 The pool pins the runner's host key before the first connection, so that path is
 `StrictHostKeyChecking=yes` and not trust-on-first-use.
 

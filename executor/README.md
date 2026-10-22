@@ -5,9 +5,8 @@ The only workload permitted to reach the management network, and the only place
 variables**; there is no field through which playbook content, a device command
 or a credential can arrive.
 
-See [ADR 0030](../docs/internal/decisions/0030-the-eagent-owns-the-ansible-executor.md)
-for why this is not the runner pod, and
-[the plan](../docs/internal/ansible-network-plan.md) for where it fits.
+This is not the runner: the runner executes model-authored code and must not
+have a route to the management network (ADR 0030).
 
 ## Build
 
@@ -37,7 +36,7 @@ A job may also carry `actor` and `change_id`. The executor stores them and acts
 on neither: they are labels for a history view, and keeping them out of the
 execution fields is what `test_record_only_fields_never_reach_ansible` checks.
 
-| `POST /v1/backups` · `GET /v1/backups[?host=]` · `GET /v1/backups/{host}/{id}` · `GET /v1/backups/{host}/diff?from=&to=` | Config backups (job token). Run (at most 10 hosts), list, and a **redacted** text or diff. **No route returns raw text**; the store is AES-256-GCM, see [ADR 0047](../docs/internal/decisions/0047-config-backups-stay-encrypted-on-the-executor.md). Raw export: `ea-ansible backup export <host> <id>`. |
+| `POST /v1/backups` · `GET /v1/backups[?host=]` · `GET /v1/backups/{host}/{id}` · `GET /v1/backups/{host}/diff?from=&to=` | Config backups (job token). Run (at most 10 hosts), list, and a **redacted** text or diff. **No route returns raw text**; the store is AES-256-GCM (ADR 0047). Raw export: `ea-ansible backup export <host> <id>`. |
 | `GET /inventory` · `PUT /inventory` | The device inventory. **Administration token.** |
 | `GET /credentials` · `PUT /credentials/{name}` · `DELETE /credentials/{name}` | Device credentials, write-only. **Administration token.** |
 
@@ -122,8 +121,7 @@ application is the thing that is broken. Health, what has run, and one job's
 commands and output. HTTP Basic with the administration token as the password.
 
 Three narrowings, because a published port on the one workload that can reach the
-estate is the riskiest part of this design ([ADR 0032](../docs/internal/decisions/0032-the-ansible-console-is-ours.md)
-says so in its consequences):
+estate is the riskiest part of this design (ADR 0032):
 
 - **Off by default.** No port set, no listener.
 - **Loopback unless told otherwise.** `REZZTOR_ANSIBLE_PUBLIC_BIND` is a separate
@@ -165,7 +163,7 @@ a shell.
 | `REZZTOR_ANSIBLE_ADMIN_TOKEN` | — | The configuration plane. Must differ from the job token. Without it the inventory and credentials cannot be changed. |
 | `REZZTOR_ANSIBLE_CREDENTIAL_KEY` | — | 32 bytes, base64. Without it no credential is stored at all. |
 | `REZZTOR_ANSIBLE_EXECUTOR_TOKEN_FILE`, `REZZTOR_ANSIBLE_ADMIN_TOKEN_FILE`, `REZZTOR_ANSIBLE_CREDENTIAL_KEY_FILE` | — | The same three secrets read from a mounted file (a Docker secret) instead of the environment. Read at the moment of use; setting both forms of one is refused. |
-| `REZZTOR_ANSIBLE_SOCKET` | — | Listen on this Unix socket (mode 0660) and on no TCP port; the application's address is then `unix://<path>` ([ADR 0051](../docs/internal/decisions/0051-the-executor-listens-on-a-socket.md)). Unset, the executor listens on `REZZTOR_ANSIBLE_BIND`:`REZZTOR_ANSIBLE_PORT` (`0.0.0.0:8500`). The compose files set it. |
+| `REZZTOR_ANSIBLE_SOCKET` | — | Listen on this Unix socket (mode 0660) and on no TCP port; the application's address is then `unix://<path>` (ADR 0051). Unset, the executor listens on `REZZTOR_ANSIBLE_BIND`:`REZZTOR_ANSIBLE_PORT` (`0.0.0.0:8500`). The compose files set it. |
 | `REZZTOR_ANSIBLE_PUBLIC_PORT` | — | Break-glass console. Unset means no listener. |
 | `REZZTOR_ANSIBLE_PUBLIC_BIND` | `127.0.0.1` | Where that console binds. Changing it needs TLS in front. |
 | `REZZTOR_ANSIBLE_CATALOGUE_COMMIT` | `unpinned` | Baked at build time. A job quoting a different commit is refused with `409`. |
@@ -199,7 +197,7 @@ in the clear. An executor that quietly kept device passwords unencrypted because
 a variable was unset is the worst outcome available here, and the one that looks
 like it is working.
 
-Two accepted limits ([ADR 0044](../docs/internal/decisions/0044-what-the-model-can-see-of-a-device-credential.md)):
+Two accepted limits (ADR 0044: the model never sees a stored device credential):
 the application reaches this service over plain HTTP with a bearer token on `ansible_net`,
 and the key and the ciphertext live on the same host. Outbound, one nftables table
 (`inet rezztor_guard`, ADR 0079) fences every container: with a network list the executor reaches only the listed
@@ -293,8 +291,7 @@ interfaces and resolve in this image, but **none has been run against real
 hardware** — except the SONiC leg, verified live 2026-09-19 against a community
 SONiC VS lab, and the Cisco IOS leg, run 2026-10-02 against a Cisco 3725 (IOS 12.4(15)T14)
 for reads, show, ports, backup and the interface-description change: the pipeline works end to end, and the entry bugs it found are
-fixed and recorded in
-[docs/plans/2026-09-19-network-catalogue-live-verification.md](../docs/plans/2026-09-19-network-catalogue-live-verification.md).
+fixed.
 Every module a playbook names is now resolved against this image by
 `plugins/_ea_ansible/tests/test_net_playbooks_resolve.py`, so "resolves in this
 image" is checked rather than asserted. The other platforms are still that live

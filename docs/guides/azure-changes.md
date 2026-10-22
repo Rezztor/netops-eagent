@@ -10,12 +10,11 @@ see [Azure cloud inventory](azure.md); that part needs none of this.
 
 > **Status.** Built: the change tools and card, the CR or SR number, the change document, change sets, simple actions,
 > suggestions, free code (off), adoption and drift. Written and tested against a stand-in for OpenTofu and for Azure, not yet against
-> a real tenant. The first real run is test session 2 in `docs/plans/2026-10-03-azure-operations-design.html`; anything
-> below that session has not proved is said to be unverified.
+> a real tenant. Anything not proved against a real tenant below is said to be unverified.
 
 ## What the product will never do
 
-These are the owner's rules. They are not settings: there is no switch, no argument and no confirmation that changes
+These limits are fixed. They are not settings: there is no switch, no argument and no confirmation that changes
 them, and the Azure role the product runs as does not allow them either.
 
 | Never | What happens instead |
