@@ -4,7 +4,7 @@
  * `BootstrapResponse` mirrors the pydantic model in `api/bootstrap.py`, which is
  * published in the OpenAPI document at `GET /api/openapi`. It is hand-written
  * rather than generated because it is currently the only endpoint that declares
- * a body schema -- see docs/internal/decisions/0009. When more endpoints declare
+ * a body schema (ADR 0009). When more endpoints declare
  * models, generate this file from the document instead of extending it by hand.
  */
 

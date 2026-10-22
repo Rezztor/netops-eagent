@@ -2,8 +2,9 @@
 This guide will show you how to setup a local development environment for Rezztor EAgent in a VS Code compatible IDE, including proper debugger.
 
 > [!TIP]
-> The short way: `dev/run.sh` starts the application from your checkout with its own PostgreSQL and code-execution
-> runner, and licenses it against the licence server's development stack. See `dev/README.md`.
+> The short way is in the repository [README](../../README.md): a virtualenv, `pip install -r requirements.txt`,
+> then `python run_ui.py`. The Compose stack in `docker/run/` runs the application beside the code-execution runner.
+> Agent code does not run in the WebUI process.
 
 
 
@@ -85,21 +86,21 @@ It will not be able to do code execution and few other features requiring the Do
 1. The project is pre-configured for debugging. Go to Debugging tab, select "run_ui.py" and click the green play button (or press F5 by default). The configuration can be found at `.vscode/launch.json`.
 
 
-The framework will run at the default port 5000. If you open `http://localhost:5000` in your browser and see `ERR_EMPTY_RESPONSE`, don't panic, you may need to select another port like I did for some reason. If you need to change the default port, you can add `"--port=5555"` to the args in the `.vscode/launch.json` file or you can create a `.env` file in the root directory and set the `WEB_UI_PORT` variable to the desired port.
+The framework will run at the default port 5000. If you open `http://localhost:5000` in your browser and see `ERR_EMPTY_RESPONSE`, don't panic, you may need to select another port. If you need to change the default port, you can add `"--port=5555"` to the args in the `.vscode/launch.json` file or you can create a `.env` file in the root directory and set the `WEB_UI_PORT` variable to the desired port.
 
 You can also set the bind host via `"--host=0.0.0.0"` (or `WEB_UI_HOST=0.0.0.0`).
 
-It may take a while the first time. You should see output like the screenshot below. The RFC error is ok for now as we did not yet connect our local development to another instance in docker.
+It may take a while the first time. You should see output like the screenshot below.
 
 
-After inserting my API key in settings, my Rezztor EAgent instance works. I can send a simple message and get a response.
+After a model provider is configured in Settings, a simple message should get a response.
 Some tools like code execution will not work yet because they need to be connected to a Dockerized instance.
 
 
 
 ## Debugging
 - You can try out the debugger already by placing a breakpoint somewhere in the python code.
-- Let's open `python/api/message.py` for example and place a breakpoint at the beginning of the `communicate` function by clicking on the left of the row number. A red dot should appear showing a breakpoint is set.
+- Let's open `api/message.py` for example and place a breakpoint at the beginning of the `communicate` function by clicking on the left of the row number. A red dot should appear showing a breakpoint is set.
 
 
 - Sending a message in the UI now pauses execution at the breakpoint, so runtime
@@ -108,44 +109,18 @@ Some tools like code execution will not work yet because they need to be connect
 
 
 
-## Step 5: Run another instance of Rezztor EAgent in Docker
-- Some parts of EAgent require standardized linux environment, additional web services and preinstalled binaries that would be unneccessarily complex to set up in a local environment.
-- To make development easier, a dockerized instance can run alongside the local one and
-  selected calls are forwarded to it over RFC (Remote Function Call), which is HTTP.
+## Step 5: Run the stack when you need code execution
 
-1. Build the image and run it with the web port (`80`) mapped. No image is published
-for you to pull today, so build it from this repository -- see
-[deployment.md](deployment.md) for the commands. Do not map port 22: the application container runs no SSH server.
-Optionally map the `/eagent` folder to your local project folder so both instances see
-the same source.
-For example: port `80` mapped to `8880` on the host, and `/eagent` mapped to your
-project folder.
+Some tools need a Linux environment the host checkout does not provide. Build the images from this
+repository ([deployment.md](deployment.md), `docker/run/build.txt`) and start the Compose stack:
 
+```bash
+cd docker/run && docker compose up -d
+```
 
-
-## Step 6: Configure SSH and RFC connection
-- The last step is to configure the local development (VS Code) instance and the dockerized instance to communicate with each other. This is very simple and can be done in the settings in the Web UI of both instances.
-- In my example the dark themed instance is the VS Code one, the light themed one is the dockerized instance.
-
-1. Open the "Settings" page in the Web UI of your dockerized instance and go in the "Development" section.
-2. Set the `RFC Password` field to a new password and save.
-3. Open the "Settings" page in the Web UI of your local instance and go in the "Development" section.
-4. Set the `RFC Password` to the same value, and the HTTP port to whatever you mapped
-   when creating the container -- `8880` in the example above. `RFC Destination URL`
-   normally stays `localhost`, since both instances run on the same host.
-
-   There is no SSH port to set. RFC runs over HTTP: the settings are `rfc_url`,
-   `rfc_port_http` and `rfc_password`, and the application container has no SSH server
-   to reach. Code execution happens in a separate runner container instead.
-5. Click save and test by asking your agent to do something in the terminal, like "Get current OS version". It should reach the dockerized instance over RFC and run the command there, answering
-with something like "Debian GNU/Linux 12 (bookworm)".
-
-My Dockerized instance:
-
-My VS Code instance:
-
-## RFC Notes (Host IDE + Docker Execution)
-Rezztor EAgent runs code inside the container by default. If you are running the framework locally in your IDE but want tools (like code execution) to run in Docker, configure RFC in **Settings -> Development** and point it to a running Rezztor EAgent container. This routes execution through SSH/RFC to the container while keeping the UI and agent loop on your host.
+The WebUI is on the port that compose file publishes. Agent code runs in the runner container, not in
+the WebUI process. A development link that forwarded calls from a host process into a container was
+removed on 2026-10-11; `helpers/runtime.py` runs the function where it is called.
 
 
 # Congratulations!
@@ -153,9 +128,8 @@ Rezztor EAgent runs code inside the container by default. If you are running the
 You have successfully set up a complete Rezztor EAgent development environment! You now have:
 
 - A local development instance running in your IDE with full debugging capabilities
-- A dockerized instance for code execution and system operations
-- RFC and SSH communication between both instances
-- The ability to develop, debug, and test Rezztor EAgent features seamlessly
+- A Compose stack for code execution and the services the host checkout does not provide
+- The ability to develop, debug, and test Rezztor EAgent features
 
 You're now ready to contribute to Rezztor EAgent, create custom extensions, or modify the framework to suit your needs. Happy coding!
 
@@ -180,7 +154,4 @@ REZZTOR_SET_memory_recall_interval=5
 These environment variables automatically override the hardcoded defaults in `get_default_settings()` without modifying code. Useful for testing different configurations or multi-environment setups.
 
 ## Want to build your docker image?
-- You can use the `DockerfileLocal` to build your docker image.
-- Navigate to your project root in the terminal and run `docker build -f DockerfileLocal -t rezztor-eagent-local --build-arg CACHE_DATE=$(date +%Y-%m-%d:%H:%M:%S) .`
-- The `CACHE_DATE` argument is optional, it is used to cache most of the build process and only rebuild the last steps when the files or dependencies change.
-- See `docker/run/build.txt` for more build command examples.
+- See [deployment.md](deployment.md) and `docker/run/build.txt`.

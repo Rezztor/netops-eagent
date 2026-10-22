@@ -13,8 +13,8 @@ this module answers the same request with a digest over the drift. Wiring, in `a
 `/v1/plan` calls `refresh.plan` when `mode` is `refresh_only`, and `POST /v1/refresh/accept` calls `refresh.accept`,
 both inside `_one_at_a_time`.
 
-# unverified: the shape of `resource_drift` is OpenTofu's documented JSON plan format (opentofu.org/docs/internals/json-format,
-# "resource_drift": the same object as `resource_changes`); the fixture copies it. Not run against OpenTofu 1.13 yet.
+# unverified: the shape of `resource_drift` is OpenTofu's documented JSON plan format
+# ("resource_drift": the same object as `resource_changes`); the fixture copies it. Not run against OpenTofu 1.13 yet.
 """
 
 from __future__ import annotations

@@ -1,6 +1,6 @@
 """The guard rails: what an Azure change may touch and cost. Stored here, edited through `/v1/admin/guardrails`.
 
-There is no `deletes_allowed` and no `max_deletes` (owner's rule, 3 October 2026): deleting is not configurable. An
+There is no `deletes_allowed` and no `max_deletes` (3 October 2026): deleting is not configurable. An
 unknown key is refused rather than stored, so nobody can add one that a later reader might honour.
 Empty `subscriptions` means nothing can change; empty `regions` means no region is allowed until the Settings
 screen fills it from the inventory.

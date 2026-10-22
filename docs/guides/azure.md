@@ -14,7 +14,7 @@ or SR number and a change document: see [Azure changes](azure-changes.md).
 > **Verified against one real tenant on 3 October 2026**, for certificate sign-in, the Reader role, a pull of
 > networking resources and chat answers from them. Compute, storage, database and web resources, several
 > subscriptions, and the sign-in failure messages other than "no role" have only run against a stand-in Azure.
-> `docs/plans/2026-10-03-azure-setup-walkthrough.html` has the click-by-click record.
+> The click-by-click record of that tenant is not in this tree; the steps below are the ones to follow.
 
 ## What the administrator does in Azure first
 

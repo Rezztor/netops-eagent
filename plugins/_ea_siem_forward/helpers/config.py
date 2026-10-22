@@ -2,9 +2,9 @@
 
 There is no credential here, and no `usr/.env` indirection like `_ea_mail` and
 `_ea_solarwinds` need: plain UDP syslog carries no authentication at all. That
-is a simplification, not an oversight -- and it is also the reason §7 of
-`docs/internal/research/siem-forwarder-plan.md` lists TCP/TLS syslog as the
-upgrade for anyone whose security policy needs the transport itself protected.
+is a simplification, not an oversight. TCP/TLS syslog is the upgrade for anyone
+whose security policy needs the transport itself protected; this plugin does not
+implement it.
 """
 
 from __future__ import annotations

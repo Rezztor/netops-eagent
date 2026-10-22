@@ -4,9 +4,8 @@
 
 - Own the container that runs OpenTofu against Azure for the change plugin (`plugins/_ea_azure_change`): its API, the
   static gate and plan policy, the runner, the keys, the template catalogue loader, and the image.
-- Contract: `docs/plans/2026-10-03-azure-operations-build.md` ("Cloud executor API", "The static gate and the plan
-  policy", "The Azure role for key C", "Templates") and `docs/plans/2026-10-04-azure-change-set-build.md` ("Executor (W1)");
-  ADRs 0061 to 0066, 0068, 0070 to 0072, 0074, 0075.
+- Contract: the cloud executor API, the static gate and the plan policy, the Azure role for key C, the
+  templates, and change sets (executor side). ADRs 0061 to 0066, 0068, 0070 to 0072, 0074, 0075.
 
 ## Ownership
 

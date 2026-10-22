@@ -33,7 +33,7 @@ image/
 .conda/
 .cursor/
 # Agent worktrees live under .claude/worktrees/: whole copies of this and other repositories, which a local build
-# put into the image (UAT, 2026-10-19).
+# put into the image once (2026-10-19).
 .claude/
 .venv/
 .git/
@@ -75,8 +75,8 @@ scripts/sign_release.py
 CONTRIBUTING.md
 
 # The same kind of material in other folders. graphify-out/ is a generated
-# graph of the whole repository, 41 MB, and it quotes docs/internal/ -- the
-# licensing plan included -- so excluding docs/internal/ alone did not keep
+# graph of the whole repository, 41 MB, and it quotes the decision records --
+# the licensing plan included -- so excluding that folder alone did not keep
 # that text out. The rest is notes, plans and tool configuration.
 graphify-out/
 handoff/
@@ -101,10 +101,9 @@ docker/run/runner_key.pub
 **/uat-trust.json
 **/licence_trust.json
 
-# The local DEV setup (dev/run.sh): its settings, keys and data, and the stamp it
-# writes into the working tree so that a host run trusts the licence server's DEV
-# root. An image build writes its own build_info.json; this one must not be there
-# for it to find.
+# A local development checkout's settings, keys and data, and a licence-trust
+# stamp a host run may write beside the sources. An image build writes its own
+# build_info.json; a stamp already in the tree must not be the one it finds.
 dev/
 build_info.json
 
@@ -119,7 +118,7 @@ site/
 ###############################################################################
 # Engineering material: what explains the code, tests it or builds it
 #
-# The owner's rule (2026-10-12): a customer gets what the machine runs and
+# Rule since 2026-10-12: a customer gets what the machine runs and
 # nothing that documents how it is made. 210 file-level notes, 130 AGENTS.md
 # contracts, CLAUDE.md, the developer guides, every plugin's tests and the
 # scripts that build the ISO were all in the delivered image until then.
@@ -171,7 +170,7 @@ scripts/
 .gitattributes
 
 # Read by the agent at run time, and still a description of how the product
-# is built inside. The owner's decision of 2026-10-12: the six skills for
+# is built inside. Since 2026-10-12 the six skills for
 # developing the framework and its plugins stay here, and so does the note
 # that lists the main files. "Create an agent profile", "build a skill" and
 # the other four notes about itself are delivered.

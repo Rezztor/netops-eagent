@@ -1,9 +1,9 @@
 """The copy of `rezlic/` in this repository passes every vector of the licence contract.
 
-`rezlic/` and `tests/fixtures/licence_vectors/` are copied byte for byte from the licence-server repository
-(`rezlic/`, `spec/vectors/`). The runner below is that repository's `tests/test_vectors.py`; only the path differs.
-PINS holds the SHA-256 of each copied module, so an edit made here instead of there fails: change the file in
-the licence-server repository, copy it again, and update the pin in the same change.
+`rezlic/` and `tests/fixtures/licence_vectors/` are copied byte for byte from the licence server.
+The runner below follows the licence server's vector tests; only the path differs.
+PINS holds the SHA-256 of each copied module, so an edit made here instead of there fails: change the file on
+the licence server, copy it again, and update the pin in the same change.
 """
 import hashlib
 import json

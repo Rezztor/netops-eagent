@@ -1,12 +1,10 @@
 """The brand palette lives in three places, and nothing links them.
 
-`frontend/src/styles/tokens.css` is the source of truth. Two other files carry
-their own copies of the same values, for reasons that are not going away:
+`frontend/src/styles/tokens.css` is the source of truth. One other file carries
+its own copy of the same values, for a reason that is not going away:
 
 - `helpers/login_page.py` renders before a session exists and therefore before
   the bundle is allowed to load, so it cannot import a token from it.
-- `docs/internal/reference-ui/*.html` are the approved design, reviewed as
-  standalone pages.
 
 A third copy, the appliance's first-boot setup page, went with the appliance on
 2026-09-18; the test that checked it went too, and its dangling constant

@@ -257,7 +257,7 @@
     ".yaml": 12,
     ".yml": 1
   },
-  "reviewed_by": "Claude Sonnet 5.5 (worker task_64bb866ff2db) for the owner; flags read 2026-10-04, owner to confirm",
+  "reviewed_by": "Claude Sonnet 5.5 (automated review); flags read 2026-10-04, maintainer to confirm",
   "reviewed_on": "2026-10-04",
   "source": "https://github.com/microsoft/azure-skills",
   "upstream_skills": [

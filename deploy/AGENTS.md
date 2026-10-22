@@ -23,7 +23,7 @@
   application was still moving cost more than it returned. They are in the git
   history. How the product reaches a customer is a decision for when the
   application is ready — do not re-add a second install path in the meantime.
-  The TEST ISO under `iso/` (asked for by the owner on 2026-10-05) is not a
+  The TEST ISO under `iso/` (2026-10-05) is not a
   second shape: it carries the offline bundle unchanged and runs its
   `install.sh`. Since 2026-10-13 what a customer receives is that ISO built as a release, from a tag in a fresh
   clone (`scripts/build_release.sh`, ADR 0084); a TEST ISO is a development build.
@@ -118,7 +118,7 @@
 - **Per-user isolation is uids, not orchestration.** The runner carries one
   Linux account per user, each with a 0700 home, and sshd resolves `%u` before
   reading `authorized_keys` so a key registered for one slot cannot open
-  another's session. See ADR 0038. The pool is fixed at the size the runner
+  another's session (ADR 0038). The pool is fixed at the size the runner
   image was built with; exhaustion refuses rather than sharing an account.
 
 - The application container writes each user's public key into a volume the

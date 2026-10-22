@@ -123,9 +123,8 @@ def test_permissions_named_in_the_registry_exist():
 # ---------------------------------------------------------------------------
 
 # Where a reader is being told how to drive the interface as it is now.
-# `docs/internal/research/` is excluded: those are plans and decision records,
-# and they describe what was intended at a point in time rather than what is on
-# screen today. Rewriting history to match the present would destroy the record.
+# Plans and decision records are not in this check: they describe what was
+# intended at a point in time rather than what is on screen today.
 DOC_ROOTS = ("README.md", "docs/guides", "docs/setup", "deploy")
 
 # References inherited from the interface removed in ADR 0015, in documents
@@ -142,7 +141,6 @@ KNOWN_PRE_REACT_PATHS = {
     # left in rather than excluded, because it is the same debt.
     ("docs/guides/api-integration.md", "Secrets"),
     ("docs/guides/model-presets.md", "Agent"),
-    ("docs/setup/dev-setup.md", "Development"),
 }
 
 # "Settings -> X" or "Settings → X", with optional markdown bold around it.

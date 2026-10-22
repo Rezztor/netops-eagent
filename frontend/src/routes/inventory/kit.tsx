@@ -1,5 +1,5 @@
 /**
- * Shared pieces of the redesigned Inventory screens (docs/plans/2026-10-02-inventory-redesign).
+ * Shared pieces of the Inventory screens.
  * Colours come from the theme tokens, so both themes work. Anything the app's own
  * components already do (Button, Tag, Card, Table, Modal, Drawer) stays there.
  */

@@ -54,8 +54,8 @@ class ConversationSummary:
 
     A loaded `AgentContext` costs about 0.45 MB and 16 ms to build; one of these
     costs a few hundred bytes and is built from a parse the boot was doing
-    anyway. That difference is the whole of phase 1 -- see
-    `docs/internal/storage-plan.md`.
+    anyway. That difference is the whole of phase 1: the boot lists rows from
+    the parse it was already doing, and loads a conversation only when it is used.
 
     Deliberately a different type rather than a stand-in for `AgentContext`. A
     proxy would answer every attribute plausibly right up to the one nobody

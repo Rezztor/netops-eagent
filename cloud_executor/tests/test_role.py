@@ -11,7 +11,7 @@ import pytest
 
 ROLE = json.loads((Path(__file__).resolve().parents[1] / "role.json").read_text())
 
-#: The contract's 90 withheld actions, copied from docs/plans/2026-10-03-azure-operations-build.md.
+#: The contract's 90 withheld actions: deletes, stops, and the other operations the product must not call.
 NOT_ACTIONS = (
     "*/delete",
     "Microsoft.Compute/virtualMachineScaleSets/delete/action",

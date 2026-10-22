@@ -1,5 +1,5 @@
 {
- "_comment": "Written from documented output, not recorded from a run. Shape: OpenTofu JSON plan representation, https://opentofu.org/docs/internals/json-format/ (resource_drift: 'the same structure as resource_changes', changes found while refreshing), also https://developer.hashicorp.com/terraform/internals/json-format#plan-representation. A refresh-only plan lists every resource under resource_changes with actions [no-op].",
+ "_comment": "Written from documented output, not recorded from a run. Shape: OpenTofu JSON plan representation (resource_drift: 'the same structure as resource_changes', changes found while refreshing), also https://developer.hashicorp.com/terraform/internals/json-format#plan-representation. A refresh-only plan lists every resource under resource_changes with actions [no-op].",
  "format_version": "1.2",
  "terraform_version": "1.13.1",
  "variables": {

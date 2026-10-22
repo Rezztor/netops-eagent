@@ -1,8 +1,7 @@
 /**
  * The component library.
  *
- * Small, unopinionated primitives that match the approved reference pages in
- * docs/internal/reference-ui/. Everything visual comes from the token file --
+ * Small, unopinionated primitives. Everything visual comes from the token file --
  * a component never names a colour.
  */
 

@@ -1,6 +1,6 @@
 /**
  * Inventory report endpoints — lifecycle, data quality, racks.
- * Shapes match docs/plans/2026-10-02-inventory-asset-record-build.md.
+ * Lifecycle, data quality and rack reports over the stored inventory.
  */
 
 import { apiRequest } from "./client";

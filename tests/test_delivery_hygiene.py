@@ -7,9 +7,8 @@ ignore file" change, and nothing else would notice until a customer had
 already received the result.
 
 These tests check the *rules*, not a built image, so they run in a normal
-suite with no Docker daemon. `test_customer_packaging_and_delivery` in
-docs/internal/research/customer-packaging-and-delivery-plan.md §1 records
-why each entry is on the list.
+suite with no Docker daemon. The reason beside each entry below says why it
+is on the list.
 """
 
 from __future__ import annotations
@@ -355,5 +354,5 @@ def test_no_private_key_is_committed():
 
 
 def test_agent_worktrees_stay_out_of_the_build_context():
-    """.claude/worktrees/ holds whole checkouts; a local build copied them into the image (UAT run, 2026-10-19)."""
+    """.claude/worktrees/ holds whole checkouts; a local build copied them into the image (2026-10-19)."""
     assert ".claude/" in _dockerignore_lines()

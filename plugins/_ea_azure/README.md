@@ -6,7 +6,7 @@ It cannot start, stop, change or delete anything in Azure; adding or changing is
 that removes or stops something is only ever a suggestion with a runbook (ADR 0065).
 
 **Verified against one real tenant on 2026-10-03** for certificate sign-in, the Reader role and a pull of networking
-resources (`docs/plans/2026-10-03-azure-setup-walkthrough.html`). Other resource types are built and tested against a
+resources. Other resource types are built and tested against a
 stand-in only; their paths stay marked `# unverified:` in `helpers/shape.py` and `helpers/queries.py`.
 
 ## What it holds

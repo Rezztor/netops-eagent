@@ -10,7 +10,7 @@ an argument's *presence* to which of two fixed literals gets used.
 
 Column names follow SolarWinds' standard, long-stable Orion schema. Entity
 names were checked against real SWQL examples or the OrionSDK schema docs
-during planning (`docs/internal/research/solarwinds-plugin-plan.md`); exact
+during planning; exact
 column availability on any one instance is confirmed live, in Phase 1
 verification, not asserted here as certain for every possible install.
 """

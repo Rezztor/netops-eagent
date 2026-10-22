@@ -24,10 +24,9 @@ export default defineConfig({
     port: 5273,
     // Why a proxy rather than calling the backend directly on its own origin:
     // authentication is a Flask session cookie with SameSite=Lax plus a CSRF
-    // token, which only works when the page and the API share an origin. Option
-    // A in docs/internal/enhancement-plan.md keeps that scheme and puts a
-    // reverse proxy in front in production; this mirrors it in development so
-    // the two behave identically.
+    // token, which only works when the page and the API share an origin. The
+    // backend serves the built frontend at /app so production has one origin;
+    // this proxy mirrors that in development so the two behave identically.
     proxy: {
       "/api": { target: BACKEND, changeOrigin: false },
       "/login": { target: BACKEND, changeOrigin: false },

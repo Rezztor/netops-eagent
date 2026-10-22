@@ -61,9 +61,7 @@ response — the interface shows only whether one is set.
 
 - Any write path — see the "read-only, structural" note above.
 - NCM script execution, and a later device-communication bridge for pushing
-  changes directly. Both are tracked as future roadmap, deliberately
-  separate from this plugin — see
-  `docs/internal/research/solarwinds-future-roadmap.md`.
+  changes directly. Both stay out of this plugin on purpose.
 - A raw SWQL escape hatch. The entire design exists to not need one.
 
 ## Where things live

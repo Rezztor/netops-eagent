@@ -65,7 +65,7 @@ def _tf_variables(code):
 
 
 def _problem(spec, v):
-    """The loader's job lives in W2's code; this mirrors the schema the catalogue states, so the patterns are tested."""
+    """The loader's job lives in `templates.py`; this mirrors the schema the catalogue states, so the patterns are tested."""
     t = spec["type"]
     if t == "str":
         return None if isinstance(v, str) and re.fullmatch(spec["pattern"], v) else "pattern"
@@ -292,7 +292,7 @@ def test_the_recorded_update_changes_only_may_change(name):
     assert changed and changed <= may and all(k in may for k in changed)
 
 
-# ------------------------------------------------------------------------ the gate and the plan policy (W2's file)
+# ------------------------------------------------------------------------ the gate and the plan policy (`gate.py`)
 
 
 def _load_gate():
@@ -413,7 +413,7 @@ def test_a_plan_with_a_type_outside_the_guard_rails_is_refused():
 
 
 # A tag change targets a resource group that exists, so the rule "a create over an inventory ID is refused" must not
-# apply to azapi_update_resource, which makes nothing. Until W2 says it does not, this is expected to fail.
+# apply to azapi_update_resource, which makes nothing. Until the policy does so, this is expected to fail.
 @needs_gate
 @pytest.mark.xfail(reason="needs the plan policy to exempt azapi_update_resource from the exists rule", strict=False)
 def test_tags_on_a_group_in_the_inventory_is_accepted():
@@ -523,7 +523,7 @@ def test_an_nsg_with_an_inline_rule_is_refused():
 
 # ---------------------------------------------------------------------------------------------------- `parents`
 
-from cloud_executor import templates as tmpl  # noqa: E402 - the catalogue loader (W2's), used from here down
+from cloud_executor import templates as tmpl  # noqa: E402 - the catalogue loader (`templates.py`), used from here down
 
 PARENTS = {"subnet": 3, "peering": 2, "route": 1, "nsg_rule": 1}
 VNET = "Microsoft.Network/virtualNetworks"

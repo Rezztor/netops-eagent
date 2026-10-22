@@ -1,6 +1,6 @@
 """Single-use tokens for a password reset a locked-out user starts themselves.
 
-Deliberately not reachable by the agent. Rifky chose self-service only: the
+Deliberately not reachable by the agent. Self-service only: the
 "Forgot password?" flow on the sign-in page issues these, and nothing in a
 conversation can. An agent that could mint a credential-bearing link would be a
 credential-bearing link away from an account takeover every time a web page it

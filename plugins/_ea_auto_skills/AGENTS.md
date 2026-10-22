@@ -64,7 +64,7 @@
   SKILL.md standard, `helpers.secrets` owns what a secret is, `_audit` owns provenance.
 - Adding a check belongs in `validate.check`, so the whole gate is readable in one place.
 - Keep generated skills to instructions. Scripts would need an execution sandbox that
-  `docs/internal/decisions/0006` records as still absent.
+  is still absent (ADR 0006).
 
 ## Verification
 

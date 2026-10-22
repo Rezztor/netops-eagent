@@ -65,7 +65,7 @@ deploy/dev/.bin/
 docker/run/runner_key
 docker/run/runner_key.pub
 
-# handoff: local paths/usernames from graphify
+# Local paths and usernames written by graphify
 graphify-out/.graphify_python
 graphify-out/.graphify_root
 
@@ -75,8 +75,8 @@ image/
 # Written by scripts/build_local.sh for the image build; see BUILD_INPUTS in scripts/sign_release.py
 /build_inputs.sha256
 
-# dev/run.sh: its generated settings, keys, pid files and logs, and the DEV licence stamp it writes into the
-# working tree (a UAT-style trust of the licence server's DEV root, ADR 0085; dev/README.md)
+# Generated local-development settings, keys, pid files and logs, and a licence-trust
+# stamp a host run may write into the working tree (ADR 0085).
 /dev/.env.dev
 /dev/keys/
 /dev/data/

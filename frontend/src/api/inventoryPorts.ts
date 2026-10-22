@@ -1,4 +1,4 @@
-/** Observed ports and parts of a device (build contract A: docs/plans/2026-10-02-inventory-phase3-4-and-chat-build.md). */
+/** Observed ports and parts of a device: a dated snapshot, not a proposal. */
 
 import { apiRequest } from "./client";
 

@@ -15,7 +15,7 @@
 
 ## Local Contracts
 
-- **The sink is additive only.** It is registered through `plugins._audit.helpers.audit.register_sink`, which runs it *after* the record is masked, written to stdout and buffered, with its own shallow copy. It must never be reworked into an `@extension.extensible` hook on `emit()`: that decorator's `start` point would hand it the fields before masking and the stdout write, which is a mutation point on the audit trail. See `docs/internal/decisions/0028`.
+- **The sink is additive only.** It is registered through `plugins._audit.helpers.audit.register_sink`, which runs it *after* the record is masked, written to stdout and buffered, with its own shallow copy. It must never be reworked into an `@extension.extensible` hook on `emit()`: that decorator's `start` point would hand it the fields before masking and the stdout write, which is a mutation point on the audit trail (ADR 0028).
 - **This is not the audit record.** ADR 0005 makes the stdout stream the retained trail precisely because the application cannot reach it afterwards. This plugin is a convenience channel for a deployment with no stdout log shipper; the Settings card says so to the operator, and nothing here may claim otherwise.
 - **Forwarding never breaks the audited operation.** The sink formats and enqueues; it opens no socket, resolves no name, and blocks on nothing. Every layer swallows its own exceptions, inheriting `emit()`'s own promise.
 - **A full queue drops the oldest and counts it.** Bounded memory and visible loss, never unbounded growth and never a blocked audit write. The counters are surfaced in Settings.

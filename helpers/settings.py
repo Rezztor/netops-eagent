@@ -602,7 +602,7 @@ def _write_settings_file(settings: Settings, conn=None):
     settings = settings.copy()
     # The secret half does not live here. Provider API keys and the various
     # passwords go to usr/.env, which stays a file because the database's own
-    # password cannot live inside the database -- see docs/internal/storage-plan.md.
+    # password cannot live inside the database.
     _write_sensitive_settings(settings)
     _remove_sensitive_settings(settings)
 

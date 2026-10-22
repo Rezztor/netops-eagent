@@ -45,7 +45,7 @@ UDP has no delivery acknowledgement. A successful send means the packet left
 this machine — not that the collector received, parsed, or accepted it.
 
 More importantly: this is a *convenience* channel. The retained audit record is
-the stdout stream (see `docs/internal/decisions/0005`), which is trustworthy
+the stdout stream (ADR 0005), which is trustworthy
 precisely because the application cannot reach it after it is written. Events
 forwarded from inside the application can only ever be as trustworthy as the
 application. A deployment that needs a record it can rely on during an incident

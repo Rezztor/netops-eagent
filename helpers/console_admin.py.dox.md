@@ -39,4 +39,4 @@
 
 - `pytest tests/test_console_admin.py` (needs the test database).
 - On an installed machine: menu entry `admin`, choose the account, the old password stops working and the next
-  sign-in asks for a new one (`docs/plans/2026-10-14-closed-console-gaps.html`, gap 3).
+  sign-in asks for a new one.

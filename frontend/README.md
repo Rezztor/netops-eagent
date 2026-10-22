@@ -1,8 +1,8 @@
 # Rezztor EAgent frontend
 
 React + TypeScript, built with Vite. Talks to the backend over `/api` and is
-served **same origin** behind a reverse proxy — this is Option A from
-`docs/internal/enhancement-plan.md`.
+served **same origin** by the backend at `/app`, so the session cookie and the
+CSRF token share an origin with the API.
 
 ## Why same origin
 
@@ -51,7 +51,7 @@ src/
     theme.ts       system / light / dark
   routes/          screens
   styles/
-    tokens.css     design tokens, ported from docs/internal/reference-ui/
+    tokens.css     design tokens; a component never names a colour
     global.css     reset and base
 ```
 
@@ -110,8 +110,7 @@ reaches all 86 API endpoints the inherited interface does. It is now what `/`
 serves by default.
 
 Stage 7 — deleting `webui/` — is the remaining step, and is deliberately not
-taken yet. Parity means API surface, not that the two interfaces behave alike;
-see `docs/internal/legacy-ui-parity.md` for what it does not cover, notably the
-browser's Xpra live view. `tests/test_legacy_ui_removal_readiness.py` turns into
+taken yet. Parity means API surface, not that the two interfaces behave alike,
+notably the browser's Xpra live view. `tests/test_legacy_ui_removal_readiness.py` turns into
 a failing assertion the moment `webui/` is removed while anything still depends
 on it.

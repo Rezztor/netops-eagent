@@ -103,7 +103,7 @@ Do **not** show errors or success via inline boxes (e.g. a red `<div>` bound to 
 - **Success**: `toastFrontendSuccess(message, "My Plugin")`
 - **Warnings/Info**: `toastFrontendWarning`, `toastFrontendInfo` from `/components/notifications/notification-store.js`
 
-Import and call from your store; do not render a dedicated error/success block in the template. See [Notifications](/eagent/docs/developer/notifications.md) for the full API.
+Import and call from your store; do not render a dedicated error/success block in the template. See [Notifications](../../docs/developer/notifications.md) for the full API.
 
 ---
 

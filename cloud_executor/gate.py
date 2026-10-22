@@ -7,7 +7,7 @@ executor gives. Three public functions:
 * `check_code(files)` reads OpenTofu source before anything runs and returns refusals.
 * `check_plan(plan, rails, draft, inventory_ids)` reads the plan JSON `tofu show -json` wrote and returns
   `(checks, refusals)`. **Any delete, replace or forget refuses the whole plan.** No rail, argument or confirmation
-  changes that: the owner's rule is that the product never removes, stops or swaps anything in Azure.
+  changes that: the product never removes, stops or swaps anything in Azure.
 * `plan_digest(plan, source, workspace)` hashes what the plan changes. It is the artefact an engineer approves.
 
 `draft` is the dict the executor builds from the template or the free code: `template` (name or `"free"`),

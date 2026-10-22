@@ -62,7 +62,7 @@ INSTALL_BASE="${REZZTOR_INSTALL_URL:-}"
 # The Compose file this script expects. Verified after download, so the one
 # checksum Rezztor emails for install.sh covers the Compose file too -- there
 # is no second hash for anyone to check, or forget to check.
-COMPOSE_SHA256="27e2b7b2032bf10c6cc6db01aae4797e1b84a56a9f597ad9fffd2b9c1a92fe59"
+COMPOSE_SHA256="4ef970bcbbf25c16588f675f49522978adeec7b9663f1620199ceb1280c8996a"
 # The network guard, fetched and verified the same way, for the same reason. It
 # is not run here -- it adds a firewall table on the host, which is the
 # customer's call -- but it has to be *present*, because INSTALL.md step 6

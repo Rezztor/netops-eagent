@@ -1,9 +1,9 @@
 """/api/message: what it does with no context, a form post, and a failed turn.
 
-Three findings from the 2026-10-18 UAT run: an empty `context` continued the
-caller's previous chat (F30), a form post answered 500 with Werkzeug's 415 text
-in the body (F26), and a runner failure reached the caller as a 500 whose body
-named a slot and a path inside the server (F29).
+Three faults found in acceptance testing on 2026-10-18: an empty `context`
+continued the caller's previous chat, a form post answered 500 with Werkzeug's
+415 text in the body, and a runner failure reached the caller as a 500 whose
+body named a slot and a path inside the server.
 """
 
 from __future__ import annotations

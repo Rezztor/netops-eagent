@@ -17,7 +17,7 @@
 - Skill instructions must be operational and scoped to the skill's purpose.
 - Do not include secrets, private user data, or environment-specific credentials.
 - Supporting files referenced by a skill must exist relative to that skill directory.
-- `eagent-development` and the five `eagent-*-plugin*` skills are not in the image a customer gets (`.dockerignore`, owner's decision 2026-10-12). No other skill may point at one of them; `tests/test_delivery_hygiene.py` checks.
+- `eagent-development` and the five `eagent-*-plugin*` skills are not in the image a customer gets (`.dockerignore`, 2026-10-12). No other skill may point at one of them; `tests/test_delivery_hygiene.py` checks.
 
 ## Work Guidance
 
@@ -36,7 +36,6 @@ Direct child DOX files:
 
 | Child | Scope |
 | --- | --- |
-| [eagent-contribute-plugin/AGENTS.md](eagent-contribute-plugin/AGENTS.md) | Publishing plugins to the community Plugin Index. |
 | [eagent-create-agent/AGENTS.md](eagent-create-agent/AGENTS.md) | Creating Rezztor EAgent agent profiles. |
 | [eagent-create-plugin/AGENTS.md](eagent-create-plugin/AGENTS.md) | Creating or extending Rezztor EAgent plugins. |
 | [eagent-debug-plugin/AGENTS.md](eagent-debug-plugin/AGENTS.md) | Diagnosing plugin loading, API, frontend, and extension issues. |

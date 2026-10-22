@@ -3,8 +3,7 @@
 Before this, `load_tmp_chats()` deserialised every user's every conversation
 into a process-global dict on the blocking boot path, with no eviction and no
 cap. Measured, that is ~16 ms and ~0.45 MB each: a 2Gi pod holds roughly 2,300
-conversations and spends forty seconds booting before it reaches them
-(`docs/internal/storage-plan.md`).
+conversations and spends forty seconds booting before it reaches them.
 
 The tests here are about the properties that make lazy loading safe rather than
 merely faster. The dangerous ones are eviction — dropping a conversation someone
