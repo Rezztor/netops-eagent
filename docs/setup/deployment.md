@@ -99,6 +99,9 @@ REZZTOR_ADMIN_USER=admin
 REZZTOR_ADMIN_PASSWORD=$(openssl rand -base64 18)
 FLASK_SECRET_KEY=$(openssl rand -hex 32)
 RUNNER_AUTHORIZED_KEY=$(cat runner_key.pub)
+REZZTOR_DB_PASSWORD=$(openssl rand -hex 24)
+REZZTOR_DB_APP_PASSWORD=$(openssl rand -hex 24)
+REZZTOR_SEARXNG_SECRET=$(openssl rand -hex 32)
 EOF
 chmod 600 .env
 ```

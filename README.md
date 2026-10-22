@@ -26,16 +26,29 @@ A source checkout and an image you build yourself are the Community build: no li
 
 ## Running it locally
 
-Requires Python 3.12 (pinned in `mise.toml`).
+Requires Python 3.12 (pinned in `mise.toml`), Node.js for the web interface, and a PostgreSQL server with the `pgvector`
+extension: accounts, settings, chats and memory live there, and the application does not start without it. For a
+throwaway one:
+
+```bash
+docker run -d --name eagent-pg -e POSTGRES_USER=eagent -e POSTGRES_PASSWORD=devpassword -e POSTGRES_DB=eagent \
+  -p 55432:5432 pgvector/pgvector:pg17
+```
+
+Then:
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt -r requirements.dev.txt
+npm --prefix frontend ci && npm --prefix frontend run build     # the interface, served at /app
 
 export REZZTOR_ADMIN_USER=admin
 export REZZTOR_ADMIN_PASSWORD='choose-a-strong-password'
 export FLASK_SECRET_KEY='a-stable-random-value'
+export REZZTOR_DB_URL='postgresql://eagent:devpassword@127.0.0.1:55432/eagent'   # the owner role: migrates the schema
+export REZZTOR_DB_APP_PASSWORD='choose-another-password'   # the password of the application's own, restricted role; created at startup
+export LITELLM_LOCAL_MODEL_COST_MAP=True   # keeps the model library from fetching its price list from GitHub
 
 python run_ui.py --port=8080 --host=127.0.0.1
 ```
@@ -53,8 +66,13 @@ docker build -t rezztor/eagent-base:latest docker/base/
 docker build -t rezztor/eagent:latest --build-arg CACHE_DATE=$(date +%s) .
 docker build -t rezztor/eagent-runner:latest -f docker/runner/Dockerfile .
 
-cd docker/run && docker compose up -d      # http://localhost:50080/app
+cd docker/run
+# Compose will not start without a runner key and a .env of passwords: write them first,
+# as steps 2 and 3 of docs/setup/deployment.md say.
+docker compose up -d      # http://localhost:50080/app
 ```
+
+[docs/setup/deployment.md](docs/setup/deployment.md) has the whole procedure, including the runner key and the `.env` file.
 
 Use Compose rather than a bare `docker run`: the application deliberately
 executes no agent code itself, so it needs the runner container beside it and
@@ -66,8 +84,6 @@ and workdirs. Nothing is fetched at runtime, and there is no in-place
 self-update. A hand-installed Compose deployment is upgraded by loading the new
 images and setting `REZZTOR_VERSION`. Only an appliance installed from the ISO
 has an update tool.
-
----
 
 ---
 
@@ -101,8 +117,6 @@ Authentication is mandatory and fails closed. Permissions are declared in `helpe
 | `REZZTOR_REQUIRE_REMOTE_EXECUTION` | Fail closed: refuse to execute in the application container if the runner is unreachable |
 
 Model providers are declared in `conf/model_providers.yaml`. Azure OpenAI, AWS Bedrock, vLLM, Ollama, LM Studio and llama.cpp are all supported, so models can be kept on-premises.
-
----
 
 ---
 
