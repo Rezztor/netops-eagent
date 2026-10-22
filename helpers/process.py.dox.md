@@ -27,7 +27,9 @@
 
 ## Key Concepts
 
-- Important called helpers/classes observed in the source: `stop_server`, `runtime.is_dockerized`, `PrintStyle.standard`, `os.execv`, `sys.exit`, `_server.shutdown`, `exit_process`, `restart_process`.
+- `reload()` runs on a timer thread started by `api/restart.py`, never inside a request. In a container it ends with `exit_process()`, which flushes stdio and calls `os._exit(0)`, because `sys.exit` on a non-main thread would only end that thread.
+
+- Important called helpers/classes observed in the source: `stop_server`, `runtime.is_dockerized`, `PrintStyle.standard`, `os.execv`, `os._exit`, `_server.shutdown`, `exit_process`, `restart_process`.
 - Keep request/response, tool, or helper semantics documented here at the same time as source changes.
 
 ## Work Guidance
