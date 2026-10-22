@@ -10,7 +10,7 @@
 - Stack: Python 3.12+ framework, Python 3.13 agent execution runtime, Flask under uvicorn, PostgreSQL, a React + TypeScript frontend served at `/app`, LiteLLM, and Socket.IO.
 - Start the WebUI with `python run_ui.py`; discover its URL from startup output, Docker mappings, or explicit configuration rather than assuming a port.
 - Run the full test suite with `pytest` or a focused file with `pytest tests/test_name.py`.
-- Local DEV: `dev/run.sh` runs the WebUI from the working tree on the host with PostgreSQL (127.0.0.1:55433) and the runner in Compose project `eagent-dev`, and stamps the tree to trust the licence server's DEV root; `dev/README.md`. Never the test database on 55432.
+- Local run: `python run_ui.py` from this tree, or `docker compose up` in `docker/run/` (`README.md`, `docs/setup/dev-setup.md`). Two pytest runs must not share one database.
 - Human-facing documentation lives in `README.md` and `docs/`.
 
 ## Root Ownership
@@ -76,7 +76,7 @@ Ask before:
 | [lib/AGENTS.md](lib/AGENTS.md) | Lightweight browser-side helpers outside the WebUI bundle. |
 | [plugins/AGENTS.md](plugins/AGENTS.md) | Bundled system plugins and custom-plugin architecture. |
 | [prompts/AGENTS.md](prompts/AGENTS.md) | Core prompt templates. |
-| [rezlic/AGENTS.md](rezlic/AGENTS.md) | The licence contract's shared formats, copied byte for byte from the licence-server repository. Never edited here. |
+| [rezlic/AGENTS.md](rezlic/AGENTS.md) | The licence contract's shared formats, copied byte for byte from the licence server. Never edited here. |
 | [scripts/AGENTS.md](scripts/AGENTS.md) | Repository maintenance scripts and automation inputs. |
 | [skills/AGENTS.md](skills/AGENTS.md) | Bundled Rezztor EAgent skills. |
 | [tests/AGENTS.md](tests/AGENTS.md) | Pytest regression and contract tests. |

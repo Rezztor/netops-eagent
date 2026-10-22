@@ -8,11 +8,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 subdirectory's `AGENTS.md` is the binding contract for its subtree. Before
 editing a file, read the root `AGENTS.md` and every `AGENTS.md` on the path to
 your target; the closest one controls local details without weakening the
-parents. `CONTRIBUTING.md` holds the house rules (branch flow, the test
-baseline, the prohibition on upstream dependencies).
+parents. `CONTRIBUTING.md` holds the house rules (branch flow, how to run the
+suite, the prohibition on fetching code at runtime).
 
 This file summarises what those documents assume you already know.
-
 
 ## Commands
 
@@ -23,8 +22,7 @@ pip install -r requirements.txt -r requirements.dev.txt
 
 pytest                                    # full suite
 pytest tests/test_name.py                 # one file
-pytest tests/test_name.py::test_case       # one test
-pytest --override-ini=addopts= --continue-on-collection-errors   # without the ini's collection flags
+pytest tests/test_name.py::test_case      # one test
 
 # Frontend (frontend/, React 19 + TypeScript + Vite)
 npm --prefix frontend ci
@@ -33,35 +31,38 @@ npm --prefix frontend run typecheck
 npm --prefix frontend run lint       # eslint src --max-warnings 0
 npm --prefix frontend run test       # vitest run
 
-# Run it
-export REZZTOR_DB_URL='postgresql://eagent:devpassword@127.0.0.1:55432/eagent'
-export REZZTOR_DB_APP_PASSWORD=apppassword REZZTOR_ADMIN_USER=admin \
-       REZZTOR_ADMIN_PASSWORD='choose-a-strong-password' FLASK_SECRET_KEY='stable-random-value'
+# Run the WebUI from this tree
+export REZZTOR_ADMIN_USER=admin
+export REZZTOR_ADMIN_PASSWORD='choose-a-strong-password'
+export FLASK_SECRET_KEY='a-stable-random-value'
 python run_ui.py --host=127.0.0.1 --port=8080     # UI at /app
 ```
 
-Or `dev/run.sh` (`stop`, `status`, `logs`, `licence`, `reset`): the same from this working tree on
-127.0.0.1:8090 with its own PostgreSQL on 55433 and the runner in Compose project `eagent-dev`, licensed against
-the licence server's DEV stack. `dev/README.md` says what it writes where.
+Accounts, sign-in and licensing tests need PostgreSQL with `pgvector`.
+`CONTRIBUTING.md` has the `docker run` that provides it. Without a database
+those tests skip, and `conftest.py` says so.
+
+The Compose stack in `docker/run/` runs the application beside the
+code-execution runner. Agent code does not run in the WebUI process. See
+`README.md` and `docs/setup/dev-setup.md`.
 
 There is no Python linter or formatter configured; do not introduce one
 incidentally.
 
 ### Testing notes that matter
 
-- **The suite needs PostgreSQL** (with `pgvector`). Without it ~150 tests skip
-  silently — accounts, sign-in, password reset, licensing. `conftest.py` prints
-  the `docker run` command that fixes it, and prints a red banner when a green
-  run proved less than it looks. The `database` fixture lives in the root
+- **The suite needs PostgreSQL** (with `pgvector`). Without it about 150 tests
+  skip silently — accounts, sign-in, password reset, licensing. `conftest.py`
+  prints the `docker run` command that fixes it, and prints a red banner when a
+  green run proved less than it looks. The `database` fixture lives in the root
   `conftest.py` (not `tests/`) because plugin tests need it too.
 - **Two pytest runs cannot share one database.** The `database` fixture
   truncates every table, so a concurrent run in another worktree produces a
   scatter of unrelated failures.
 - **The quarantine is empty.** `pytest.ini` once filtered out fifteen tests that
   were already failing at the fork point; all fifteen have been deleted or
-  fixed, and `docs/internal/pytest-baseline.txt` records what each turned out to
-  be. **Any failure is now a regression and blocks the merge.** Read that file
-  before adding an entry back.
+  fixed. **Any failure is now a regression and blocks the merge.** Read the
+  comment in `pytest.ini` before adding an entry back.
 - `testpaths` covers `tests` and `plugins`; `--ignore-glob=*/api/*` exists because
   several API handlers are named `*_test.py` but are `ApiHandler` classes, not
   pytest modules. `--import-mode=importlib` with `pythonpath = .` is deliberate —
@@ -70,11 +71,10 @@ incidentally.
 
 ## Architecture
 
-A hard fork of an upstream agent framework, rebuilt into a multi-tenant internal
-platform: employees sign in, chat with an agent that executes code, browses,
-remembers and delegates, and administrators control who may do what. It does not
-track upstream and must never call upstream infrastructure or fetch code at
-runtime.
+The open-source core of Rezztor EAgent: people sign in, chat with an agent that
+executes code, browses, remembers and delegates, and administrators control who
+may do what. It does not track an upstream and must never call upstream
+infrastructure or fetch code at runtime.
 
 ### The agent loop
 
@@ -175,29 +175,28 @@ they do. A missing build is a plain failure; there is no second interface.
 
 One shape: **Docker Compose**. `deploy/customer/` holds the customer stack
 (eagent, runner, ansible, searxng, postgres) plus the installer and the network
-guard (`rezztor-guard`, ADR 0079); `docker/run/` is the development equivalent. The k3s appliance,
-the installer ISO and the Helm chart were retired on 2026-09-18 and live in git
-history. No code is fetched at runtime and nothing installs itself. A
-hand-installed Compose deployment is upgraded by loading the new images and
-setting `REZZTOR_VERSION`. Only an appliance installed from the ISO has an
-update tool (ADR 0080): an administrator installs one signed file, uploaded or
-downloaded. Its host tool asks `update.rezztor.com` once a day which packages
-follow its version (instance setting `update_daily_check`, on by default), and
-a paid plan downloads them on the administrator's button (ADR 0091); the web
-application only writes requests into the spool (`helpers/update_spool.py`) and
-never calls the service itself. Releases are a core ISO, then at most ten
-packages or three months, with installed machines reaching a new core through a
-bridge package, in one strict chain kept forever (ADR 0090). What a customer
-receives is built from a pushed tag in a fresh clone, by
-`scripts/build_release.sh` (ADR 0084); an ISO built from a working folder is a
-development build.
+guard (`rezztor-guard`, ADR 0079); `docker/run/` is the development equivalent.
+The k3s appliance, the installer ISO and the Helm chart were retired on
+2026-09-18 and live in git history. No code is fetched at runtime and nothing
+installs itself. A hand-installed Compose deployment is upgraded by loading the
+new images and setting `REZZTOR_VERSION`. Only an appliance installed from the
+ISO has an update tool (ADR 0080): an administrator installs one signed file,
+uploaded or downloaded. Its host tool asks `update.rezztor.com` once a day which
+packages follow its version (instance setting `update_daily_check`, on by
+default), and a paid plan downloads them on the administrator's button
+(ADR 0091); the web application only writes requests into the spool
+(`helpers/update_spool.py`) and never calls the service itself. Releases are a
+core ISO, then at most ten packages or three months, with installed machines
+reaching a new core through a bridge package, in one strict chain kept forever
+(ADR 0090). What a customer receives is built from a pushed tag in a fresh
+clone, by `scripts/build_release.sh` (ADR 0084); an ISO built from a working
+folder is a development build.
 
-`install.rezztor.com` went the same way on 2026-09-19, with the page it served
-and the script that published to it. `scripts/build_offline_bundle.sh` assembles
-the whole delivery instead, and `install.sh` / `installer.sh` read the files
-beside them — `REZZTOR_INSTALL_URL` is an opt-in, never a default. How the
-product reaches a customer is decided once the application is ready; do not
-re-add a hosted install path in the meantime.
+`install.rezztor.com` was removed on 2026-09-19, with the page it served and
+the script that published to it. `scripts/build_offline_bundle.sh` assembles the
+whole delivery instead, and `install.sh` / `installer.sh` read the files beside
+them — `REZZTOR_INSTALL_URL` is an opt-in, never a default. Do not re-add a
+hosted install path.
 
 ## Conventions
 
@@ -206,12 +205,13 @@ re-add a hosted install path in the meantime.
   plus `.dox.md`) describing purpose, contracts, side effects and verification.
   Add, update or delete it in the same change as the module, and update the
   closest `AGENTS.md` when a subsystem's contract changes.
-- **No upstream brand leak.** `tests/test_no_upstream_brand_leak.py` enforces it;
+- **No upstream brand leak.** `tests/test_no_upstream_brand_leak.py` enforces it.
   The test file lists the few allowed places and the line-scoped
   `brand-leak-allowed:` opt-out.
-- **Decisions are recorded.** `docs/internal/decisions/` holds the ADRs; check for
-  a relevant one before re-litigating a design. `docs/internal/` is excluded from
-  the shipped image.
+- **Decision numbers stay in comments.** A number such as "ADR 0080" refers to a
+  maintainer decision record that is not in this tree. `CONTRIBUTING.md` says
+  so. State the reason in the comment; do not add a link to a record a reader
+  cannot open.
 - `usr/` and `tmp/` are untracked runtime state, outside tracked DOX. Do not
   document changes there unless asked.
 - Use `RepairableException` for errors an agent may be able to fix itself.
