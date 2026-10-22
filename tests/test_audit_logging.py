@@ -159,7 +159,7 @@ def test_the_security_relevant_operations_are_all_audited():
 # An extra consumer of the record stream, for a forwarder that ships events to a
 # SIEM. The property being defended is the one ADR 0005 is built on: a sink may
 # observe the trail, never alter it, and never break the operation that produced
-# it. See docs/internal/decisions/0028.
+# it (ADR 0028: a sink observes the trail and must not become a hook that can change it).
 
 
 @pytest.fixture(autouse=True)

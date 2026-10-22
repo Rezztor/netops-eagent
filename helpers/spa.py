@@ -1,6 +1,6 @@
 """Serve the built frontend from the backend, same origin.
 
-Option A in docs/internal/enhancement-plan.md: authentication is a Flask session
+Authentication is a Flask session
 cookie with SameSite=Lax plus a CSRF token, which only works when the page and
 the API share an origin. The most direct way to guarantee that is for the
 backend to serve the bundle itself -- there is then no proxy to misconfigure and

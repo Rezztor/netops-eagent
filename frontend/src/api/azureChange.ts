@@ -4,7 +4,7 @@
  * certificate once, and `keys` only says what is set.
  *
  * Handlers: azure_changes (inventory.view) and azure_change_config (plugins.manage), which proxies to the cloud
- * executor's /v1/admin/*. The body shapes below follow docs/plans/2026-10-03-azure-operations-build.md, "Endpoints".
+ * executor's /v1/admin/*. The body shapes below are what those handlers accept.
  */
 
 import { ApiError, apiRequest } from "./client";

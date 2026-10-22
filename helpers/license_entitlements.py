@@ -1,7 +1,7 @@
 """Licence entitlements: what other code asks, and what a Restricted installation does not start.
 
 Everything here is derived from `helpers.license_client.state()`, the verdict of the licence contract
-("What the product concludes" in the licence-server repository's spec/formats.md):
+(what the product concludes from the licence server's verdict):
 
   licensed  full function
   grace1    full function; administrators are warned

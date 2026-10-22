@@ -122,7 +122,8 @@ def test_compose_separates_the_application_from_execution():
     # Three, and each for a different reason: the application executes no agent
     # code, the runner executes it with nothing worth reaching, and the Ansible
     # executor holds device credentials and is the only one with a route to the
-    # estate. See ADR 0030 for why the last is not the second.
+    # estate. The runner's egress to private ranges is denied, so Ansible is a
+    # separate container rather than a route opened on the runner (ADR 0030).
     assert set(compose["services"]) == {
         "eagent",
         "runner",

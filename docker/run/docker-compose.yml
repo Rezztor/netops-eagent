@@ -2,7 +2,7 @@
 #
 # Two containers, deliberately. The application never executes agent-written
 # code; the runner does, as an unprivileged user with nothing worth reaching.
-# See docs/internal/decisions/0006-code-execution-is-not-sandboxed-yet.md.
+# ADR 0006: that separate account is the sandbox; there is no further one.
 
 # A proxy, when this network needs one to reach the internet. Empty, the default, is no proxy: every
 # client treats an empty proxy variable as unset. The application, the cloud executor and the runner get
@@ -122,7 +122,7 @@ services:
       # the same number from one place.
       REZZTOR_RUNNER_SLOTS: "128"
       # 2222, not 22: sshd in the runner is unprivileged and cannot bind a
-      # privileged port. That is the point -- see ADR 0019.
+      # privileged port. That is the point (ADR 0019).
       REZZTOR_RUNNER_PORT: "2222"
       REZZTOR_RUNNER_USER: eagent
       # Key authentication, not a password. The runner has no root, cannot
@@ -479,9 +479,9 @@ services:
     networks: [searxng_net]
     restart: unless-stopped
 
-  # Everything durable except uploads and editable content. See
-  # docs/internal/storage-plan.md for what lives here and what deliberately
-  # does not.
+  # Accounts, settings, conversations and the other durable rows. Uploads and
+  # editable content stay on the volume, not in this database: the database
+  # password cannot live inside the database.
   postgres:
     container_name: rezztor-eagent-postgres
     # pgvector rather than plain postgres from the start: agent memory moves

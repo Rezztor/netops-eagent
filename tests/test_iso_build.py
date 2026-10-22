@@ -88,7 +88,7 @@ def test_the_iso_runs_the_bundle_and_no_second_installer():
 
 
 def test_the_appliance_starts_both_executors_and_nobody_types_a_token():
-    """Asked for by the owner on 2026-10-08, after the first install from the ISO: the customer enters devices and
+    """Since 2026-10-08, after the first install from the ISO: the customer enters devices and
     a licence, and no token. The profiles go through the bundle's installer like every other need of the ISO."""
     setup, installer = read(SETUP), read(CUSTOMER / "installer.sh")
     assert re.search(r"COMPOSE_PROFILES=ansible,cloud \\\n.*?sh \./install\.sh --unattended", setup, re.S)
@@ -302,7 +302,7 @@ def _script(name: str, *args: str, **env: str) -> subprocess.CompletedProcess:
 
 
 def test_a_release_is_built_from_a_tag_and_never_from_a_working_folder(tmp_path):
-    """ADR 0084. Until 2026-10-13 every ISO was built from the working folder of the owner's laptop, beside
+    """ADR 0084. Until 2026-10-13 every ISO was built from a working folder, beside
     untracked files, lab settings and local secrets, and could not be built again. What a customer receives
     comes from a fresh clone of a tag; both scripts refuse the rest before they write or build anything."""
     work = tmp_path / "work"

@@ -6,7 +6,7 @@
  *
  * Two cards have left this panel. The model override moved to the thread's own
  * toolbar (`ThreadToolbar.tsx`), above the transcript it governs. The goal card
- * went with the goal function itself -- see ADR 0031: this agent acts on the
+ * went with the goal function itself (ADR 0031): this agent acts on the
  * user's approval, so a standing objective it pursues between turns is the wrong
  * shape for it.
  */

@@ -5,7 +5,7 @@ the same names. It is a module rather than a docstring because E3 tests it: ther
 must be no field through which playbook content, a raw device command, a device
 address or a credential can arrive.
 
-See ADR 0030 -- "what the executor will not accept" is this frozenset's
+ADR 0030: "what the executor will not accept" is this frozenset's
 complement, and the reason it is written down.
 """
 

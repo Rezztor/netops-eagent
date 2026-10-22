@@ -18,7 +18,7 @@ ssh_addr: ""
 ssh_port: 55022
 # root only because the bundled development image has no other account. A real
 # runner should present an unprivileged user with no access outside its own
-# workspace. See docs/internal/decisions/0006-code-execution-is-not-sandboxed-yet.md
+# workspace (ADR 0006: code execution is not sandboxed beyond that account).
 ssh_user: root
 # ssh_pass: uses root_password from RFC exchange when empty
 ssh_pass: ""

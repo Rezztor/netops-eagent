@@ -2,7 +2,7 @@
 
 Emitted as one JSON object per line on stdout, prefixed so a log shipper can
 select them without parsing everything the process prints. stdout rather than a
-file on purpose -- see docs/internal/decisions/0005-audit-to-stdout-not-to-disk.md.
+file on purpose (ADR 0005): the application cannot alter a line after it is written.
 
 Three rules this module exists to enforce:
 

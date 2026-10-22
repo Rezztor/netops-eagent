@@ -70,8 +70,7 @@ APP_ROLE = "eagent_app"
 #: The role the cloud executor connects as. Like `APP_ROLE`, not configurable.
 CLOUD_ROLE = "eagent_cloud"
 
-#: Everything `CLOUD_ROLE` may touch, and nothing else (the contract in
-#: docs/plans/2026-10-03-azure-operations-build.md, "Migration"). The state may
+#: Everything `CLOUD_ROLE` may touch, and nothing else. The state may
 #: be deleted from because OpenTofu's backend deletes a workspace by name; the
 #: product itself never asks it to. The versions are append-only.
 _CLOUD_GRANTS = (

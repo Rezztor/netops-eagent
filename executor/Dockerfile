@@ -4,7 +4,7 @@
 # place ansible-playbook runs. It is not the runner: the runner exists to
 # execute model-authored code and its egress to every RFC1918 range is denied,
 # which is the property that makes running that code acceptable at all. Putting
-# Ansible there would mean opening it. See ADR 0030.
+# Ansible there would mean opening it (ADR 0030).
 #
 # Nothing installs at runtime. Everything is pinned here and verified in the
 # build, because a container that must reach an index to do its job is one whose

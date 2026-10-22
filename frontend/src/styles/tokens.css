@@ -1,12 +1,9 @@
 /*
  * Design tokens for Rezztor EAgent.
  *
- * Kept in step with the approved reference pages in
- * docs/internal/reference-ui/ (console.html, settings.html) so the built
- * application and the reviewed design cannot drift apart. Change a colour here,
- * not in a component -- and change it in the reference pages and in
- * helpers/login_page.py in the same commit, because those two carry their own
- * copies of these values and nothing links them automatically.
+ * Change a colour here, not in a component -- and change it in
+ * helpers/login_page.py in the same commit, because that file carries its own
+ * copy of these values and nothing links them automatically.
  *
  * Three theme states, not two. An explicit choice stamps data-theme on <html>;
  * the default "system" setting stamps nothing, and only prefers-color-scheme

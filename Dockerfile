@@ -17,8 +17,7 @@
 # in a later RUN hides it from the running container but leaves it recoverable
 # from the image with `docker save`. Everything a customer receives is built in
 # `builder` below and copied forward selectively, so the source tree exists in
-# no layer of the final image
-# (docs/internal/research/customer-packaging-and-delivery-plan.md §2).
+# no layer of the final image.
 
 
 # ---------------------------------------------------------------------------

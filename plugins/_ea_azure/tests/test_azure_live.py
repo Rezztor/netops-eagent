@@ -3,7 +3,7 @@ come back (200, 202 with Location, 403, 429, a redirect to another host) against
 PostgreSQL for the stored inventory. No test reaches Microsoft; every answer shape is the plugin's reading of Microsoft's
 reference, not a recording.
 
-The owner's rule is tested here as a fact about the product: nothing in the table can stop, delete, restart or change
+The product rule is tested here as a fact: nothing in the table can stop, delete, restart or change
 anything, and the only POSTs are the probes."""
 
 import datetime as dt

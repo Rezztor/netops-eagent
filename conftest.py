@@ -115,10 +115,10 @@ def licensed_installation(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def no_dev_licence_stamp(monkeypatch):
-    """A test sees an unstamped checkout, even where dev/run.sh has stamped this working tree.
+    """A test sees an unstamped checkout, even when this working tree carries a licence stamp.
 
-    dev/run.sh writes `build_info.json` and `licence_trust.json` beside this file so that a host run trusts the
-    licence server's DEV root (ADR 0085). A test reading them would trust that root instead of the one it sets up.
+    A host run may write `build_info.json` and `licence_trust.json` beside this file so that it trusts a
+    development licence root (ADR 0085). A test reading them would trust that root instead of the one it sets up.
     Only those two files at this folder are hidden; a test that stamps a folder of its own still reads its own.
     """
     from helpers import files, license_client

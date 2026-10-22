@@ -149,7 +149,7 @@ def load_tmp_chats():
     the server would accept a request -- 16 ms and 0.45 MB each, on the blocking
     boot path, with no eviction. Measured, that is a hard ceiling at roughly
     2,300 conversations inside the 2Gi a modest volume allows, reached after a
-    forty-second boot (`docs/internal/storage-plan.md`).
+    forty-second boot.
 
     Parsing is 6% of that cost and building the context object is the other 94%,
     so indexing still reads and parses each file and simply does not build

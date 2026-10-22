@@ -2,8 +2,8 @@
 
 The only remote execution transport. It began as an alternative to a paramiko
 session in `shell_ssh.py`; that module was removed once this had replaced it
-everywhere, and the product no longer depends on paramiko at all.
-See docs/internal/decisions/0018.
+everywhere, and the product no longer depends on paramiko at all
+(ADR 0018).
 
 Why this exists
 ---------------

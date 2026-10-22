@@ -1,6 +1,6 @@
-"""What phase 2 W1 lays down for the Azure change plugin: the permission rows, the tool access and the skeleton.
+"""What the first phase lays down for the Azure change plugin: the permission rows, the tool access and the skeleton.
 
-Asserted on the policy tables and on files, so it holds whichever worker's handler lands first.
+Asserted on the policy tables and on files, so it holds whichever handler lands first.
 """
 
 from __future__ import annotations
