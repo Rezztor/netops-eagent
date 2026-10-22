@@ -4,9 +4,8 @@
 
 - Own adding to or changing what exists in an Azure tenant from the chat, behind an engineer's approval of the exact
   plan, a CR or SR number, and a change document. It never removes or stops anything in Azure.
-- Build contract (binding): `docs/plans/2026-10-03-azure-operations-build.md`; for change sets
-  `docs/plans/2026-10-04-azure-change-set-build.md`. Design: `...-design.html` beside the first.
-  Decisions: ADRs 0061 to 0066 and 0070 to 0075 in `docs/internal/decisions/`.
+- Binding contract: the cloud executor's plan and apply path, and change sets on top of it.
+  Decisions: ADRs 0061 to 0066 and 0070 to 0075.
 
 ## Ownership
 
@@ -79,7 +78,7 @@
     in the tool's progress and tries the same step again at most `RATE_TRIES` times, never failing the step for it. A step still
     running at `apply_wait_seconds` leaves the set `applying`; the next `apply` settles it and goes on. One call per set at a time.
   - A set has no Edit (`azure_edit` refuses it); `azure_changes` rows carry `steps: [{n, title, status}]`; the card's `steps` field
-    is `{n, title, adds, lines}` (`cards.decision_card`, W4 draws it); `azure.change.step` is audited per step with no plan or value.
+    is `{n, title, adds, lines}` (`cards.decision_card`, the console draws it); `azure.change.step` is audited per step with no plan or value.
 - **An interrupted apply is settled by the job loop.** An apply waits on the executor's job inside one tool call; if the application
   restarts meanwhile the executor still finishes it. `extensions/python/job_loop/_65_azure_change_settle.py` calls
   `helpers/settling.settle_open` each minute: for every record that is `applying` with a job (oldest first, at most `PER_TICK` = 3

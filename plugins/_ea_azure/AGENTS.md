@@ -4,8 +4,7 @@
 
 - Own reading what exists in one Azure tenant, read-only, and keeping it as a dated snapshot with a change log. The
   Inventory screen's Cloud view and the agent read the stored snapshot; nothing here can change Azure.
-- Build contract: `docs/plans/2026-10-02-azure-cloud-inventory-build.md`; live reads, logs, advice and cost follow
-  `docs/plans/2026-10-03-azure-operations-build.md` (phases 1, 4, 5, 6; ADRs 0059, 0060, 0067, 0069). Changing Azure is not this plugin: it is
+- Live reads, logs, advice and cost are in this plugin (ADRs 0059, 0060, 0067, 0069). Changing Azure is not this plugin: it is
   `_ea_azure_change`, and a removal or a stop is only ever a suggestion (ADR 0065).
 
 ## Ownership
@@ -80,7 +79,7 @@
   file under `reference/`: `tests/test_azure_microsoft_guidance.py` fails; change the allow-list and re-sync instead. The
   wrapper's translation rules (our tools, an engineer-run step for a read nothing of ours covers, `azure_change` for an add, a
   suggestion for anything that deletes or stops, never claim a command not run) win over every vendored sentence; loosen none.
-  **The monthly update** (the owner's rule: fetch every month, and no import unread): `scripts/sync_azure_skills.sh --check` says
+  **The monthly update** (fetch every month, and no import unread): `scripts/sync_azure_skills.sh --check` says
   whether upstream has moved and whether `next_review_due` in `VENDOR.json` has passed. For a new commit,
   `scripts/sync_azure_skills.sh <commit>` writes nothing into the plugin: it prints, and saves to
   `tmp/azure-skills-review-<commit>.md`, every file added, removed and changed (the file has each diff) and a flag per new line

@@ -213,8 +213,7 @@
 - Live, once a device is available: a read per platform through the real
   executor. The SONiC leg ran 2026-09-19 against the community SONiC VS lab:
   the transport pipeline verified end to end, and the read entries' bugs it
-  surfaced are fixed and recorded in
-  [docs/plans/2026-09-19-network-catalogue-live-verification.md](../../docs/plans/2026-09-19-network-catalogue-live-verification.md).
+  surfaced are fixed.
   Cisco IOS ran 2026-10-02 against a Cisco 3725 (IOS 12.4(15)T14, NM-16ESW) -- reads, show,
   ports, backup and `changes/ios_interface_description` applied, verified and rolled back with
   the config hash identical afterwards; its bugs are fixed. `ios_vlans` fails on that hardware.

@@ -8,7 +8,7 @@
 ## Ownership
 
 - `main/about/` contains built-in Rezztor EAgent self-knowledge.
-- `main/about/architecture.md` is not in the image a customer gets (`.dockerignore`, owner's decision 2026-10-12): the other notes there must not describe the layout of the code.
+- `main/about/architecture.md` is not in the image a customer gets (`.dockerignore`, 2026-10-12): the other notes there must not describe the layout of the code.
 - `fragments/`, `instruments/`, and `solutions/` are reserved knowledge roots.
 - User-local knowledge belongs under `usr/knowledge/`.
 

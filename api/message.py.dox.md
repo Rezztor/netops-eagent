@@ -21,9 +21,9 @@
 - HTTP handlers must derive from `helpers.api.ApiHandler`; WebSocket handlers must derive from `helpers.ws.WsHandler`.
 - Update this file whenever request payloads, authentication or CSRF requirements, response shapes, route side effects, or WebSocket event contracts change.
 - `Message` is an `ApiHandler`.
-- Accepts JSON or `multipart/form-data` only; any other body answers 415 with a JSON `error` (UAT F26).
-- A turn that fails answers 502 with `{"ok": false, "error": <one plain sentence from errors.user_message>, "context": id}`, never a 500 carrying the exception text, which for a runner failure names a slot and a server path (UAT F29). `MessageAsync` inherits the 415 rule; it does not wait for the turn.
-- An empty or missing `context` starts a new conversation under a fresh id; it never resolves to the caller's earlier chat (UAT F30).
+- Accepts JSON or `multipart/form-data` only; any other body answers 415 with a JSON `error`.
+- A turn that fails answers 502 with `{"ok": false, "error": <one plain sentence from errors.user_message>, "context": id}`, never a 500 carrying the exception text, which for a runner failure names a slot and a server path. `MessageAsync` inherits the 415 rule; it does not wait for the turn.
+- An empty or missing `context` starts a new conversation under a fresh id; it never resolves to the caller's earlier chat.
 - `Message` defines `process(...)`.
 - Multipart attachments are saved to the account's uploads folder only after the account quota is checked for all of them together (`helpers.file_browser.check_account_quota`, the same quota as `api/upload.py`). Over it, `QuotaExceeded` is raised before anything is saved, and the dispatcher answers 413. The check and the saves run under `file_browser.quota_lock()`, so concurrent messages cannot each pass against the same free space. `tests/test_account_storage_quota.py`.
 - Observed side-effect areas: filesystem reads, filesystem writes, settings/state persistence, scheduler state.

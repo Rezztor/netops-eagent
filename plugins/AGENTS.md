@@ -31,7 +31,6 @@
 - `hooks.py` runs in the framework runtime. Explicitly target another runtime if a plugin must prepare the agent execution environment.
 - `execute.py` is manual user-triggered setup, maintenance, repair, migration, or refresh work; automatic framework behavior belongs in hooks or lifecycle extensions.
 - Plugin routes are `GET /plugins/<name>/<path>`, `POST /api/plugins/<name>/<handler>`, and `POST /api/plugins` for management actions.
-- `_ea_connector` WebSocket history replay must stay bounded: emit large chat history as paged `connector_context_snapshot` payloads, keep `last_sequence` as the Rezztor EAgent log-output cursor, and avoid sending an entire long transcript in one frame.
 - Frontend plugin HTML extensions live under `extensions/webui/<point>/`, include a root Alpine scope, and use `x-move-*` directives when targeting static breakpoints.
 - Frontend plugin JS extensions live under `extensions/webui/<point>/` and export a default function.
 - Plugin UI must use the EAgent notification system for errors, warnings, success, and info instead of inline success/error boxes.
@@ -67,15 +66,12 @@ Direct child DOX files:
 
 | Child | Scope |
 | --- | --- |
-| [_ea_connector/AGENTS.md](_ea_connector/AGENTS.md) | HTTP and WebSocket connector integration with remote tools and runtime bridges. |
 | [_agent_editor/AGENTS.md](_agent_editor/AGENTS.md) | Deterministic sparse agent-profile editor API, helpers, and WebUI. |
 | [_chat_branching/AGENTS.md](_chat_branching/AGENTS.md) | Chat branching from an existing message. |
 | [_chat_compaction/AGENTS.md](_chat_compaction/AGENTS.md) | Full-chat compaction into a summary message. |
 | [_chat_naming/AGENTS.md](_chat_naming/AGENTS.md) | Built-in manual and Utility Model-assisted chat naming. |
 | [_commands/AGENTS.md](_commands/AGENTS.md) | Built-in slash command manager, command file discovery, and chat composer slash picker. |
 | [_code_execution/AGENTS.md](_code_execution/AGENTS.md) | Terminal, Python, and Node.js execution tools and shell runtimes. |
-| [_desktop/AGENTS.md](_desktop/AGENTS.md) | Linux desktop runtime, sessions, and desktop surface. |
-| [_discovery/AGENTS.md](_discovery/AGENTS.md) | Welcome-screen plugin discovery cards and promotions. |
 | [_ea_ansible/AGENTS.md](_ea_ansible/AGENTS.md) | Network devices and firewalls through a dedicated Ansible executor. Reads are free; changes need an engineer's approval of the exact commands. |
 | [_ea_attachments/AGENTS.md](_ea_attachments/AGENTS.md) | Delivering a file from the agent to the user as a download. |
 | [_ea_azure/AGENTS.md](_ea_azure/AGENTS.md) | Reading an Azure tenant into a dated inventory snapshot with a change log. Read-only. |
@@ -93,20 +89,11 @@ Direct child DOX files:
 | [_infection_check/AGENTS.md](_infection_check/AGENTS.md) | Prompt-injection safety analysis before tool execution. |
 | [_kokoro_tts/AGENTS.md](_kokoro_tts/AGENTS.md) | Kokoro text-to-speech integration. |
 | [_memory/AGENTS.md](_memory/AGENTS.md) | Optional persistent recall plugin, knowledge import, tools, and dashboard; do not assume it is enabled outside this plugin. |
-| [_migrate_agents/AGENTS.md](_migrate_agents/AGENTS.md) | Built-in migration of chats, projects, memories, instructions, and skills from supported agent harnesses. |
 | [_model_config/AGENTS.md](_model_config/AGENTS.md) | Model selection, presets, API-key checks, and scoped overrides. |
-| [_oauth/AGENTS.md](_oauth/AGENTS.md) | OAuth-backed model-provider connections and local proxy routes. |
-| [_office/AGENTS.md](_office/AGENTS.md) | LibreOffice office artifacts and office canvas sessions. |
-| [_onboarding/AGENTS.md](_onboarding/AGENTS.md) | First-time model onboarding wizard. |
-| [_orchestrator/AGENTS.md](_orchestrator/AGENTS.md) | External terminal coding-agent orchestration skill, adapter status, and settings UI. |
 | [_pin_to_top/AGENTS.md](_pin_to_top/AGENTS.md) | Built-in chat and task sidebar pinning. |
-| [_plugin_installer/AGENTS.md](_plugin_installer/AGENTS.md) | Plugin install and update flows from ZIP, Git, and Plugin Index. |
 | [_promptinclude/AGENTS.md](_promptinclude/AGENTS.md) | Promptinclude scanning and prompt injection. |
 | [_skills/AGENTS.md](_skills/AGENTS.md) | Active and hidden skill configuration and prompt injection. |
-| [_telegram_integration/AGENTS.md](_telegram_integration/AGENTS.md) | Telegram bot integration and per-user chat sessions. |
 | [_text_editor/AGENTS.md](_text_editor/AGENTS.md) | Native text read, write, and patch tool. |
 | [_time_travel/AGENTS.md](_time_travel/AGENTS.md) | Workspace history, diff, travel, snapshot, and revert flows. |
 | [_tool_access/AGENTS.md](_tool_access/AGENTS.md) | Always-on project/profile tool-policy execution gate. |
-| [_whatsapp_integration/AGENTS.md](_whatsapp_integration/AGENTS.md) | WhatsApp Baileys bridge integration. |
-| [_whats_new/AGENTS.md](_whats_new/AGENTS.md) | Version-gated What's New showcase modal, card list, and startup trigger. |
 | [_whisper_stt/AGENTS.md](_whisper_stt/AGENTS.md) | Whisper speech-to-text integration. |

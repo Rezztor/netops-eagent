@@ -3,8 +3,8 @@
 ## Purpose
 
 - Own the bootable TEST ISO: Debian 13's installer image with our payload added, and the host tools the installed
-  machine runs. First built on 2026-10-05 for the owner's own test on VMware. The design is
-  `docs/internal/delivery/2026-10-05-iso-installer-plan.md`; this is milestones M1 to M3 in their smallest form.
+  machine runs. First built on 2026-10-05. This tree holds the smallest form: boot, install with no network,
+  and the host tools the installed machine runs.
 
 ## Ownership
 
@@ -104,8 +104,8 @@
     `state/state.json`; the request is an id, one of the words in `ACTIONS` and a name, plus a `version` for
     `download` and, read on a UAT machine only, `server` and `ca_pem`. Files from the inbox are opened without
     following a link and copied into `work/` before they are looked at. No container gets the Docker socket.
-  - **The update service is the only address the tool calls** (spec of 2026-10-20, `rezztor-envs/docs/spec-update-service.md`
-    section 4). A release machine asks `https://update.rezztor.com` with the system's CAs, whatever the request says;
+  - **The update service is the only address the tool calls** (spec of 2026-10-20). A release machine asks
+    `https://update.rezztor.com` with the system's CAs, whatever the request says;
     a `-uat` machine takes the request's `server` and `ca_pem` (and keeps them in `work/uat-server.json` for a
     request that names none), else `https://update.uat.rezztor.test`. The proxy is `HTTPS_PROXY`/`NO_PROXY` of the
     stack's `.env`, never the process environment; no redirect is followed. The session is `hello` with the update
@@ -192,7 +192,7 @@
 - **`install.sh` runs once.** `apply_stack` runs it only when `/var/lib/rezztor/stack/.env` does not exist; later
   runs only do `docker compose up -d`. The installer itself refuses to replace `.env` or `runner_key` when run
   `--unattended` (it did replace them until 2026-10-11, with new database passwords over the old volume).
-- **Both executors run from the first start, with nothing to type** (asked for by the owner on 2026-10-08).
+- **Both executors run from the first start, with nothing to type** (2026-10-08).
   `apply_stack` hands `COMPOSE_PROFILES=ansible,cloud` to `install.sh`, which makes the secrets and writes the
   profiles into `.env`; the Compose file gives the application the tokens (ADR 0036) and the application switches
   network automation on by itself. The customer enters devices, their credentials and the licence, and no token.
@@ -228,7 +228,7 @@
 - **A release ISO is an Enterprise image** (`scripts/build_release.sh` passes `BUILD_LICENCE=enterprise`). The stamp
   check refuses a release whose image does not say `"licence": "enterprise"`. `REZZTOR_ISO_LAB` is refused: a lab ISO
   is no longer built. A source checkout and a self-built image are the Community build.
-- **A UAT ISO is for the owner's production-shaped UAT environment and is never handed over** (ADR 0085).
+- **A UAT ISO is for a production-shaped UAT environment and is never handed over** (ADR 0085).
   `REZZTOR_ISO_UAT=1 scripts/build_iso.sh` takes `rezztor/eagent:uat` (built with `BUILD_LICENCE=uat`, a version
   that ends in `-uat` and `REZZTOR_UAT_TRUST`) and writes `rezztor-eagent-UAT-<date>.iso`; it trusts only the dummy
   licence root and the UAT licence server baked into the image. `REZZTOR_ISO_RELEASE_KEYS=<dir>` replaces
