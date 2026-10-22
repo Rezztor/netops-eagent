@@ -928,10 +928,7 @@ def create_auth_token() -> str:
     but not guessable from the runtime id alone.
     """
     runtime_id = runtime.get_persistent_id()
-    salt = dotenv.get_dotenv_value(KEY_MCP_TOKEN_SALT) or ""
-    if not salt:
-        salt = secrets.token_urlsafe(24)
-        dotenv.save_dotenv_value(KEY_MCP_TOKEN_SALT, salt)
+    salt = dotenv.get_or_create_dotenv_value(KEY_MCP_TOKEN_SALT, lambda: secrets.token_urlsafe(24))
     hash_bytes = hashlib.sha256(f"{runtime_id}:{salt}".encode()).digest()
     b64_token = base64.urlsafe_b64encode(hash_bytes).decode().replace("=", "")
     return b64_token[:16]

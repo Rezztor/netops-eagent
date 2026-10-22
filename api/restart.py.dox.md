@@ -3,7 +3,7 @@
 ## Purpose
 
 - Own the `restart.py` API endpoint.
-- This module requests server restart or reload behavior.
+- This module requests server restart or reload behavior. It answers `202 {"ok": true, "restarting": true}` and starts the reload on a daemon timer (`RESTART_DELAY_SECONDS`), so the response is written before the server stops; reloading inside the request made the caller see a 500 (SystemExit in a container) for a restart that then happened.
 - Keep this file-level DOX profile synchronized with `restart.py` because this directory is intentionally flat.
 
 ## Ownership
@@ -20,7 +20,8 @@
 - Update this file whenever request payloads, authentication or CSRF requirements, response shapes, route side effects, or WebSocket event contracts change.
 - `Restart` is an `ApiHandler`.
 - `Restart` defines `process(...)`.
-- Imported dependency areas include: `helpers`, `helpers.api`.
+- Imported dependency areas include: `helpers`, `helpers.api`, `json`, `threading`.
+- The frontend caller (`restartInstance` in `frontend/src/api/authoring.ts`) ignores the body and tolerates a dropped connection; keep it that way.
 
 ## Key Concepts
 
@@ -37,6 +38,7 @@
 
 - Run endpoint-specific or API/WebSocket tests for changed behavior; smoke-test browser callers when no focused test exists.
 - Related tests observed by source search:
+  - `tests/test_restart_endpoint.py`
   - `tests/test_browser_agent_regressions.py`
   - `tests/test_download_toast_regressions.py`
   - `tests/test_self_update_tag_filter.py`

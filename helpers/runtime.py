@@ -75,13 +75,10 @@ def get_persistent_id() -> str:
 
     Distinct from get_runtime_id(), which is per-process. Anything that has to
     stay recognisable across a restart -- notably the session cookie name --
-    must use this one, or a restart silently invalidates it.
+    must use this one, or a restart silently invalidates it. It is also the
+    licence's installation id (helpers/license_client.installation_id).
     """
-    id = dotenv.get_dotenv_value("REZZTOR_PERSISTENT_RUNTIME_ID")
-    if not id:
-        id = secrets.token_hex(16)
-        dotenv.save_dotenv_value("REZZTOR_PERSISTENT_RUNTIME_ID", id)
-    return id
+    return dotenv.get_or_create_dotenv_value("REZZTOR_PERSISTENT_RUNTIME_ID", lambda: secrets.token_hex(16))
 
 
 def get_session_cookie_id() -> str:

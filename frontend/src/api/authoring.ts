@@ -360,8 +360,8 @@ export function createNotification(
 /**
  * Restart the process.
  *
- * Returns an empty 200 and then the connection drops as the server reloads, so
- * a caller that waits for a body waits forever. Every session is interrupted.
+ * Answers 202 `{ok, restarting}` and then the connection drops as the server
+ * reloads, so a caller that waits for the server to stay up waits forever. Every session is interrupted.
  */
 export async function restartInstance(): Promise<void> {
   try {

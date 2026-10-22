@@ -33,4 +33,7 @@ def restart_process():
 
 def exit_process():
     PrintStyle.standard("Exiting process...")
-    sys.exit(0)
+    # reload() runs on a timer thread, where sys.exit would only end that thread.
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(0)
