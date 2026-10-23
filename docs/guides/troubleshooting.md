@@ -35,7 +35,7 @@ not much use without the key that signs the sessions. See
 [deployment.md](../setup/deployment.md).
 
 **8. My secrets disappeared after a backup restore.**
-Secrets are stored in `/eagent/usr/secrets.env` and are not always included in backup archives. Copy them manually.
+Secrets saved from the WebUI live in `usr/.env`, which a backup includes (inside its encrypted archive). Anything you keep outside `usr/` is not in the backup; copy it manually. A backup cannot be restored without its passphrase, and the passphrase cannot be recovered.
 
 **9. Where can I find more documentation?**
 - The other guides in this folder, starting with the [Usage Guide](usage.md). For anything they do not answer, contact Rezztor support; **Settings -> Support bundle** makes the file support will ask for.

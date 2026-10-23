@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from dotenv import dotenv_values
 
-from helpers import dotenv
+from helpers import backup_crypto, dotenv
 from helpers.backup import BackupService
 
 
@@ -173,10 +173,12 @@ async def test_create_backup_uses_unlimited_pattern_scan(database, tmp_path, mon
         exclude_patterns=[],
         include_hidden=True,
         backup_name="large-backup",
+        passphrase="a passphrase of some length",
     )
 
     assert captured["max_files"] is None
-    with zipfile.ZipFile(zip_path) as archive:
+    backup_crypto.decrypt_file(zip_path, zip_path + ".zip", "a passphrase of some length")
+    with zipfile.ZipFile(zip_path + ".zip") as archive:
         metadata = json.loads(archive.read("metadata.json").decode("utf-8"))
         assert metadata["total_files"] == 3
         assert (

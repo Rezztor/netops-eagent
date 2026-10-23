@@ -245,7 +245,9 @@ async def test_the_archive_does_not_outlive_its_download(tmp_path, monkeypatch):
 
     app = Flask("test_backup_archive_safety")
     with app.test_request_context("/api/backup_create", method="POST", json={}):
-        response = await backup_create.BackupCreate(app, None).process({"backup_name": "nightly"}, request)
+        response = await backup_create.BackupCreate(app, None).process(
+            {"backup_name": "nightly", "passphrase": "a passphrase of some length"}, request
+        )
         assert not built.exists(), "the archive is still on disk once the response exists"
         body = b"".join(response.response)  # passthrough: the open, unlinked file
         response.close()
@@ -273,7 +275,9 @@ async def test_a_failed_backup_leaves_no_directory_behind(tmp_path, monkeypatch)
     service = _service(tmp_path / "eagent")
 
     with pytest.raises(Exception, match="the database went away"):
-        await service.create_backup(include_patterns=[f"{tmp_path}/eagent/usr/**"], exclude_patterns=[])
+        await service.create_backup(
+            include_patterns=[f"{tmp_path}/eagent/usr/**"], exclude_patterns=[], passphrase="a passphrase of some length"
+        )
 
     assert not built.exists()
 
@@ -305,10 +309,12 @@ async def test_a_backup_name_is_a_file_name_and_never_a_path(tmp_path, monkeypat
     monkeypatch.setattr(service, "_get_environment_info", empty)
     monkeypatch.setattr(service, "_get_backup_author", lambda: _text("test"))
 
-    zip_path = await service.create_backup(include_patterns=["x"], exclude_patterns=[], backup_name=name)
+    zip_path = await service.create_backup(
+        include_patterns=["x"], exclude_patterns=[], backup_name=name, passphrase="a passphrase of some length"
+    )
 
     assert os.path.dirname(zip_path) == str(built), "the archive is outside the directory made for it"
-    assert os.path.basename(zip_path).endswith(".zip") and "/" not in os.path.basename(zip_path)
+    assert os.path.basename(zip_path).endswith(".rzbak") and "/" not in os.path.basename(zip_path)
 
 
 async def _text(value):

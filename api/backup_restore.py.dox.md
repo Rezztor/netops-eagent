@@ -29,6 +29,8 @@
 - Archive entries that would land outside `usr/` are never written; they come back in `skipped_files` with `reason: "refused"` and a `detail`.
 - Emits one `backup.restore` audit event per request that reaches the restore: `outcome=failure` with a capped `error` when restore raises; otherwise `outcome=success` with `archive` (the uploaded file name), `archive_sha256`, `overwrite_policy`, `clean_before_restore`, `restored`/`deleted`/`refused`/`errors` counts, up to 20 `refused_entries`, and `database_restored`. Audit failures never fail the restore.
 
+- The multipart form may carry `passphrase` (never the URL). It is required when the uploaded file is an encrypted backup (`.rzbak`); a missing or wrong one, or a damaged file, answers `{success: false, error}` with one plain message and writes nothing. A plain `.zip` made before backups were encrypted still works. The response carries `encrypted: bool` so the UI can say an old backup was not protected. The passphrase is never logged or audited.
+
 ## Key Concepts
 
 - Important called helpers/classes observed in the source: `request.form.get.lower`, `json.loads`, `BackupService`, `load_tmp_chats`, `backup_service.restore_backup`.

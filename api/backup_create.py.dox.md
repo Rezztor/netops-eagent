@@ -26,8 +26,9 @@
 - `BackupCreate` defines `requires_loopback(...)`.
 - Observed side-effect areas: filesystem writes, filesystem deletion.
 - The archive holds every user's data and a database dump, so it must not outlive the download: the handler opens it, removes its temporary directory, and streams from the open handle, which the server closes when the response ends. `response.call_on_close` is not used because `send_file` responses are passthrough and never run those callbacks. The response therefore carries no `Content-Length`; the WebUI reads it as a blob.
+- The request must carry `passphrase` (a string of at least 12 characters, in the JSON body, never the URL); it is checked before anything is built, and a missing or short one answers `{success: false, error}`. The download is the encrypted archive, named `<backup_name>.rzbak`, `application/octet-stream`. The passphrase is never logged, audited or echoed.
 - A successful create emits `backup.create` with the backup name and pattern counts; never archive bytes or pattern strings.
-- Imported dependency areas include: `helpers.api`, `helpers.backup`, `helpers.persist_chat`, `os`, `shutil`.
+- Imported dependency areas include: `helpers.api`, `helpers.backup`, `helpers.backup_crypto`, `helpers.persist_chat`, `os`, `shutil`.
 
 ## Key Concepts
 
@@ -43,7 +44,7 @@
 ## Verification
 
 - Run endpoint-specific or API/WebSocket tests for changed behavior; smoke-test browser callers when no focused test exists.
-- `tests/test_backup_archive_safety.py` checks that no archive is left on disk once the response exists.
+- `tests/test_backup_encryption.py` covers the passphrase handling. `tests/test_backup_archive_safety.py` checks that no archive is left on disk once the response exists.
 
 ## Child DOX Index
 

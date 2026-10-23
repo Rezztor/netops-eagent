@@ -27,6 +27,9 @@ import {
 } from "@/api/operations";
 import { Button, Card, Mono, Row, ScopeNote, Select, Tag, TextInput, useConfirm } from "@/components";
 
+/** Shortest passphrase the server accepts for a new backup. */
+export const MIN_PASSPHRASE = 12;
+
 function formatBytes(bytes: number): string {
   if (!bytes) return "—";
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
@@ -84,6 +87,8 @@ function CreateBackup({
   const [name, setName] = useState(String(defaults.metadata.backup_name || "rezztor-eagent-backup"));
   const [include, setInclude] = useState(defaults.default_patterns.include_patterns.join("\n"));
   const [exclude, setExclude] = useState(defaults.default_patterns.exclude_patterns.join("\n"));
+  const [passphrase, setPassphrase] = useState("");
+  const [repeat, setRepeat] = useState("");
   const [busy, setBusy] = useState(false);
 
   const includePatterns = parsePatterns(include);
@@ -138,6 +143,32 @@ function CreateBackup({
           onChange={(event) => setExclude(event.target.value)}
         />
       </Row>
+      <ScopeNote tone="warn">
+        <div>
+          <strong>This file holds the instance's keys, every account's password hash and every
+          user's data.</strong> It is encrypted with the passphrase below. The passphrase cannot be
+          recovered: without it the backup cannot be restored. Keep it somewhere other than
+          next to the file.
+        </div>
+      </ScopeNote>
+      <Row label="Passphrase" help={`At least ${MIN_PASSPHRASE} characters. Not stored on the instance.`}>
+        <TextInput
+          type="password"
+          value={passphrase}
+          aria-label="Backup passphrase"
+          autoComplete="new-password"
+          onChange={(e) => setPassphrase(e.target.value)}
+        />
+      </Row>
+      <Row label="Repeat passphrase">
+        <TextInput
+          type="password"
+          value={repeat}
+          aria-label="Repeat backup passphrase"
+          autoComplete="new-password"
+          onChange={(e) => setRepeat(e.target.value)}
+        />
+      </Row>
       <Row
         label=""
         help="Large instances take a while; the download starts when the archive is finished."
@@ -154,7 +185,11 @@ function CreateBackup({
               ? "The archive needs a name."
               : invalid
                 ? "At least one include pattern is required."
-                : null;
+                : passphrase.length < MIN_PASSPHRASE
+                  ? `The passphrase must be at least ${MIN_PASSPHRASE} characters.`
+                  : passphrase !== repeat
+                    ? "The two passphrases are not the same."
+                    : null;
             if (missing) {
               onError(missing);
               return;
@@ -166,8 +201,11 @@ function CreateBackup({
                 includePatterns,
                 excludePatterns,
                 Boolean(defaults.metadata.include_hidden),
+                passphrase,
               );
-              onNotice("Backup downloaded.");
+              setPassphrase("");
+              setRepeat("");
+              onNotice("Backup downloaded. Keep the passphrase: it cannot be recovered.");
             } catch (caught) {
               onError(caught instanceof Error ? caught.message : String(caught));
             } finally {
@@ -195,6 +233,7 @@ function RestoreBackup({
   const [preview, setPreview] = useState<RestorePreview | null>(null);
   const [policy, setPolicy] = useState<OverwritePolicy>("overwrite");
   const [clean, setClean] = useState(false);
+  const [passphrase, setPassphrase] = useState("");
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<{ restored: number; deleted: number } | null>(null);
 
@@ -217,15 +256,28 @@ function RestoreBackup({
       <Row label="Archive" help="Nothing is read from it until you choose Inspect.">
         <input
           type="file"
-          accept=".zip"
+          accept=".rzbak,.zip"
           aria-label="Backup archive"
           onChange={(event) => {
             setFile(event.target.files?.[0] ?? null);
             setInspection(null);
+            setPassphrase("");
             invalidate();
           }}
         />
       </Row>
+
+      {file && !inspection && (
+        <Row label="Passphrase" help="Needed for an encrypted backup. Not stored, never sent anywhere but this instance.">
+          <TextInput
+            type="password"
+            value={passphrase}
+            aria-label="Backup passphrase"
+            autoComplete="off"
+            onChange={(e) => setPassphrase(e.target.value)}
+          />
+        </Row>
+      )}
 
       {file && !inspection && (
         <Row label="" help="Reads the manifest. Changes nothing.">
@@ -234,7 +286,7 @@ function RestoreBackup({
             onClick={async () => {
               setBusy(true);
               try {
-                const result = await inspectBackup(file);
+                const result = await inspectBackup(file, passphrase);
                 if (!result.success) throw new Error(result.error || "Could not read the archive.");
                 setInspection(result);
               } catch (caught) {
@@ -247,6 +299,16 @@ function RestoreBackup({
             {busy ? "Reading…" : "Inspect"}
           </Button>
         </Row>
+      )}
+
+      {inspection && inspection.encrypted === false && (
+        <ScopeNote tone="warn">
+          <div>
+            <strong>This backup was not protected.</strong> It was made before backups were
+            encrypted, so anyone who has the file can read the keys, password hashes and user data
+            in it. It can still be restored; take a new backup, which is encrypted, afterwards.
+          </div>
+        </ScopeNote>
       )}
 
       {inspection && (
@@ -316,6 +378,7 @@ function RestoreBackup({
                     inspection.metadata ?? {},
                     policy,
                     clean,
+                    passphrase,
                   );
                   if (!result.success) throw new Error(result.error || "Could not preview.");
                   setPreview(result);
@@ -378,12 +441,14 @@ function RestoreBackup({
                     inspection?.metadata ?? {},
                     policy,
                     clean,
+                    passphrase,
                   );
                   if (!result.success) throw new Error(result.error || "Restore failed.");
                   const restored = result.restored_files?.length ?? 0;
                   const deleted = result.deleted_files?.length ?? 0;
                   onNotice(`Restored ${restored} files${deleted ? `, deleted ${deleted}` : ""}.`);
                   setPreview(null);
+                  setPassphrase("");
                   setDone({ restored, deleted });
                 } catch (caught) {
                   onError(caught instanceof Error ? caught.message : String(caught));

@@ -53,7 +53,8 @@ class BackupRestore(ApiHandler):
                 restore_exclude_patterns=restore_exclude_patterns,
                 overwrite_policy=overwrite_policy,
                 clean_before_restore=clean_before_restore,
-                user_edited_metadata=metadata
+                user_edited_metadata=metadata,
+                passphrase=request.form.get("passphrase"),
             )
         except Exception as e:
             _audit("backup.restore", outcome="failure", archive=backup_file.filename, error=str(e)[:200])
@@ -78,6 +79,7 @@ class BackupRestore(ApiHandler):
             refused_entries=refused[:20],
             errors=len(result["errors"]),
             database_restored=result["database_restored"],
+            encrypted=result["encrypted"],
         )
 
         try:
@@ -91,7 +93,8 @@ class BackupRestore(ApiHandler):
                 "skipped_files": result["skipped_files"],
                 "errors": result["errors"],
                 "backup_metadata": result["backup_metadata"],
-                "clean_before_restore": result.get("clean_before_restore", False)
+                "clean_before_restore": result.get("clean_before_restore", False),
+                "encrypted": result["encrypted"],
             }
 
         except Exception as e:

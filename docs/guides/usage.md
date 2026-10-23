@@ -353,14 +353,27 @@ Create a backup before:
 
 Open **Settings -> Backup** to create or restore a backup.
 
+**A backup is encrypted with a passphrase you type** (at least 12 characters,
+entered twice). The file holds the instance's keys (`usr/.env`), the password
+hash of every account and every user's data, so it is unreadable without the
+passphrase. The passphrase is not stored anywhere and **cannot be recovered**:
+without it the backup cannot be restored. Keep it apart from the file, in a
+password manager or a safe. The downloaded file ends in `.rzbak`.
+
+To restore, choose the file, enter the passphrase and press **Inspect**. A wrong
+passphrase and a damaged or incomplete file give the same plain refusal and
+nothing is written. A `.zip` backup made before backups were encrypted still
+restores; the screen says it was not protected, so take a new backup afterwards.
+
 Restore only writes inside `usr/`. An archive entry that points anywhere else
 (an absolute path, a `..`, a symbolic link, or a path outside the instance the
 backup was taken from) is refused and reported instead of written, and
 **Remove files not in the backup** never deletes outside `usr/` either. A backup
 made with custom patterns outside `usr/` restores only its `usr/` part.
 
-Secrets are sensitive and may not always be included in backup archives. Keep a
-separate secure copy of credentials you depend on.
+The backup carries `usr/.env`, so the keys and tokens saved there come back with
+a restore. Anything you keep outside `usr/` does not; keep a separate secure copy
+of credentials you depend on.
 
 ## Next Steps
 

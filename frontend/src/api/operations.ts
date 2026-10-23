@@ -290,7 +290,8 @@ export function testBackupPatterns(
 /* ---------- backup: create ---------- */
 
 /**
- * Create and download a backup.
+ * Create and download a backup, encrypted with `passphrase` (the server
+ * refuses one under 12 characters and never stores it).
  *
  * Streams the archive back directly rather than returning a path, so this goes
  * through `apiDownload`.
@@ -300,6 +301,7 @@ export function createBackup(
   includePatterns: string[],
   excludePatterns: string[],
   includeHidden = true,
+  passphrase = "",
 ): Promise<void> {
   return apiDownload("backup_create", {
     method: "POST",
@@ -308,8 +310,9 @@ export function createBackup(
       include_patterns: includePatterns,
       exclude_patterns: excludePatterns,
       include_hidden: includeHidden,
+      passphrase,
     },
-    filename: `${name}.zip`,
+    filename: `${name}.rzbak`,
   });
 }
 
@@ -326,12 +329,15 @@ export interface BackupInspection {
   backup_size?: number;
   include_patterns?: string[];
   exclude_patterns?: string[];
+  /** False for a backup made before backups were encrypted. */
+  encrypted?: boolean;
 }
 
 /** Read an archive's manifest without changing anything. */
-export function inspectBackup(file: File) {
+export function inspectBackup(file: File, passphrase = "") {
   const form = new FormData();
   form.append("backup_file", file);
+  form.append("passphrase", passphrase);
   return apiUpload<BackupInspection>("backup_inspect", form);
 }
 
@@ -352,6 +358,7 @@ export interface RestorePreview {
   restore_count?: number;
   skipped_count?: number;
   total_count?: number;
+  encrypted?: boolean;
 }
 
 /**
@@ -367,9 +374,11 @@ export function previewRestore(
   metadata: Record<string, unknown>,
   policy: OverwritePolicy,
   cleanBeforeRestore: boolean,
+  passphrase = "",
 ) {
   const form = new FormData();
   form.append("backup_file", file);
+  form.append("passphrase", passphrase);
   form.append("metadata", JSON.stringify(metadata));
   form.append("overwrite_policy", policy);
   form.append("clean_before_restore", String(cleanBeforeRestore));
@@ -383,6 +392,7 @@ export interface RestoreResult {
   deleted_files?: unknown[];
   skipped_files?: unknown[];
   errors?: unknown[];
+  encrypted?: boolean;
 }
 
 export function restoreBackup(
@@ -390,9 +400,11 @@ export function restoreBackup(
   metadata: Record<string, unknown>,
   policy: OverwritePolicy,
   cleanBeforeRestore: boolean,
+  passphrase = "",
 ) {
   const form = new FormData();
   form.append("backup_file", file);
+  form.append("passphrase", passphrase);
   form.append("metadata", JSON.stringify(metadata));
   form.append("overwrite_policy", policy);
   form.append("clean_before_restore", String(cleanBeforeRestore));
