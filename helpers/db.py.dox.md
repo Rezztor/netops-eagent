@@ -24,7 +24,7 @@
   - `transaction(user_id: str | None = None) -> Iterator[Any]`: a pooled connection scoped to one user via `SET LOCAL app.user_id`; resolves the ambient scope when `user_id` is `None`.
   - `unscoped_transaction() -> Iterator[Any]`: a connection as the *owner*, bypassing row-level security entirely — named deliberately awkwardly so it is not reached for by habit.
   - `data_tables() -> list[str]`: every table in `public` except `schema_migrations`.
-  - `dump_data() -> dict[str, Any]`: every row of every data table as JSON-able values, for backup.
+  - `dump_data() -> dict[str, Any]`: every row of every data table as JSON-able values, for backup (timestamps and dates as ISO text, UUIDs as text, numerics as floats, bytes as `{"__bytes__": base64}`).
   - `load_data(payload: dict[str, Any]) -> dict[str, int]`: truncate and repopulate every table the payload names, inside one transaction, inserting only the columns this schema has (a backup from before a column was dropped still restores, and no name from the file reaches the statement); afterwards a table with an integer `id` backed by a sequence (`states`) has the sequence set to the highest restored id, so the next insert does not collide.
   - `reset_for_tests() -> None`: close and drop the pool, for tests and post-bootstrap invalidation.
   - `_jsonable`, `_column_types`, `_resolve_ambient_scope`, `_current_scope`: internal helpers.

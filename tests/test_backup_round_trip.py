@@ -237,3 +237,26 @@ def test_a_column_name_in_a_backup_is_never_sql(database):
     with db.unscoped_transaction() as conn:
         assert conn.execute("SELECT to_regclass('public.kvp')").fetchone()[0] == "kvp"
     assert users.get_user("root") is not None
+
+
+def test_a_database_with_inventory_devices_can_be_backed_up_and_restored(database):
+    """The inventory's keys are UUIDs. `dump_data` handed them to json.dumps as
+    they came from the driver, so an instance with one device in its inventory
+    could not make a backup at all ("Object of type UUID is not JSON
+    serializable"); the tests above only ever held accounts."""
+    from helpers import db
+
+    with db.unscoped_transaction() as conn:
+        device_id = conn.execute(
+            "INSERT INTO inventory_device (name, status, tags) VALUES ('core-sw-01', 'active', '{a,b}') RETURNING id"
+        ).fetchone()[0]
+
+    payload = json.loads(json.dumps(db.dump_data()))
+
+    with db.unscoped_transaction() as conn:
+        conn.execute("TRUNCATE inventory_device CASCADE")
+    db.load_data(payload)
+
+    with db.unscoped_transaction() as conn:
+        row = conn.execute("SELECT id, name, tags FROM inventory_device").fetchone()
+    assert row == (device_id, "core-sw-01", ["a", "b"])
