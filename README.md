@@ -27,8 +27,9 @@ A source checkout and an image you build yourself are the Community build: no li
 ## Running it locally
 
 Requires Python 3.12 (pinned in `mise.toml`), Node.js for the web interface, and a PostgreSQL server with the `pgvector`
-extension: accounts, settings, chats and memory live there, and the application does not start without it. For a
-throwaway one:
+extension: accounts, settings, chats and memory live there, and the application does not start without it. The Python
+packages take about 8 GB of disk, and the first start downloads the embedding model (about 90 MB) from Hugging Face, so
+it needs internet access once. For a throwaway PostgreSQL:
 
 ```bash
 docker run -d --name eagent-pg -e POSTGRES_USER=eagent -e POSTGRES_PASSWORD=devpassword -e POSTGRES_DB=eagent \
@@ -38,6 +39,7 @@ docker run -d --name eagent-pg -e POSTGRES_USER=eagent -e POSTGRES_PASSWORD=devp
 Then:
 
 ```bash
+git clone https://github.com/Rezztor/netops-eagent && cd netops-eagent
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt -r requirements.dev.txt
@@ -59,20 +61,35 @@ Set `FLASK_SECRET_KEY` to a stable value. Without it a new key is generated on e
 
 ## Running it in a container
 
-The base image is built from this repository; nothing is pulled from a third-party registry.
+The application, runner and base images are built from this repository; the base starts from `debian:stable-slim`.
+The first `docker compose up` also pulls `pgvector/pgvector` and `searxng/searxng` (pinned tags) from Docker Hub.
 
 ```bash
+git clone https://github.com/Rezztor/netops-eagent && cd netops-eagent
 docker build -t rezztor/eagent-base:latest docker/base/
 docker build -t rezztor/eagent:latest --build-arg CACHE_DATE=$(date +%s) .
 docker build -t rezztor/eagent-runner:latest -f docker/runner/Dockerfile .
 
 cd docker/run
-# Compose will not start without a runner key and a .env of passwords: write them first,
-# as steps 2 and 3 of docs/setup/deployment.md say.
+# Compose will not start without a runner key and a .env of passwords:
+ssh-keygen -t ed25519 -f ./runner_key -N "" && chmod 600 ./runner_key
+cat > .env <<EOF
+REZZTOR_ADMIN_USER=admin
+REZZTOR_ADMIN_PASSWORD=$(openssl rand -base64 18)
+FLASK_SECRET_KEY=$(openssl rand -hex 32)
+RUNNER_AUTHORIZED_KEY=$(cat runner_key.pub)
+REZZTOR_DB_PASSWORD=$(openssl rand -hex 24)
+REZZTOR_DB_APP_PASSWORD=$(openssl rand -hex 24)
+REZZTOR_SEARXNG_SECRET=$(openssl rand -hex 32)
+EOF
+chmod 600 .env
 docker compose up -d      # http://localhost:50080/app
 ```
 
-[docs/setup/deployment.md](docs/setup/deployment.md) has the whole procedure, including the runner key and the `.env` file.
+Sign in as `admin` with the `REZZTOR_ADMIN_PASSWORD` in `.env`. A chat needs a model: as the administrator open Models, pick
+a provider and give it a key (or point it at a local endpoint). Until then the chat cannot answer.
+
+[docs/setup/deployment.md](docs/setup/deployment.md) explains each step above and how to check that code execution works.
 
 Use Compose rather than a bare `docker run`: the application deliberately
 executes no agent code itself, so it needs the runner container beside it and

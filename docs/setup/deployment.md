@@ -36,7 +36,7 @@ something has not been exercised end to end, it says so.
 | | |
 |---|---|
 | **Docker** | 24+ with the Compose plugin |
-| **Disk** | ~35 GB. The application image is around 14 GB and the build cache is larger |
+| **Disk** | ~35 GB. The application image is around 9 GB and the build cache is larger |
 | **RAM** | 8 GB minimum, 16 GB comfortable — embeddings and the vector store are resident |
 | **A model** | An API key for a provider, or a local endpoint (ollama, vLLM, LM Studio, llama.cpp) |
 
