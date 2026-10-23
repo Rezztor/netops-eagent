@@ -14,6 +14,9 @@ from typing import (
     TypedDict,
 )
 
+# Nothing is fetched at runtime: without this LiteLLM downloads its price list from GitHub on import.
+os.environ.setdefault("LITELLM_LOCAL_MODEL_COST_MAP", "True")
+
 from litellm import embedding
 import litellm
 import openai

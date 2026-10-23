@@ -50,7 +50,6 @@ export REZZTOR_ADMIN_PASSWORD='choose-a-strong-password'
 export FLASK_SECRET_KEY='a-stable-random-value'
 export REZZTOR_DB_URL='postgresql://eagent:devpassword@127.0.0.1:55432/eagent'   # the owner role: migrates the schema
 export REZZTOR_DB_APP_PASSWORD='choose-another-password'   # the password of the application's own, restricted role; created at startup
-export LITELLM_LOCAL_MODEL_COST_MAP=True   # keeps the model library from fetching its price list from GitHub
 
 python run_ui.py --port=8080 --host=127.0.0.1
 ```
