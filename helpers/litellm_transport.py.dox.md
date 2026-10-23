@@ -21,6 +21,7 @@
 - Top-level functions include transport cache reset, request normalization, parsing, prompt-cache preparation, and response/error classifiers.
 
 ## Runtime Contracts
+- Set `LITELLM_LOCAL_MODEL_COST_MAP=True` (`setdefault`) before the first `litellm` import, here and in `models.py`; LiteLLM otherwise downloads its price list from GitHub on import. `tests/test_nothing_is_fetched_at_runtime.py` fails if either is removed.
 
 - Keep provider selection and provider-specific defaults outside this helper; callers pass a resolved LiteLLM model name and kwargs.
 - Strip Rezztor EAgent internal kwargs before sending requests to LiteLLM.

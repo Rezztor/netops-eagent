@@ -3,7 +3,7 @@
 ## Purpose
 
 - Own the `license_client.py` helper module: what this installation holds of its licence, what it concludes from it, and its calls to the licence server.
-- Implements the product side of the licence contract (the licence-server repository's `spec/formats.md` and `spec/protocol.md`) on top of `rezlic/`, which holds the formats and is never edited here. ADR 0078 records the switch.
+- Implements the product side of the licence contract (the licence server's formats and protocol, in the code of `rezlic/` and of this module) on top of `rezlic/`, which holds the formats and is never edited here. ADR 0078 records the switch.
 
 ## Ownership
 
@@ -39,7 +39,7 @@
 
 ## Work Guidance
 
-- Change the formats in the licence-server repository and copy `rezlic/` again; do not work around them here.
+- Change the formats in the licence server and copy `rezlic/` again; do not work around them here.
 - Keep `state()` free of secrets: `helpers/license_entitlements.py` passes parts of it to every signed-in user.
 - A new stored field needs a migration, an entry in `_EMPTY`, and, if it is JSON, in `_JSON`.
 
@@ -71,7 +71,7 @@ stamp so that path stays what it was.
 `uat_trust()` (cached) is not None only in an image whose stamp has `"licence": "uat"` and a version that ends in
 `-uat`, or whose stamp cannot be read (missing, not JSON, not an object) while `licence_trust.json` lies beside it:
 that broken UAT image gets the trust-nothing result, never `ROOT_KEYS` and `license.rezztor.com`. It then reads `licence_trust.json` (`UAT_TRUST_FILE`, beside the stamp, written by the image build from
-`BUILD_UAT_TRUST`): `root_keys`, `server`, `ca_pem`. With it, `_roots()` is those keys and not `ROOT_KEYS`, the
+`BUILD_UAT_TRUST`): `root_keys`, `server`, `ca_pem` and, optionally, `update_server` (the update service of that build, which `helpers/update_spool.py` sends to the host). With it, `_roots()` is those keys and not `ROOT_KEYS`, the
 baked `server` is the default of `server_url()` (`REZZTOR_LICENCE_SERVER_URL` still overrides), and `_transport()`
 verifies TLS against `ca_pem` alone (a client context that starts with no CA). A missing or wrong file, a key that
 does not load, or a root equal to a production one gives empty roots and no server: the image trusts nothing and

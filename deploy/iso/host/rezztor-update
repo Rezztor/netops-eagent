@@ -88,7 +88,7 @@ UAT_SERVER_FILE = WORK + "/uat-server.json"  # the address and CA a UAT machine 
 # The update service. A release machine asks this address and nothing else, with the system's CAs.
 SERVER = "https://update.rezztor.com"
 # A UAT machine (ADR 0085) asks the address and CA its request names, else this one.
-UAT_SERVER = "https://update.uat.rezztor.test"
+UAT_SERVER = "https://update.uat.invalid"
 SERVER_URL = re.compile(r"https://[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?(?::\d{1,5})?")
 # The plaintext of the service's challenge. Anything else is not answered: this machine's key must never
 # decrypt for whoever asks (a decryption oracle).

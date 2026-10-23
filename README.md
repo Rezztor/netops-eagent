@@ -26,16 +26,30 @@ A source checkout and an image you build yourself are the Community build: no li
 
 ## Running it locally
 
-Requires Python 3.12 (pinned in `mise.toml`).
+Requires Python 3.12 (pinned in `mise.toml`), Node.js for the web interface, and a PostgreSQL server with the `pgvector`
+extension: accounts, settings, chats and memory live there, and the application does not start without it. The Python
+packages take about 8 GB of disk, and the first start downloads the embedding model (about 90 MB) from Hugging Face, so
+it needs internet access once. For a throwaway PostgreSQL:
 
 ```bash
+docker run -d --name eagent-pg -e POSTGRES_USER=eagent -e POSTGRES_PASSWORD=devpassword -e POSTGRES_DB=eagent \
+  -p 55432:5432 pgvector/pgvector:pg17
+```
+
+Then:
+
+```bash
+git clone https://github.com/Rezztor/netops-eagent && cd netops-eagent
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt -r requirements.dev.txt
+npm --prefix frontend ci && npm --prefix frontend run build     # the interface, served at /app
 
 export REZZTOR_ADMIN_USER=admin
 export REZZTOR_ADMIN_PASSWORD='choose-a-strong-password'
 export FLASK_SECRET_KEY='a-stable-random-value'
+export REZZTOR_DB_URL='postgresql://eagent:devpassword@127.0.0.1:55432/eagent'   # the owner role: migrates the schema
+export REZZTOR_DB_APP_PASSWORD='choose-another-password'   # the password of the application's own, restricted role; created at startup
 
 python run_ui.py --port=8080 --host=127.0.0.1
 ```
@@ -46,15 +60,37 @@ Set `FLASK_SECRET_KEY` to a stable value. Without it a new key is generated on e
 
 ## Running it in a container
 
-The base image is built from this repository; nothing is pulled from a third-party registry.
+The application, runner and base images are built from this repository; the base starts from `debian:stable-slim`.
+The first `docker compose up` also pulls `pgvector/pgvector` and `searxng/searxng` (pinned tags) from Docker Hub.
 
 ```bash
+git clone https://github.com/Rezztor/netops-eagent && cd netops-eagent
 docker build -t rezztor/eagent-base:latest docker/base/
-docker build -t rezztor/eagent:latest --build-arg CACHE_DATE=$(date +%s) .
+# .git is not in the build context, so the version and commit are passed in; without them the image reports "unknown".
+docker build -t rezztor/eagent:latest --build-arg CACHE_DATE=$(date +%s) \
+  --build-arg BUILD_VERSION=$(git describe --tags --always) --build-arg BUILD_COMMIT=$(git rev-parse HEAD) .
 docker build -t rezztor/eagent-runner:latest -f docker/runner/Dockerfile .
 
-cd docker/run && docker compose up -d      # http://localhost:50080/app
+cd docker/run
+# Compose will not start without a runner key and a .env of passwords:
+ssh-keygen -t ed25519 -f ./runner_key -N "" && chmod 600 ./runner_key
+cat > .env <<EOF
+REZZTOR_ADMIN_USER=admin
+REZZTOR_ADMIN_PASSWORD=$(openssl rand -base64 18)
+FLASK_SECRET_KEY=$(openssl rand -hex 32)
+RUNNER_AUTHORIZED_KEY=$(cat runner_key.pub)
+REZZTOR_DB_PASSWORD=$(openssl rand -hex 24)
+REZZTOR_DB_APP_PASSWORD=$(openssl rand -hex 24)
+REZZTOR_SEARXNG_SECRET=$(openssl rand -hex 32)
+EOF
+chmod 600 .env
+docker compose up -d      # http://localhost:50080/app
 ```
+
+Sign in as `admin` with the `REZZTOR_ADMIN_PASSWORD` in `.env`. A chat needs a model: as the administrator open Models, pick
+a provider and give it a key (or point it at a local endpoint). Until then the chat cannot answer.
+
+[docs/setup/deployment.md](docs/setup/deployment.md) explains each step above and how to check that code execution works.
 
 Use Compose rather than a bare `docker run`: the application deliberately
 executes no agent code itself, so it needs the runner container beside it and
@@ -66,8 +102,6 @@ and workdirs. Nothing is fetched at runtime, and there is no in-place
 self-update. A hand-installed Compose deployment is upgraded by loading the new
 images and setting `REZZTOR_VERSION`. Only an appliance installed from the ISO
 has an update tool.
-
----
 
 ---
 
@@ -104,8 +138,6 @@ Model providers are declared in `conf/model_providers.yaml`. Azure OpenAI, AWS B
 
 ---
 
----
-
 ## Layout
 
 | Path | Contents |
@@ -133,11 +165,11 @@ Any test failure is a regression. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Licence
 
-Copyright (C) 2026 Rezztor Technologies.
+Copyright (C) 2026 Rezztor Technologies (Private) Limited.
 
 netops-eagent is free software under the GNU Affero General Public License version 3 ([LICENSE](LICENSE)). If you run a
 modified version as a network service, you must offer its source to the people who use it.
 
 It is a derivative work of Agent Zero, used under the MIT licence; that notice and the other third-party notices are in <!-- brand-leak-allowed: the attribution itself -->
-[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). "Rezztor" and its logo are trademarks of Rezztor Technologies and are
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). "Rezztor" and its logo are trademarks of Rezztor Technologies (Private) Limited and are
 not licensed with the code: see [TRADEMARKS.md](TRADEMARKS.md).

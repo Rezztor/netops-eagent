@@ -250,10 +250,16 @@ def test_a_release_image_names_no_server_and_a_uat_image_names_its_baked_one_on_
 
     (spool / "inbox" / "request.json").unlink()
     pem = "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----\n"
-    monkeypatch.setattr(license_client, "uat_trust", lambda: {"root_keys": {"k": "v"}, "server": "https://license.uat.rezztor.test", "ca_pem": pem})
-    service = {"server": "https://update.uat.rezztor.test", "ca_pem": pem}
+    monkeypatch.setattr(license_client, "uat_trust", lambda: {"root_keys": {"k": "v"}, "server": "https://license.uat.invalid", "ca_pem": pem})
+    service = {"server": "https://update.uat.invalid", "ca_pem": pem}
     answer = call(UpdateApply, {"action": "refresh"})
     assert request_file(spool) == {"id": answer["request"], "action": "refresh", "by": "alice", **service}
+    (spool / "inbox" / "request.json").unlink()
+    trust = {"root_keys": {"k": "v"}, "server": "https://license.uat.invalid", "ca_pem": pem, "update_server": "https://u.example:8443"}
+    monkeypatch.setattr(license_client, "uat_trust", lambda: trust)
+    answer = call(UpdateApply, {"action": "refresh"})
+    assert request_file(spool)["server"] == "https://u.example:8443"
+    monkeypatch.setattr(license_client, "uat_trust", lambda: {k: v for k, v in trust.items() if k != "update_server"})
     (spool / "inbox" / "request.json").unlink()
     answer = call(UpdateApply, {"action": "update_all"})
     assert request_file(spool) == {"id": answer["request"], "action": "update_all", "by": "alice", **service}

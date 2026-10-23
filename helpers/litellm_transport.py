@@ -5,7 +5,11 @@ from enum import Enum
 import hashlib
 import inspect
 import json
+import os
 from typing import Any, AsyncIterator, Iterator, Optional
+
+# Nothing is fetched at runtime: without this LiteLLM downloads its price list from GitHub on import.
+os.environ.setdefault("LITELLM_LOCAL_MODEL_COST_MAP", "True")
 
 from litellm import (
     acompletion,

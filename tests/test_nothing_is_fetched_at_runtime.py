@@ -182,3 +182,27 @@ def test_the_document_parser_has_its_data_in_the_image_and_does_not_fetch_it():
     assert spacy.load(tokenize._SPACY_MODEL_NAME).meta["version"] == tokenize._SPACY_MODEL_VERSION
     install = (ROOT / "docker/run/fs/ins/install_eagent.sh").read_text(encoding="utf-8")
     assert "spacy.load(tokenize._SPACY_MODEL_NAME)" in install
+
+
+@pytest.mark.parametrize("module", ["models", "helpers.litellm_transport"])
+def test_litellm_is_told_to_use_its_bundled_price_list_wherever_it_is_first_imported(module):
+    """`python run_ui.py` without Compose has no environment line to set this,
+    and LiteLLM reads it while it is being imported: the default is a download
+    from GitHub."""
+    import os
+    import subprocess
+    import sys
+
+    env = {k: v for k, v in os.environ.items() if k != "LITELLM_LOCAL_MODEL_COST_MAP"}
+    # LiteLLM reads the variable as it is imported, so record it at that moment.
+    code = (
+        "import os, sys\n"
+        "class Spy:\n"
+        "    def find_spec(self, name, path=None, target=None):\n"
+        "        if name == 'litellm':\n"
+        "            print(os.environ.get('LITELLM_LOCAL_MODEL_COST_MAP'))\n"
+        "sys.meta_path.insert(0, Spy())\n"
+        f"import {module}\n"
+    )
+    out = subprocess.run([sys.executable, "-c", code], cwd=ROOT, env=env, capture_output=True, text=True, timeout=120)
+    assert out.stdout.strip().splitlines()[:1] == ["True"], out.stderr[-500:]

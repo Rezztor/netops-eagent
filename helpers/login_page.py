@@ -248,7 +248,7 @@ _HEAD_REST = """
         <div class="mark" aria-hidden="true">R</div>
         <div>
           <div class="name">Rezztor EAgent</div>
-          <div class="sub">Enterprise agent platform</div>
+          <div class="sub">Agent platform</div>
         </div>
       </div>
 

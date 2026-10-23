@@ -36,7 +36,7 @@ something has not been exercised end to end, it says so.
 | | |
 |---|---|
 | **Docker** | 24+ with the Compose plugin |
-| **Disk** | ~35 GB. The application image is around 14 GB and the build cache is larger |
+| **Disk** | ~35 GB. The application image is around 9 GB and the build cache is larger |
 | **RAM** | 8 GB minimum, 16 GB comfortable — embeddings and the vector store are resident |
 | **A model** | An API key for a provider, or a local endpoint (ollama, vLLM, LM Studio, llama.cpp) |
 
@@ -99,6 +99,9 @@ REZZTOR_ADMIN_USER=admin
 REZZTOR_ADMIN_PASSWORD=$(openssl rand -base64 18)
 FLASK_SECRET_KEY=$(openssl rand -hex 32)
 RUNNER_AUTHORIZED_KEY=$(cat runner_key.pub)
+REZZTOR_DB_PASSWORD=$(openssl rand -hex 24)
+REZZTOR_DB_APP_PASSWORD=$(openssl rand -hex 24)
+REZZTOR_SEARXNG_SECRET=$(openssl rand -hex 32)
 EOF
 chmod 600 .env
 ```

@@ -80,13 +80,16 @@ def format_error(
     return result
 
 
+_KEY_REFUSED = "The model provider refused the key it was given. An administrator can check it on the Models page."
+NO_MODEL = "No chat model is configured, so the agent cannot answer. An administrator can set one up on the Models page."
+
 # Exception class names, not imports: the classes live in a plugin and in
 # LiteLLM, and this module is imported before either is loaded.
 _PLAIN_MESSAGES: dict[str, str] = {
     "EmailSendError": "The reply email could not be sent. If it keeps failing, ask an administrator to check the mail settings.",
     "RunnerUnavailable": "The code runner is not available, so the agent could not run code. Ask an administrator to check the runner.",
-    "AuthenticationError": "The model provider refused the key it was given. An administrator can check it on the Models page.",
-    "PermissionDeniedError": "The model provider refused the key it was given. An administrator can check it on the Models page.",
+    "AuthenticationError": _KEY_REFUSED,
+    "PermissionDeniedError": _KEY_REFUSED,
     "RateLimitError": "The model provider is limiting requests right now. Wait a minute and try again.",
     "APIConnectionError": "The model provider could not be reached. Try again; if it repeats, ask an administrator.",
     "Timeout": "The model provider took too long to answer. Try again; if it repeats, ask an administrator.",
@@ -106,8 +109,21 @@ def user_message(e: BaseException) -> str:
         e = e.args[0]
     for cls in type(e).__mro__:
         if cls.__name__ in _PLAIN_MESSAGES:
-            return _PLAIN_MESSAGES[cls.__name__]
+            message = _PLAIN_MESSAGES[cls.__name__]
+            # A call with no key at all fails the same way as a refused one.
+            if message is _KEY_REFUSED and not _chat_model_configured():
+                return NO_MODEL
+            return message
     return PLAIN_FALLBACK
+
+
+def _chat_model_configured() -> bool:
+    try:
+        from plugins._model_config.helpers import model_config
+
+        return model_config.is_chat_model_configured()
+    except Exception:
+        return True  # unknown: keep the message that was always given
 
 
 def details_for(context, e: BaseException) -> str:
