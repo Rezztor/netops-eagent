@@ -14,7 +14,7 @@
 - Format, big-endian: header `"RZBAKENC"` | version u8 (1) | log2(n) u8 (15) | r u8 (8) | p u8 (1) | chunk size u32 (1 MiB) | salt 16 bytes | nonce prefix 8 bytes; then the plaintext in chunks, each AES-256-GCM sealed (16-byte tag appended). Key = scrypt(NFC-normalised UTF-8 passphrase, salt, n, r, p).
 - Chunk i uses nonce `prefix || i (u32)` and associated data `header || i (u32) || final (u8)`. The header is therefore authenticated, and a flipped byte, a dropped, repeated or reordered chunk, a truncation and trailing bytes all fail; the last chunk is the only one flagged final (an empty file is one empty final chunk).
 - Streaming: one chunk (plus one look-ahead) in memory at a time, so a backup of any size is sealed and opened in constant memory.
-- Parameters come from the file on decrypt, bounded (log2 n 10..20, r <= 16, p <= 4, chunk <= 64 MiB) so a hostile header cannot ask for unbounded memory or work.
+- Parameters come from the file on decrypt, bounded (log2 n 10..17, r <= 8, p <= 4, chunk <= 64 MiB; scrypt then needs at most 128 MiB) so a hostile header cannot ask for unbounded memory or work.
 - Output files are created `O_EXCL` with mode 0600. A failed or refused decrypt removes its output, so a caller never finds partial plaintext. Plaintext is written as chunks authenticate, so the destination must be a private directory (the callers use a fresh `mkdtemp`).
 - Wrong passphrase, damaged header, bad tag and truncation all raise `BackupCryptoError` with the same message, so the error does not say which. An unknown version has its own message.
 - The passphrase is never logged, stored or echoed; this module does no logging.

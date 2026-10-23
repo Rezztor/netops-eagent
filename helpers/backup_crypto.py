@@ -40,7 +40,7 @@ _HEADER = struct.Struct(">8sBBBBI16s8s")
 _LOG2_N, _R, _P = 15, 8, 1
 # A header comes from the uploaded file: bound what it may ask scrypt and the
 # reader to allocate.
-_MAX_LOG2_N, _MAX_R, _MAX_P, _MAX_CHUNK = 20, 16, 4, 64 << 20
+_MAX_LOG2_N, _MAX_R, _MAX_P, _MAX_CHUNK = 17, 8, 4, 64 << 20  # scrypt at most 128 * 2**17 * 8 = 128 MiB
 
 WRONG = "The backup could not be decrypted: the passphrase is wrong or the file is damaged."
 

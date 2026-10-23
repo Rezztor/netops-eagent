@@ -305,6 +305,19 @@ async def test_a_created_backup_is_sealed_and_restores(tmp_path, monkeypatch, te
 
 
 @pytest.mark.asyncio
+async def test_sealing_is_the_same_in_the_community_and_the_enterprise_build(tmp_path, monkeypatch, temp_dirs):
+    # Every build protects its backups: the backup code must never ask which build it is.
+    from helpers import license_client
+
+    def asked():
+        raise AssertionError("the backup code asked which build this is")
+
+    for name in ("enterprise_build", "community_build", "_stamp_licence"):
+        monkeypatch.setattr(license_client, name, asked)
+    await test_a_created_backup_is_sealed_and_restores(tmp_path, monkeypatch, temp_dirs)
+
+
+@pytest.mark.asyncio
 async def test_a_backup_cannot_be_created_without_a_proper_passphrase(tmp_path):
     for passphrase in ("", "too short", None):
         with pytest.raises(backup_crypto.BackupCryptoError):
