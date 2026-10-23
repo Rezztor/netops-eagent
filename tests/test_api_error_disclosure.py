@@ -59,3 +59,19 @@ def test_the_body_carries_no_traceback():
     body = _failed_response().get_data(as_text=True)
     for marker in ("Traceback", "File \"", "line ", "helpers/api.py", str(PROJECT_ROOT)):
         assert marker not in body, f"{marker!r} reached the client in a 500 body"
+
+
+class AuthenticationError(Exception):
+    """Stands in for LiteLLM's, which `errors` matches by class name."""
+
+
+def test_a_refused_key_and_no_key_at_all_are_told_apart(monkeypatch):
+    from helpers import errors
+    from plugins._model_config.helpers import model_config
+
+    monkeypatch.setattr(model_config, "is_chat_model_configured", lambda config=None: True)
+    assert errors.user_message(AuthenticationError("401")) == errors._KEY_REFUSED
+
+    monkeypatch.setattr(model_config, "is_chat_model_configured", lambda config=None: False)
+    assert errors.user_message(AuthenticationError("no key")) == errors.NO_MODEL
+    assert "refused" not in errors.NO_MODEL

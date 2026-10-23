@@ -18,7 +18,7 @@
 - `handle_error(e: Exception)`
 - `error_text(e: Exception)`
 - `format_error(e: Exception, start_entries=..., end_entries=..., error_message_position: Literal['top', 'bottom', 'none']=...)`
-- `user_message(e) -> str`: one plain sentence for an exception that ended a turn, chosen by exception class name (runner unavailable, a reply email not sent, provider key refused, rate limit, provider unreachable, context too long), else `PLAIN_FALLBACK`. Unwraps `HandledException`. Never the exception's own text.
+- `user_message(e) -> str`: one plain sentence for an exception that ended a turn, chosen by exception class name (runner unavailable, a reply email not sent, provider key refused -- or, when no chat model or key is configured, `NO_MODEL` saying so -- rate limit, provider unreachable, context too long), else `PLAIN_FALLBACK`. Unwraps `HandledException`. Never the exception's own text.
 - `details_for(context, e) -> str`: `format_error(e)` when the conversation's owner is an administrator (`tool_permissions.role_for_context`), else "".
 - `log_failure(context, e, *, type="error", heading="")`: prints the traceback to the server output and logs `user_message(e)` to the chat, with `kvps.details` only when `details_for` returns one.
 
