@@ -147,11 +147,11 @@ Any test failure is a regression. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Licence
 
-Copyright (C) 2026 Rezztor Technologies.
+Copyright (C) 2026 Rezztor Technologies (Private) Limited.
 
 netops-eagent is free software under the GNU Affero General Public License version 3 ([LICENSE](LICENSE)). If you run a
 modified version as a network service, you must offer its source to the people who use it.
 
 It is a derivative work of Agent Zero, used under the MIT licence; that notice and the other third-party notices are in <!-- brand-leak-allowed: the attribution itself -->
-[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). "Rezztor" and its logo are trademarks of Rezztor Technologies and are
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). "Rezztor" and its logo are trademarks of Rezztor Technologies (Private) Limited and are
 not licensed with the code: see [TRADEMARKS.md](TRADEMARKS.md).

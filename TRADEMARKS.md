@@ -2,7 +2,7 @@
 
 The code is free under the AGPL-3.0. The names are not part of that licence.
 
-"Rezztor", "Rezztor EAgent" and the Rezztor logo are trademarks of Rezztor Technologies. You may:
+"Rezztor", "Rezztor EAgent" and the Rezztor logo are trademarks of Rezztor Technologies (Private) Limited. You may:
 
 - say truthfully that your work is based on, works with or is a modified version of netops-eagent;
 - use the names in articles, talks and reviews.
