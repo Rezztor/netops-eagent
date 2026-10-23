@@ -66,7 +66,9 @@ The first `docker compose up` also pulls `pgvector/pgvector` and `searxng/searxn
 ```bash
 git clone https://github.com/Rezztor/netops-eagent && cd netops-eagent
 docker build -t rezztor/eagent-base:latest docker/base/
-docker build -t rezztor/eagent:latest --build-arg CACHE_DATE=$(date +%s) .
+# .git is not in the build context, so the version and commit are passed in; without them the image reports "unknown".
+docker build -t rezztor/eagent:latest --build-arg CACHE_DATE=$(date +%s) \
+  --build-arg BUILD_VERSION=$(git describe --tags --always) --build-arg BUILD_COMMIT=$(git rev-parse HEAD) .
 docker build -t rezztor/eagent-runner:latest -f docker/runner/Dockerfile .
 
 cd docker/run
