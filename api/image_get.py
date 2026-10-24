@@ -93,7 +93,25 @@ class ImageGet(ApiHandler):
 
 
 def _resolve_allowed_image_path(path: str) -> str:
-    """Resolve a requested image path and keep it inside Rezztor EAgent's base dir."""
+    """Resolve a requested image path to a file the caller may read, or raise ValueError.
+
+    Allowed: the caller's own folders (`usr/users/<id>/`, which holds uploads
+    and each chat's images and screenshots, and `usr/workdir/<id>/`) and the
+    shared `usr/workdir/documents`. Everything else in the base directory --
+    the application, `usr/.env`, other accounts -- is refused.
+    """
+
+    # The Files screen lists names relative to the caller's own working folder
+    # and asks for them that way. Read that way first; anything else keeps its
+    # meaning (absolute, or relative to the base directory) and has to pass the
+    # checks below like any other path.
+    if not os.path.isabs(path):
+        try:
+            mine = Path(workdir.scope_to_user(workdir.get_workdir_base())) / path
+        except Exception:  # noqa: BLE001 - no settings to read; the path keeps its other meaning
+            mine = None
+        if mine is not None and mine.exists():
+            path = str(mine)
 
     if runtime.is_development():
         candidate = Path(files.fix_dev_path(path))
@@ -128,11 +146,13 @@ def _resolve_allowed_image_path(path: str) -> str:
         if not resolved.is_relative_to(root):
             continue
         if root != users_root and resolved.is_relative_to(root / "documents"):
-            continue
-        if not user_scope.is_safe_user_id(owner) or not resolved.is_relative_to(root / owner):
-            raise ValueError("Path is outside of allowed directory")
+            return str(resolved)
+        if user_scope.is_safe_user_id(owner) and resolved.is_relative_to(root / owner):
+            return str(resolved)
+        break
 
-    return str(resolved)
+    # Fail closed: a path in none of the roots above is not the caller's to read.
+    raise ValueError("Path is outside of allowed directory")
 
 
 def _set_image_headers(response: Response, filename: str, file_ext: str) -> None:

@@ -23,7 +23,9 @@ class BackupInspect(ApiHandler):
 
         try:
             backup_service = BackupService()
-            metadata = await backup_service.inspect_backup(backup_file)
+            metadata = await backup_service.inspect_backup(
+                backup_file, passphrase=request.form.get("passphrase")
+            )
 
             return {
                 "success": True,
@@ -39,6 +41,7 @@ class BackupInspect(ApiHandler):
                 "backup_size": metadata.get("backup_size", 0),
                 "include_hidden": metadata.get("include_hidden", True),
                 "files_in_archive": metadata.get("files_in_archive", []),
+                "encrypted": metadata.get("encrypted", False),
                 "checksums": {}  # Will be added if needed
             }
 

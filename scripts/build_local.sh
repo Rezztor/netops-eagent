@@ -37,7 +37,8 @@ build_inputs() {
 }
 
 # A UAT build's trust (ADR 0085): {"root_keys": {kid: base64url Ed25519 public key}, "server": "https://...",
-# "ca_pem": "-----BEGIN CERTIFICATE-----..."}, checked here and passed to the build compact. Public material only.
+# "ca_pem": "-----BEGIN CERTIFICATE-----...", "update_server": "https://..." (optional)}, checked here and passed to the
+# build compact. Public material only. A field dropped here is gone from the image: update_server once was.
 uat_trust() {
     [[ "${BUILD_LICENCE:-}" == uat ]] || return 0
     python3 -c '
@@ -49,7 +50,11 @@ for kid, key in roots.items():
     assert len(base64.urlsafe_b64decode(key + "=" * (-len(key) % 4))) == 32, "root key " + kid + " is not 32 bytes"
 assert server.startswith("https://"), "server is not https://"
 assert "BEGIN CERTIFICATE" in ca, "ca_pem holds no certificate"
-print(json.dumps({"root_keys": roots, "server": server, "ca_pem": ca}, separators=(",", ":")))
+out = {"root_keys": roots, "server": server, "ca_pem": ca}
+if t.get("update_server"):
+    assert t["update_server"].startswith("https://"), "update_server is not https://"
+    out["update_server"] = t["update_server"]
+print(json.dumps(out, separators=(",", ":")))
 ' "${REZZTOR_UAT_TRUST:?BUILD_LICENCE=uat needs REZZTOR_UAT_TRUST, the trust JSON file (ADR 0085)}"
 }
 

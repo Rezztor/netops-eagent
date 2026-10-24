@@ -26,6 +26,8 @@
 - `BackupInspect` defines `requires_loopback(...)`.
 - Imported dependency areas include: `helpers.api`, `helpers.backup`, `werkzeug.datastructures`.
 
+- The multipart form may carry `passphrase` (never the URL). It is required when the uploaded file is an encrypted backup (`.rzbak`); a missing or wrong one, or a damaged file, answers `{success: false, error}` with one plain message and writes nothing. A plain `.zip` made before backups were encrypted still works. The response carries `encrypted: bool` so the UI can say an old backup was not protected. The passphrase is never logged or audited.
+
 ## Key Concepts
 
 - Important called helpers/classes observed in the source: `BackupService`, `backup_service.inspect_backup`.

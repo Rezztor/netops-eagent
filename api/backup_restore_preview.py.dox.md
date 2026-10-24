@@ -28,6 +28,8 @@
 - Imported dependency areas include: `helpers.api`, `helpers.backup`, `json`, `werkzeug.datastructures`.
 - Uses the same gate as restore: entries restore would refuse are reported in `skipped_files` with `reason: "refused"` and never appear in `files_to_restore`, and `files_to_delete` never names anything outside `usr/`.
 
+- The multipart form may carry `passphrase` (never the URL). It is required when the uploaded file is an encrypted backup (`.rzbak`); a missing or wrong one, or a damaged file, answers `{success: false, error}` with one plain message and writes nothing. A plain `.zip` made before backups were encrypted still works. The response carries `encrypted: bool` so the UI can say an old backup was not protected. The passphrase is never logged or audited.
+
 ## Key Concepts
 
 - Important called helpers/classes observed in the source: `request.form.get.lower`, `json.loads`, `BackupService`, `backup_service.preview_restore`.

@@ -42,7 +42,7 @@ async def test_backup_create_is_audited(events, monkeypatch, tmp_path):
         from flask import request
 
         response = await backup_create.BackupCreate(app, threading.Lock()).process(
-            {"backup_name": "nightly", "include_patterns": ["usr/**"], "exclude_patterns": []},
+            {"backup_name": "nightly", "passphrase": "a passphrase of some length", "include_patterns": ["usr/**"], "exclude_patterns": []},
             request,
         )
         # Drain the streamed response so the open handle is not left hanging.

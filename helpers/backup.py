@@ -12,7 +12,7 @@ from typing import List, Dict, Any, Optional
 from pathspec import PathSpec
 
 from helpers import files, runtime, git, dotenv
-from helpers import archive_limits, db
+from helpers import archive_limits, backup_crypto, db
 from helpers.localization import Localization
 from helpers.print_style import PrintStyle
 from helpers.security import safe_filename
@@ -354,9 +354,19 @@ class BackupService:
         include_patterns: List[str],
         exclude_patterns: List[str],
         include_hidden: bool = True,
-        backup_name: str = "rezztor-eagent-backup"
+        backup_name: str = "rezztor-eagent-backup",
+        *,
+        passphrase: str,
     ) -> str:
-        """Create backup archive and return path to created file"""
+        """Create an encrypted backup and return the path to the created file.
+
+        The archive holds the instance's keys, password hashes and every user's
+        data, so it is only ever written sealed with `passphrase`
+        (`backup_crypto`). The plaintext zip exists only inside the temporary
+        directory, mode 0600, until it has been sealed.
+        """
+
+        backup_crypto.check_passphrase(passphrase)
 
         # Create metadata for test_patterns
         metadata = {
@@ -384,10 +394,12 @@ class BackupService:
         # A file name, never a path: the caller deletes the directory the
         # archive is in, and `../x` or an absolute name chose that directory.
         backup_name = self.safe_backup_name(backup_name)
-        zip_path = os.path.join(temp_dir, f"{backup_name}.zip")
+        zip_path = os.path.join(temp_dir, "plain.zip")
+        sealed_path = os.path.join(temp_dir, f"{backup_name}{backup_crypto.EXTENSION}")
 
         try:
-            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            plain = os.fdopen(os.open(zip_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "wb")
+            with plain, zipfile.ZipFile(plain, 'w', zipfile.ZIP_DEFLATED) as zipf:
                 # Add comprehensive metadata
                 metadata = {
                     # Basic backup information
@@ -455,22 +467,44 @@ class BackupService:
                         PrintStyle().warning(f"Warning: Could not backup file {real_path}: {e}")
                         continue
 
-            return zip_path
+            backup_crypto.encrypt_file(zip_path, sealed_path, passphrase)
+            os.remove(zip_path)
+            return sealed_path
 
         except Exception as e:
             # Cleanup on error: the directory, not just the half-written zip
             shutil.rmtree(temp_dir, ignore_errors=True)
             raise Exception(f"Error creating backup: {str(e)}")
 
-    async def inspect_backup(self, backup_file) -> Dict[str, Any]:
+    @staticmethod
+    def _open_upload(backup_file, temp_dir: str, passphrase: Optional[str]) -> tuple[str, bool, str]:
+        """Save an uploaded backup into `temp_dir`; (zip path, was encrypted, sha256 of the upload).
+
+        An encrypted backup is decrypted beside it (0600) and the encrypted copy
+        removed; a wrong passphrase or a damaged file raises BackupCryptoError
+        with nothing left behind. An old plain zip passes through unchanged.
+        """
+        saved = os.path.join(temp_dir, "upload")
+        backup_file.save(saved)
+        with open(saved, "rb") as handle:
+            digest = hashlib.file_digest(handle, "sha256").hexdigest()
+        if not backup_crypto.is_encrypted(saved):
+            return saved, False, digest
+        if not passphrase:
+            raise backup_crypto.BackupCryptoError("This backup is encrypted. Enter its passphrase.")
+        plain = os.path.join(temp_dir, "backup.zip")
+        backup_crypto.decrypt_file(saved, plain, passphrase)
+        os.remove(saved)
+        return plain, True, digest
+
+    async def inspect_backup(self, backup_file, passphrase: Optional[str] = None) -> Dict[str, Any]:
         """Inspect backup archive and return metadata"""
 
         # Save uploaded file temporarily
         temp_dir = tempfile.mkdtemp()
-        temp_file = os.path.join(temp_dir, "backup.zip")
 
         try:
-            backup_file.save(temp_file)
+            temp_file, encrypted, _ = self._open_upload(backup_file, temp_dir, passphrase)
 
             with zipfile.ZipFile(temp_file, 'r') as zipf:
                 archive_limits.check_zip(zipf.infolist(), archive_limits.BACKUP_LIMITS)
@@ -484,6 +518,7 @@ class BackupService:
                 # Add file list from archive
                 files_in_archive = [name for name in zipf.namelist() if name != "metadata.json"]
                 metadata["files_in_archive"] = files_in_archive
+                metadata["encrypted"] = encrypted
 
                 return metadata
 
@@ -492,11 +527,7 @@ class BackupService:
         except json.JSONDecodeError:
             raise Exception("Invalid backup file: corrupted metadata")
         finally:
-            # Cleanup
-            if os.path.exists(temp_file):
-                os.remove(temp_file)
-            if os.path.exists(temp_dir):
-                os.rmdir(temp_dir)
+            shutil.rmtree(temp_dir, ignore_errors=True)
 
     async def preview_restore(
         self,
@@ -505,19 +536,19 @@ class BackupService:
         restore_exclude_patterns: Optional[List[str]] = None,
         overwrite_policy: str = "overwrite",
         clean_before_restore: bool = False,
-        user_edited_metadata: Optional[Dict[str, Any]] = None
+        user_edited_metadata: Optional[Dict[str, Any]] = None,
+        passphrase: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Preview which files would be restored based on patterns"""
 
         # Save uploaded file temporarily
         temp_dir = tempfile.mkdtemp()
-        temp_file = os.path.join(temp_dir, "backup.zip")
 
         files_to_restore = []
         skipped_files = []
 
         try:
-            backup_file.save(temp_file)
+            temp_file, encrypted, _ = self._open_upload(backup_file, temp_dir, passphrase)
 
             with zipfile.ZipFile(temp_file, 'r') as zipf:
                 archive_limits.check_zip(zipf.infolist(), archive_limits.BACKUP_LIMITS)
@@ -633,9 +664,12 @@ class BackupService:
                     "skipped_count": len(skipped_files),
                     "backup_metadata": backup_metadata,  # Return user-edited metadata
                     "overwrite_policy": overwrite_policy,
-                    "clean_before_restore": clean_before_restore
+                    "clean_before_restore": clean_before_restore,
+                    "encrypted": encrypted,
                 }
 
+        except backup_crypto.BackupCryptoError:
+            raise
         except zipfile.BadZipFile:
             raise Exception("Invalid backup file: not a valid zip archive")
         except json.JSONDecodeError:
@@ -643,11 +677,7 @@ class BackupService:
         except Exception as e:
             raise Exception(f"Error previewing restore: {str(e)}")
         finally:
-            # Cleanup
-            if os.path.exists(temp_file):
-                os.remove(temp_file)
-            if os.path.exists(temp_dir):
-                os.rmdir(temp_dir)
+            shutil.rmtree(temp_dir, ignore_errors=True)
 
     async def restore_backup(
         self,
@@ -656,7 +686,8 @@ class BackupService:
         restore_exclude_patterns: Optional[List[str]] = None,
         overwrite_policy: str = "overwrite",
         clean_before_restore: bool = False,
-        user_edited_metadata: Optional[Dict[str, Any]] = None
+        user_edited_metadata: Optional[Dict[str, Any]] = None,
+        passphrase: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Restore files from backup archive"""
 
@@ -665,7 +696,6 @@ class BackupService:
 
         # Save uploaded file temporarily
         temp_dir = tempfile.mkdtemp()
-        temp_file = os.path.join(temp_dir, "backup.zip")
 
         restored_files = []
         skipped_files = []
@@ -673,11 +703,9 @@ class BackupService:
         deleted_files = []
 
         try:
-            backup_file.save(temp_file)
-            # Which archive this was, for the audit trail: the file name is
-            # whatever the uploader called it.
-            with open(temp_file, "rb") as saved:
-                archive_sha256 = hashlib.file_digest(saved, "sha256").hexdigest()
+            # archive_sha256 says which archive this was, for the audit trail:
+            # the file name is whatever the uploader called it.
+            temp_file, encrypted, archive_sha256 = self._open_upload(backup_file, temp_dir, passphrase)
 
             with zipfile.ZipFile(temp_file, 'r') as zipf:
                 archive_limits.check_zip(zipf.infolist(), archive_limits.BACKUP_LIMITS)
@@ -864,9 +892,12 @@ class BackupService:
                     "database_error": database_error,
                     "archive_sha256": archive_sha256,
                     "backup_metadata": backup_metadata,  # Return user-edited metadata
-                    "clean_before_restore": clean_before_restore
+                    "clean_before_restore": clean_before_restore,
+                    "encrypted": encrypted,
                 }
 
+        except backup_crypto.BackupCryptoError:
+            raise
         except zipfile.BadZipFile:
             raise Exception("Invalid backup file: not a valid zip archive")
         except json.JSONDecodeError:
@@ -874,11 +905,7 @@ class BackupService:
         except Exception as e:
             raise Exception(f"Error restoring backup: {str(e)}")
         finally:
-            # Cleanup
-            if os.path.exists(temp_file):
-                os.remove(temp_file)
-            if os.path.exists(temp_dir):
-                os.rmdir(temp_dir)
+            shutil.rmtree(temp_dir, ignore_errors=True)
 
     def _translate_restore_path(self, entry: zipfile.ZipInfo, backup_metadata: Dict[str, Any]) -> str:
         """Where an archive entry is restored to on this instance.

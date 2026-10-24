@@ -489,9 +489,12 @@ def dump_data() -> dict[str, Any]:
 def _jsonable(value: Any) -> Any:
     from datetime import date, datetime
     from decimal import Decimal
+    from uuid import UUID
 
     if isinstance(value, (datetime, date)):
         return value.isoformat()
+    if isinstance(value, UUID):  # the inventory's keys; restored as text, which PostgreSQL casts back
+        return str(value)
     if isinstance(value, Decimal):
         return float(value)
     if isinstance(value, (bytes, bytearray)):

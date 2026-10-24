@@ -25,7 +25,8 @@
 
 - HTTP handlers must derive from `helpers.api.ApiHandler`; WebSocket handlers must derive from `helpers.ws.WsHandler`.
 - Update this file whenever request payloads, authentication or CSRF requirements, response shapes, route side effects, or WebSocket event contracts change.
-- A requested path must resolve inside the base directory, and under `usr/users/` or the working-folder base (`usr/workdir/`, and `workdir_path` when it is set) only inside the caller's own folder; anything else is `403`. `usr/workdir/documents`, the shared documents folder, is served to every account. Responses are `Cache-Control: private`.
+- Fails closed. A requested path must resolve (symlinks followed) inside the base directory **and** inside one of: the caller's own `usr/users/<id>/` (uploads, and each chat's images and screenshots), the caller's own folder under the working-folder base (`usr/workdir/<id>/`, or `workdir_path/<id>/` when it is set), or the shared `usr/workdir/documents`. Every other path -- the rest of the application tree, `usr/.env`, `usr/projects`, another account's folder, or any path with no resolvable caller -- is `403` with the same message. A new legitimate root has to be added to `_resolve_allowed_image_path` explicitly. Responses are `Cache-Control: private`.
+- A relative path is read first as relative to the caller's own working folder (that is how the Files screen lists names), then as relative to the base directory; either way the result goes through the same check. `tests/test_image_get_security.py`.
 - `ImageGet` is an `ApiHandler`.
 - `ImageGet` defines `process(...)`.
 - `ImageGet` defines `get_methods(...)`.

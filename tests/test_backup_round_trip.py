@@ -19,7 +19,7 @@ import zipfile
 
 import pytest
 
-from helpers import db, users
+from helpers import backup_crypto, db, users
 from helpers.backup import BackupService
 
 
@@ -58,12 +58,22 @@ class Uploaded:
         shutil.copy(self._path, destination)
 
 
+PASSPHRASE = "a passphrase of some length"
+
+
 async def _archive(service: BackupService, instance) -> str:
     return await service.create_backup(
         include_patterns=[f"{instance}/usr/**"],
         exclude_patterns=[],
         backup_name="round-trip",
+        passphrase=PASSPHRASE,
     )
+
+
+def _plain(sealed: str) -> str:
+    """The zip inside a sealed backup, for tests that look at what it holds."""
+    backup_crypto.decrypt_file(sealed, sealed + ".zip", PASSPHRASE)
+    return sealed + ".zip"
 
 
 @pytest.mark.asyncio
@@ -72,7 +82,7 @@ async def test_the_archive_contains_the_database(instance_with_a_file):
     users.create_user("asha", "correcthorsebattery", "admin", email="asha@x.example")
     path = await _archive(BackupService(), instance)
 
-    with zipfile.ZipFile(path) as archive:
+    with zipfile.ZipFile(_plain(path)) as archive:
         assert BackupService.DATABASE_ENTRY in archive.namelist()
         payload = json.loads(archive.read(BackupService.DATABASE_ENTRY))
 
@@ -94,7 +104,7 @@ async def test_an_account_survives_backup_destroy_restore(instance_with_a_file):
         conn.execute("TRUNCATE users CASCADE")
     assert users.list_users() == []
 
-    result = await BackupService().restore_backup(Uploaded(path))
+    result = await BackupService().restore_backup(Uploaded(path), passphrase=PASSPHRASE)
 
     assert result["database_restored"].get("users") == 1
     assert [user["username"] for user in users.list_users()] == ["asha"]
@@ -110,7 +120,7 @@ async def test_the_password_survives_too(instance_with_a_file):
 
     with db.unscoped_transaction() as conn:
         conn.execute("TRUNCATE users CASCADE")
-    await BackupService().restore_backup(Uploaded(path))
+    await BackupService().restore_backup(Uploaded(path), passphrase=PASSPHRASE)
 
     assert users.authenticate("asha", "correcthorsebattery") is not None
     assert users.authenticate("asha", "wrong") is None
@@ -126,7 +136,7 @@ async def test_a_backup_with_no_database_says_so_rather_than_half_restoring(inst
 
     # Rewrite the archive without the database entry.
     stripped = str(instance / "old-style.zip")
-    with zipfile.ZipFile(path) as source, zipfile.ZipFile(stripped, "w") as target:
+    with zipfile.ZipFile(_plain(path)) as source, zipfile.ZipFile(stripped, "w") as target:
         for name in source.namelist():
             if name != BackupService.DATABASE_ENTRY:
                 target.writestr(name, source.read(name))
@@ -145,7 +155,7 @@ async def test_the_database_entry_is_not_written_onto_the_volume(instance_with_a
     users.create_user("asha", "correcthorsebattery", "admin")
     path = await _archive(BackupService(), instance)
 
-    result = await BackupService().restore_backup(Uploaded(path))
+    result = await BackupService().restore_backup(Uploaded(path), passphrase=PASSPHRASE)
 
     assert not (instance / BackupService.DATABASE_ENTRY).exists()
     assert BackupService.DATABASE_ENTRY not in [
@@ -161,7 +171,7 @@ async def test_an_instance_with_no_files_can_still_be_backed_up(instance):
     users.create_user("asha", "correcthorsebattery", "admin")
     path = await _archive(BackupService(), instance)
 
-    with zipfile.ZipFile(path) as archive:
+    with zipfile.ZipFile(_plain(path)) as archive:
         assert BackupService.DATABASE_ENTRY in archive.namelist()
 
 
@@ -174,7 +184,7 @@ async def test_a_file_survives_backup_destroy_restore(instance_with_a_file):
     path = await _archive(BackupService(), instance)
     note.unlink()
 
-    result = await BackupService().restore_backup(Uploaded(path))
+    result = await BackupService().restore_backup(Uploaded(path), passphrase=PASSPHRASE)
 
     assert note.read_text() == "a file that is a file"
     assert result["skipped_files"] == []
@@ -227,3 +237,26 @@ def test_a_column_name_in_a_backup_is_never_sql(database):
     with db.unscoped_transaction() as conn:
         assert conn.execute("SELECT to_regclass('public.kvp')").fetchone()[0] == "kvp"
     assert users.get_user("root") is not None
+
+
+def test_a_database_with_inventory_devices_can_be_backed_up_and_restored(database):
+    """The inventory's keys are UUIDs. `dump_data` handed them to json.dumps as
+    they came from the driver, so an instance with one device in its inventory
+    could not make a backup at all ("Object of type UUID is not JSON
+    serializable"); the tests above only ever held accounts."""
+    from helpers import db
+
+    with db.unscoped_transaction() as conn:
+        device_id = conn.execute(
+            "INSERT INTO inventory_device (name, status, tags) VALUES ('core-sw-01', 'active', '{a,b}') RETURNING id"
+        ).fetchone()[0]
+
+    payload = json.loads(json.dumps(db.dump_data()))
+
+    with db.unscoped_transaction() as conn:
+        conn.execute("TRUNCATE inventory_device CASCADE")
+    db.load_data(payload)
+
+    with db.unscoped_transaction() as conn:
+        row = conn.execute("SELECT id, name, tags FROM inventory_device").fetchone()
+    assert row == (device_id, "core-sw-01", ["a", "b"])

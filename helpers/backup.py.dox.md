@@ -15,17 +15,18 @@
   - `get_default_backup_metadata(self) -> Dict[str, Any]`
   - `async test_patterns(self, metadata: Dict[str, Any], max_files: Optional[int]=...) -> List[Dict[str, Any]]`
   - `safe_backup_name(backup_name) -> str` (static)
-  - `async create_backup(self, include_patterns: List[str], exclude_patterns: List[str], include_hidden: bool=..., backup_name: str=...) -> str`
-  - `async inspect_backup(self, backup_file) -> Dict[str, Any]`
-  - `async preview_restore(self, backup_file, restore_include_patterns: Optional[List[str]]=..., restore_exclude_patterns: Optional[List[str]]=..., overwrite_policy: str=..., clean_before_restore: bool=..., user_edited_metadata: Optional[Dict[str, Any]]=...) -> Dict[str, Any]`
-  - `async restore_backup(self, backup_file, restore_include_patterns: Optional[List[str]]=..., restore_exclude_patterns: Optional[List[str]]=..., overwrite_policy: str=..., clean_before_restore: bool=..., user_edited_metadata: Optional[Dict[str, Any]]=...) -> Dict[str, Any]`
+  - `async create_backup(self, include_patterns: List[str], exclude_patterns: List[str], include_hidden: bool=..., backup_name: str=..., *, passphrase: str) -> str`
+  - `async inspect_backup(self, backup_file, passphrase: Optional[str]=...) -> Dict[str, Any]`
+  - `async preview_restore(self, backup_file, restore_include_patterns: Optional[List[str]]=..., restore_exclude_patterns: Optional[List[str]]=..., overwrite_policy: str=..., clean_before_restore: bool=..., user_edited_metadata: Optional[Dict[str, Any]]=..., passphrase: Optional[str]=...) -> Dict[str, Any]`
+  - `async restore_backup(self, backup_file, restore_include_patterns: Optional[List[str]]=..., restore_exclude_patterns: Optional[List[str]]=..., overwrite_policy: str=..., clean_before_restore: bool=..., user_edited_metadata: Optional[Dict[str, Any]]=..., passphrase: Optional[str]=...) -> Dict[str, Any]`
+  - `_open_upload(backup_file, temp_dir, passphrase) -> (zip path, was encrypted, sha256)` (static)
 
 ## Runtime Contracts
 
 - Helper modules own reusable framework APIs and must preserve public callers unless all callers, tests, and docs are updated together.
 - Update this file whenever public functions, classes, persistence behavior, path/security assumptions, side effects, or cross-module contracts change.
 - Observed side-effect areas: filesystem reads, filesystem writes, filesystem deletion, settings/state persistence, secret handling.
-- Imported dependency areas include: `datetime`, `hashlib`, `helpers`, `helpers.localization`, `helpers.print_style`, `json`, `os`, `pathspec`, `platform`, `shutil`, `stat`, `tempfile`, `typing`, `zipfile`.
+- Imported dependency areas include: `datetime`, `hashlib`, `helpers`, `helpers.backup_crypto`, `helpers.localization`, `helpers.print_style`, `json`, `os`, `pathspec`, `platform`, `shutil`, `stat`, `tempfile`, `typing`, `zipfile`.
 - `test_patterns(..., max_files=None)` is the unlimited scan mode. UI preview and dry-run callers may pass bounded limits, but real backup creation and restore clean-before-restore must use unlimited matching so archives and cleanup are not silently truncated.
 - Default backup metadata includes persistent `/usr` data but excludes Time Travel shadow history under `usr/.time_travel/**`.
 - Restoring `usr/.env` preserves the destination instance's allowed origins while restoring authentication and other portable configuration from the archive.
@@ -34,6 +35,8 @@
 - `clean_before_restore` deletes only files whose realpath is inside `usr/`, whatever the patterns match; `files_to_delete` in the preview follows the same rule.
 - `restore_backup` returns `archive_sha256`, the digest of the uploaded archive, for the audit trail.
 - `create_backup` reduces `backup_name` to one file name (`safe_backup_name`, `helpers.security.safe_filename`, default `rezztor-eagent-backup`): the archive is always directly inside the temporary directory made for it, because the caller deletes that directory.
+- Every new backup is encrypted (`helpers/backup_crypto.py`, see its DOX for the format). `create_backup` requires a passphrase of at least 12 characters, builds the zip as `plain.zip` (mode 0600) in its temporary directory, seals it as `<name>.rzbak`, deletes the plain zip and returns the sealed path; the file never leaves the server in clear because the key material (`usr/.env`) and the database dump (password hashes, licence state) are in it.
+- `inspect_backup`, `preview_restore` and `restore_backup` go through `_open_upload`: an encrypted upload is decrypted into the per-call temporary directory (0600) and the encrypted copy removed; no passphrase, a wrong one and a damaged file raise `BackupCryptoError` (plain message, nothing written) and are not rewrapped. A plain `.zip` made before encryption still restores; every result carries `encrypted: bool` so callers can say it was not protected. `archive_sha256` is the digest of the upload as received (the encrypted file). The passphrase is a parameter only: never logged, stored, or part of a path. The whole temporary directory is removed in `finally`.
 - `create_backup` removes its temporary directory when building fails. On success the caller owns the returned archive and must delete it; it holds every user's data and a database dump.
 
 ## Key Concepts
@@ -54,7 +57,7 @@
 ## Verification
 
 - Run targeted tests for changed helper behavior; run security regressions for auth, filesystem, WebSocket, tunnel, upload, or secret-handling helpers.
-- Backup tests: `tests/test_backup_archive_safety.py` (hostile archives, clean boundary, temporary archive lifetime), `tests/test_backup_round_trip.py` (needs PostgreSQL), `tests/test_backup_large_archives.py`, `tests/test_backup_restore_safety.py`.
+- Backup tests: `tests/test_backup_archive_safety.py` (hostile archives, clean boundary, temporary archive lifetime), `tests/test_backup_encryption.py` (sealing, tampering, wrong passphrase, plain zip, endpoints), `tests/test_backup_round_trip.py` (needs PostgreSQL), `tests/test_backup_large_archives.py`, `tests/test_backup_restore_safety.py`.
 
 ## Child DOX Index
 

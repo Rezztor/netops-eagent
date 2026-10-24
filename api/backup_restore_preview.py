@@ -42,7 +42,8 @@ class BackupRestorePreview(ApiHandler):
                 restore_exclude_patterns=restore_exclude_patterns,
                 overwrite_policy=overwrite_policy,
                 clean_before_restore=clean_before_restore,
-                user_edited_metadata=metadata
+                user_edited_metadata=metadata,
+                passphrase=request.form.get("passphrase"),
             )
 
             return {
@@ -57,7 +58,8 @@ class BackupRestorePreview(ApiHandler):
                 "skipped_count": result["skipped_count"],
                 "backup_metadata": result["backup_metadata"],
                 "overwrite_policy": result.get("overwrite_policy", "overwrite"),
-                "clean_before_restore": result.get("clean_before_restore", False)
+                "clean_before_restore": result.get("clean_before_restore", False),
+                "encrypted": result["encrypted"],
             }
 
         except Exception as e:
